@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "name": "2md",
-  "theme": "prism",
+  "theme": "mint",
   "colors": {
     "primary": "#8800ff",
     "light": "#8800ff",
@@ -37,18 +37,11 @@
   "navigation": [
     {
       "group": "Get Started",
-      "pages": [
-        "introduction",
-        "quickstart",
-        "configuration"
-      ]
+      "pages": ["introduction", "quickstart", "configuration"]
     },
     {
       "group": "CLI",
-      "pages": [
-        "cli/overview",
-        "cli/reference"
-      ]
+      "pages": ["cli/overview", "cli/reference"]
     },
     {
       "group": "Web UI",
@@ -69,18 +62,11 @@
     },
     {
       "group": "API Reference: Overview",
-      "pages": [
-        "api/overview"
-      ]
+      "pages": ["api/overview"]
     },
     {
       "group": "API Reference: Endpoints",
-      "pages": [
-        "api/convert",
-        "api/crawl",
-        "api/agentify",
-        "api/file2md"
-      ]
+      "pages": ["api/convert", "api/crawl", "api/agentify", "api/file2md"]
     }
   ]
 }
