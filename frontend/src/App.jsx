@@ -534,63 +534,71 @@ export default function App() {
   const [docsLoading, setDocsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const agentPrompt = `I'd like you to use 2md by Traylinx — a powerful data-extraction API that converts any URL, file, or website into clean, AI-ready Markdown.
+  const agentPrompt = `You have access to 2md by Traylinx — a data-extraction API that converts any URL, file, or website into clean Markdown.
 
-STEP 1 — Quick Convert (URL-Prepend shortcut):
-For instant extraction, simply prepend the service URL to any target:
-https://2md.traylinx.com/https://example.com/any-page
+HOW TO USE: Make HTTP requests using your own built-in tools (fetch, read_url_content, requests, run_command with curl, or any HTTP capability you have).
 
-This returns clean Markdown immediately — no API key needed for public pages.
+── INSTANT CONVERT (GET — URL-Prepend) ──
+The fastest method. Simply make a GET request to the 2md URL followed by the target URL:
+GET https://2md.traylinx.com/https://example.com/any-page
 
-STEP 2 — API: Convert a single URL:
-curl -X POST https://api.traylinx.com/api/convert \\
-  -H "Content-Type: application/json" \\
-  -d '{"url": "https://example.com/docs", "format": "json"}'
+Inline query parameters you can append:
+  ?format=markdown  (default) or json (structured with metadata and token count)
+  ?method=auto      (default) or native | static | browser (use browser for JS-heavy SPAs)
+  ?force=true       bypass cache entirely
+  ?maxAge=3600      only serve cached results fresher than N seconds
 
-Supported formats: json (structured, recommended), markdown (raw text), stream (NDJSON logs).
-Supported methods: auto (default), native, static, browser (for JS-heavy SPAs).
+Examples:
+  https://2md.traylinx.com/https://example.com/docs?format=json
+  https://2md.traylinx.com/https://react-app.dev?method=browser&format=json
 
-STEP 3 — API: Batch Convert multiple URLs in parallel:
-curl -X POST https://api.traylinx.com/api/batch \\
-  -H "Content-Type: application/json" \\
-  -d '{"urls": ["https://example.com/1", "https://example.com/2"], "format": "json", "async": true}'
+No API key needed for public web pages.
 
-STEP 4 — API: Crawl an entire website:
-curl -X POST https://api.traylinx.com/api/crawl \\
-  -H "Content-Type: application/json" \\
-  -d '{"url": "https://example.com", "format": "json", "async": true}'
+── INSTANT CRAWL (GET — URL-Prepend) ──
+Crawl an entire site via GET:
+GET https://2md.traylinx.com/crawl/https://docs.example.com?depth=3&maxPages=50
 
-Returns a job_id for async processing. Optionally pass "email" or "webhook_url" for notifications.
+Returns a job_id for async processing. Optional params: ?email=you@example.com, ?webhook_url=...
 
-STEP 5 — API: Map a Website (Generate Sitemap):
-curl -X POST https://api.traylinx.com/api/map \\
-  -H "Content-Type: application/json" \\
-  -d '{"url": "https://example.com", "format": "json"}'
+── POST API ENDPOINTS ──
+Base URL: https://api.traylinx.com
 
-STEP 6 — API: Convert uploaded files (PDF, DOCX, images, audio, video):
-curl -X POST https://api.traylinx.com/api/file2md \\
-  -F "file=@document.pdf" \\
-  -F "format=json"
+1) POST /api/convert — Convert a single URL
+   Body: {"url": "https://example.com/docs", "format": "json", "method": "auto"}
+   Optional fields: downloadImages (bool), frontMatter (bool), waitMs (number), screenshot (bool)
 
-Uses OCR and Vision AI to extract structured text from any media.
+2) POST /api/batch — Batch convert multiple URLs
+   Body: {"urls": ["https://example.com/1", "https://example.com/2"], "format": "json", "async": true}
 
-STEP 7 — API: Agentify (generate AI Skill Bundles):
-curl -X POST https://api.traylinx.com/api/agentify \\
-  -H "Content-Type: application/json" \\
-  -d '{"url": "https://docs.example.com", "format": "json", "async": true}'
+3) POST /api/crawl — Crawl an entire website
+   Body: {"url": "https://example.com", "format": "json", "async": true}
+   Optional: depth (number), maxPages (number), email (string), webhook_url (string)
 
-Generates SKILL.md + llms.txt + reference files for injecting human knowledge into autonomous agents.
+4) POST /api/map — Map a website (discover all pages without converting)
+   Body: {"url": "https://example.com", "format": "json"}
 
-STEP 8 — Format Negotiation & Workflows:
-All endpoints accept ?format=json (recommended for agents), ?format=markdown (raw), or ?format=stream (NDJSON).
-Use method=browser only for JavaScript-heavy single-page apps.
-Long-running jobs (batch, crawl, agentify) support "async": true payload.
+5) POST /api/file2md — Convert uploaded files (PDF, DOCX, images, audio, video)
+   Multipart form: file=@document.pdf, format=json
+   Requires apiKey for media/vision extraction.
 
-IMPORTANT:
+6) POST /api/agentify — Generate AI Skill Bundles (SKILL.md + llms.txt)
+   Body: {"url": "https://docs.example.com", "format": "json", "async": true}
+
+── FORMAT OPTIONS (all endpoints) ──
+  format=json      Structured JSON with markdown, metadata, token count (recommended)
+  format=markdown   Raw Markdown text
+  format=stream     NDJSON streaming logs
+
+── ASYNC JOBS ──
+Long-running requests (batch, crawl, agentify) return a job_id.
+Poll status: GET /api/jobs/{job_id}
+Get result:  GET /api/jobs/{job_id}/result
+
+── IMPORTANT ──
 - Free tier: unlimited public page conversions, no API key required.
-- For media/vision extraction, pass ?apiKey=sk-... with your key.
-- Full API reference: https://docs.traylinx.com
-- Agent discovery files: https://2md.traylinx.com/llms.txt and https://2md.traylinx.com/agents.json`;
+- For media/vision file extraction, append ?apiKey=sk-... to the URL or include apiKey in the POST body.
+- Full docs: https://docs.traylinx.com
+- Agent discovery: https://2md.traylinx.com/llms.txt and https://2md.traylinx.com/agents.json`;
 
   const handleCopyPrompt = () => {
     navigator.clipboard.writeText(agentPrompt);
