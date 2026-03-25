@@ -1,0 +1,6 @@
+# URL-prepend proxy
+/http*      https://api.2md.traylinx.com/http:splat      200!
+
+# API proxy
+/api/*      https://api.2md.traylinx.com/api/:splat      200!
+/*          /index.html                                  200

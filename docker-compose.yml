@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    command: >
+      caddy reverse-proxy --from api.2md.traylinx.com --to api:8222
+
+  api:
+    build: .
+    restart: unless-stopped
+    mem_limit: 1g
+    environment:
+      - NODE_ENV=production
+      - JOBS_DIR=/app/jobs
+    env_file:
+      - .env
+    volumes:
+      - html2md-data:/app/jobs
+
+  worker:
+    build: .
+    restart: unless-stopped
+    mem_limit: 1g
+    command: ["node", "--expose-gc", "--max-old-space-size=512", "worker.js"]
+    environment:
+      - NODE_ENV=production
+      - JOBS_DIR=/app/jobs
+    env_file:
+      - .env
+    volumes:
+      - html2md-data:/app/jobs
+
+volumes:
+  html2md-data:
+  caddy_data:
+  caddy_config:
+

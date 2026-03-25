@@ -1,0 +1,46 @@
+node_modules/
+venv/
+/jobs/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS Files
+.DS_Store
+*.swp
+*.swo
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# AI Agent Specific Scratch Directories (but keeping .agents/skills!)
+.claude/
+.claude-plugin/
+.specs/
+.gemini/
+.kiro/
+.antigravity/
+.cursor/
+.codex/
+
+# IDE / Editors
+.vscode/
+.idea/
+.ruby-lsp/
+
+# Temporary run files
+html2md_batch_*.txt
+uploads/
+
+# Local Netlify folder
+.netlify
+files

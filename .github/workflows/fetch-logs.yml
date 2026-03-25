@@ -1,0 +1,19 @@
+name: Fetch Logs
+on: workflow_dispatch
+jobs:
+  logs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_BACKEND_HOST }}
+          username: ${{ secrets.DO_BACKEND_USER }}
+          key: ${{ secrets.DO_BACKEND_SSH_KEY }}
+          script: |
+            cd /opt/html2md
+            echo "=== SYSTEM MEMORY ==="
+            free -m
+            echo "=== DOCKER STATS ==="
+            docker stats --no-stream
+            echo "=== API LOGS (last 30) ==="
+            docker compose logs api --tail 30

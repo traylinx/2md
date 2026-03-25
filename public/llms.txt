@@ -1,0 +1,38 @@
+# html2md
+
+> html2md is a high-fidelity HTML-to-Markdown converter and web scraper. It uses headless Chrome with advanced stealth plugins to bypass WAFs and Cloudflare, renders JavaScript-heavy SPAs, and extracts clean Markdown using Readability.js and Turndown.js. Designed for AI agents, RAG pipelines, and data extraction workflows. For complete documentation in a single file, see [Full Documentation](/llms-full.txt).
+
+- REST API with three response modes: `format=json` (structured JSON, default for tools), `format=markdown` (raw text), `format=stream` (NDJSON logs + `__JSON__` result, default for Web UI)
+- Four conversion methods: `method=auto` (default, tries native→static→browser), `native`, `static` (cheerio/Readability), `browser` (headless Puppeteer)
+- Rate-limited by tier: Free (50/15min), Pro (500/15min), Enterprise (5000/15min) — pass `Authorization: Bearer <key>`
+- Long-running endpoints support `async: true` for immediate `202 Accepted` + optional `webhook_url` callback + optional `email` for branded completion notification with secure download link
+- If a client disconnects mid-stream, the server kills headless browser processes to conserve memory
+- Anti-bot measures: rotating User-Agents, stealth plugins, browser fingerprint masking
+
+## API Endpoints
+
+- [Health Check](/api/health): `GET /api/health` — Returns `{"status":"ok","time":"..."}`
+- [Convert Single URL](docs/api-reference.md): `POST /api/convert` — Convert one URL to Markdown. Supports `format`, `method` params.
+- [Batch Convert](docs/api-reference.md): `POST /api/batch` — Convert multiple URLs. Supports `format`, `preset`, `async`, `webhook_url`.
+- [Crawl Site](docs/api-reference.md): `POST /api/crawl` — Discover and convert a domain. Auto-checks `llms.txt` for guided crawl. Supports `async`, `webhook_url`.
+- [Agentify](docs/api-reference.md): `POST /api/agentify` — Generate an AI-ready Skill Bundle from a website. Supports `async`, `webhook_url`.
+- [File2MD](docs/api-reference.md): `POST /api/file2md` — Upload or URL-fetch files (PDF, images, audio/video) for OCR/transcription to Markdown. Requires SwitchAI API key.
+- [Download Archive](docs/api-reference.md): `GET /api/download/:site` — Download crawled content as ZIP
+- [Token-Signed Download](docs/api-reference.md): `GET /api/download/job/:id?token=...` — Secure, time-limited download of async job results (72h expiry)
+- [Job Management](docs/api-reference.md): `GET /api/jobs`, `GET /api/jobs/:id`, `GET /api/jobs/:id/result`, `DELETE /api/jobs`
+
+## Agentic Skills
+
+- [html2md-scraper](/skills/html2md-scraper.md): Actionable instructions, usage guidelines, and CLI architectures for autonomous software agents to use html2md locally or via API.
+
+## Documentation
+
+- [Getting Started](docs/getting-started.md): Installation, first conversion, job folder structure
+- [CLI Reference](docs/cli-reference.md): All command-line flags and options
+- [API Reference](docs/api-reference.md): Full REST API documentation with request/response schemas
+- [Architecture](docs/architecture.md): Pipeline steps, stealth evasion, caching, and file layout
+
+## Optional
+
+- [Interactive CLI](docs/interactive-cli.md): Menu-driven terminal UI for guided usage
+- [Deployment](docs/deployment.md): Docker, Railway, and Netlify deployment guides

@@ -1,0 +1,102 @@
+name: Deploy Production Backend
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - production
+    paths-ignore:
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+      - 'README.md'
+
+jobs:
+  deploy:
+    name: Deploy to DigitalOcean
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Package Application
+        run: |
+          tar -czf /tmp/deploy.tar.gz \
+            --exclude=node_modules \
+            --exclude=.git \
+            --exclude=frontend \
+            --exclude=logs \
+            --exclude=venv \
+            --exclude=.claude \
+            --exclude=.gemini \
+            --exclude=.ruby-lsp \
+            --exclude=.env \
+            .
+          mv /tmp/deploy.tar.gz ./deploy.tar.gz
+
+      - name: Copy files via SSH
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DO_BACKEND_HOST }}
+          username: ${{ secrets.DO_BACKEND_USER }}
+          key: ${{ secrets.DO_BACKEND_SSH_KEY }}
+          source: "deploy.tar.gz"
+          target: "/opt/html2md"
+          rm: false
+
+      - name: Rebuild and Restart Docker Containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_BACKEND_HOST }}
+          username: ${{ secrets.DO_BACKEND_USER }}
+          key: ${{ secrets.DO_BACKEND_SSH_KEY }}
+          script: |
+            cd /opt/html2md
+            
+            # Extract application code
+            tar -xzf deploy.tar.gz
+            rm deploy.tar.gz
+            
+            # Build a complete .env from scratch using GitHub Secrets (atomic write)
+            cat > .env << ENVEOF
+            # Agentify Settings
+            AGENTIFY_BYOK=false
+            AGENTIFY_LLM_BASE_URL=https://api.traylinx.com/v1
+            AGENTIFY_LLM_API_KEY=${{ secrets.AGENTIFY_LLM_API_KEY }}
+            AGENTIFY_LLM_MODEL=openai/gpt-oss-20b
+            AGENTIFY_MAX_PAGES=10
+
+            # File2MD
+            AGENTIC_UPLOAD_ENGINES_URL=https://api.makakoo.com/agentic-upload-engines/v1/api
+            FILE2MD_ENHANCE_MODEL=openai/gpt-oss-20b
+
+            # AWS S3 Storage
+            STORAGE_PROVIDER=s3
+            S3_BUCKET=${{ secrets.S3_BUCKET }}
+            S3_REGION=eu-west-1
+            S3_ACCESS_KEY_ID=${{ secrets.S3_ACCESS_KEY_ID }}
+            S3_SECRET_ACCESS_KEY=${{ secrets.S3_SECRET_ACCESS_KEY }}
+
+            # Freemium Document Pipeline
+            SYSTEM_FILE_ENGINE_KEY=${{ secrets.SYSTEM_FILE_ENGINE_KEY }}
+
+            # Production API URL
+            PRODUCTION_API_URL=https://2md.traylinx.com
+
+            # SwitchAI Key
+            SWITCHAI_API_KEY=${{ secrets.SWITCHAI_API_KEY }}
+
+            # Job Download Settings
+            JOB_TTL_HOURS=72
+            JOB_DOWNLOAD_SECRET=${{ secrets.JOB_DOWNLOAD_SECRET }}
+            SNS_TOPIC_PREFIX=notifications-production
+
+            # Redis
+            REDIS_URL=${{ secrets.REDIS_URL }}
+            ENVEOF
+
+            # Strip leading whitespace from heredoc indentation
+            sed -i 's/^            //' .env
+            
+            docker compose down --remove-orphans || true
+            docker compose up -d --build
+

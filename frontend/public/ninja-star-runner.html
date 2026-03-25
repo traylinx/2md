@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astro-Ninja: Stargate Protocol (True Edition)</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: monospace;
+            overflow: hidden;
+        }
+
+        h1 {
+            letter-spacing: 4px;
+            font-size: 20px;
+            color: #00ff96;
+            text-shadow: 0 0 10px rgba(0, 255, 150, 0.4);
+            margin-bottom: 16px;
+        }
+
+        #ninja-container {
+            width: 800px;
+            height: 200px;
+            background-color: #000000;
+            border: 2px solid #334155;
+            box-shadow: 0 0 20px rgba(0, 255, 150, 0.1);
+            position: relative;
+            cursor: pointer;
+        }
+
+        .instructions {
+            margin-top: 20px;
+            color: #94a3b8;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .instructions strong {
+            color: #00ff96;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>ASTRO-NINJA: STARGATE PROTOCOL</h1>
+    <div id="ninja-container"></div>
+    <div class="instructions">
+        <p><strong>CLICK TO START</strong></p>
+        <p>Space / Up = Jump | Down = Duck | Left / Right = Move | Z = Shoot | P = Pause</p>
+        <p>3 lives per run. Rare pickups can grant an extra life.</p>
+        <p>Mobile: Swipe Up / Down to jump or drop, tap-right to shoot, and watch for whales, ramen, shields, alien abductions, and life pickups.</p>
+    </div>
+
+    <script src="ninja-runner.js"></script>
+    <script>
+        const game = new NinjaRunner('#ninja-container', {
+            speed: 3.5,
+            jumpStrength: -10,
+            standalone: true
+        });
+        if (game) game.gameMode = 'fullscreen';
+    </script>
+</body>
+
+</html>

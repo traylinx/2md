@@ -1,0 +1,464 @@
+# html2md
+
+> html2md is a high-fidelity HTML-to-Markdown converter and web scraper. It uses headless Chrome with advanced stealth plugins to bypass WAFs and Cloudflare, renders JavaScript-heavy SPAs, and extracts clean Markdown using Readability.js and Turndown.js. Designed for AI agents, RAG pipelines, and data extraction workflows.
+
+- REST API with three response modes: `format=json` (structured JSON, default for tools), `format=markdown` (raw text), `format=stream` (NDJSON logs + `__JSON__` result, default for Web UI)
+- Four conversion methods: `method=auto` (default, tries native→static→browser), `native`, `static` (cheerio/Readability), `browser` (headless Puppeteer)
+- Zero-friction browser-bar conversion: `GET /https://example.com` returns Markdown instantly
+- Rate-limited by tier: Free (50 req/15min), Pro (500/15min), Enterprise (5000/15min) — pass `Authorization: Bearer <key>`
+- Long-running endpoints support `async: true` for immediate `202 Accepted` + optional `webhook_url` callback with HMAC-SHA256 signature
+- Cache control: append `?maxAge=3600` (serve cache only if fresher than N seconds) or `?force=true` (bypass cache)
+- Token counting headers: `x-markdown-tokens`, `x-html-tokens`, `x-word-count`
+- If a client disconnects mid-stream, the server kills the headless browser processes to conserve memory
+
+---
+
+## REST API Reference
+
+Base URL: `{{BASE_URL}}` (default port `8222`, configurable via `PORT` env var)
+
+Start the server:
+
+```bash
+node server.js
+```
+
+### Response Formats
+
+All core endpoints support the `format` parameter:
+
+| Value      | Behavior                                                             |
+| ---------- | -------------------------------------------------------------------- |
+| `json`     | Returns a clean JSON object (default for programmatic access)        |
+| `markdown` | Returns raw Markdown text (`/api/convert` only)                      |
+| `stream`   | Streams NDJSON log events, appends `__JSON__` result (Web UI default)|
+
+### Conversion Methods
+
+Control the extraction engine with the `method` parameter:
+
+| Value    | Behavior                                                                 |
+| -------- | ------------------------------------------------------------------------ |
+| `auto`   | Default. Tries `native` → `static` → `browser` in sequence              |
+| `native` | Fetches raw Markdown if the target server supports content negotiation   |
+| `static` | Lightweight cheerio/Readability extraction without executing JavaScript  |
+| `browser`| Full headless Puppeteer rendering for JS-heavy SPAs                      |
+
+### Rate Limits
+
+| Tier       | Limit          | Auth                          |
+| ---------- | -------------- | ----------------------------- |
+| Free       | 50 req / 15min | No key (IP-based)             |
+| Pro        | 500 / 15min    | `Authorization: Bearer <key>` |
+| Enterprise | 5000 / 15min   | `Authorization: Bearer <key>` |
+
+Rate limit headers (`RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`) are included in every response.
+
+### Async Workflows
+
+Long-running endpoints (`/api/batch`, `/api/crawl`, `/api/agentify`) support async execution:
+
+- Pass `"async": true` in the request body → immediate `202 Accepted` with `job_id`
+- Optionally pass `"webhook_url": "https://..."` → HTTP POST callback on completion
+- Optionally pass `"email": "you@example.com"` → branded email from `noreply@traylinx.com` with a secure, token-signed download link (valid 72 hours)
+- Webhook payloads are signed with `X-Webhook-Signature` (HMAC-SHA256) if `WEBHOOK_SECRET` is configured
+- Poll job status via `GET /api/jobs/:id`
+- Job results include `emailStatus` (`sent`, `failed`, or `null`) and `emailError` fields
+
+---
+
+### Health Check
+
+```
+GET /api/health
+```
+
+Response:
+
+```json
+{ "status": "ok", "api": "html2md", "version": "2.0.0", "time": "2026-03-04T12:00:00.000Z" }
+```
+
+### Zero-Friction URL-Prepend
+
+```
+GET /https://example.com
+```
+
+Prepend the API domain to any URL. Returns clean Markdown by default. Add `?format=json` for JSON.
+
+### Upload Info
+
+```
+GET /api/upload-info
+```
+
+Returns supported file extensions, families, browser accept string, and max file size (100 MB).
+
+### Convert Single URL
+
+```
+POST /api/convert
+Content-Type: application/json
+```
+
+Request body:
+
+```json
+{
+  "url": "https://example.com/article",
+  "downloadImages": true,
+  "frontMatter": true,
+  "waitMs": 10000,
+  "maxImageSizeMb": 10,
+  "format": "json",
+  "method": "auto"
+}
+```
+
+| Field            | Type    | Default  | Description                     |
+| ---------------- | ------- | -------- | ------------------------------- |
+| `url`            | string  | —        | URL to convert (required)       |
+| `downloadImages` | boolean | `true`   | Download referenced images      |
+| `frontMatter`    | boolean | `true`   | Add YAML front matter           |
+| `waitMs`         | number  | `10000`  | JS rendering timeout (ms)       |
+| `maxImageSizeMb` | number  | `10`     | Max image size to download      |
+| `format`         | string  | `json`   | `json`, `markdown`, or `stream` |
+| `method`         | string  | `auto`   | `auto`, `native`, `static`, `browser` |
+
+Response (`format=json`):
+
+```json
+{
+  "success": true,
+  "url": "https://example.com/article",
+  "markdown": "# Article Title\n\nContent here...",
+  "method": "static",
+  "metadata": { "title": "Article Title", "author": null },
+  "tokens": { "html": 18450, "md": 3125 },
+  "quality": { "wordCount": 1150, "headings": 12, "links": 24 }
+}
+```
+
+### Batch Convert
+
+```
+POST /api/batch
+Content-Type: application/json
+```
+
+Request body:
+
+```json
+{
+  "urls": ["https://example.com/page1", "https://example.com/page2"],
+  "downloadImages": true,
+  "frontMatter": true,
+  "format": "json",
+  "async": true,
+  "webhook_url": "https://your-server.com/hook"
+}
+```
+
+| Field            | Type     | Default | Description                              |
+| ---------------- | -------- | ------- | ---------------------------------------- |
+| `urls`           | string[] | —       | Array of URLs (required)                 |
+| `downloadImages` | boolean  | `true`  | Download images                          |
+| `frontMatter`    | boolean  | `true`  | Add YAML front matter                    |
+| `screenshot`     | boolean  | `false` | Capture screenshots per page             |
+| `method`         | string   | `auto`  | `auto`, `native`, `static`, `browser`    |
+| `format`         | string   | `json`  | `json` or `stream`                       |
+| `preset`         | string   | `full`  | `full`, `compact`, or `chunks`           |
+| `async`          | boolean  | `false` | Return 202 immediately, process in background |
+| `webhook_url`    | string   | —       | URL to receive POST callback on completion    |
+| `email`          | string   | —       | Email to notify on completion with download link (72h expiry) |
+
+Sync response (`format=json`):
+
+```json
+{
+  "success": true,
+  "results": [
+    { "url": "https://example.com/page1", "success": true, "markdown": "# Page 1..." },
+    { "url": "https://example.com/page2", "success": true, "markdown": "# Page 2..." }
+  ]
+}
+```
+
+Async response (`async: true`):
+
+```json
+{
+  "success": true,
+  "job_id": "j_abc123",
+  "status": "running",
+  "status_url": "/api/jobs/j_abc123",
+  "result_url": "/api/jobs/j_abc123/result"
+}
+```
+
+### Crawl Site
+
+```
+POST /api/crawl
+Content-Type: application/json
+```
+
+The crawler automatically checks `<target>/llms.txt` before spawning Chromium. If found, seed URLs from `llms.txt` are added to the BFS queue for guided discovery.
+
+Request body:
+
+```json
+{
+  "url": "https://docs.example.com",
+  "depth": 3,
+  "maxPages": 50,
+  "treeOnly": true,
+  "async": true,
+  "webhook_url": "https://your-server.com/hook"
+}
+```
+
+| Field         | Type    | Default | Description                              |
+| ------------- | ------- | ------- | ---------------------------------------- |
+| `url`         | string  | —       | Root URL to crawl (required)             |
+| `depth`       | number  | `3`     | Max crawl depth                          |
+| `maxPages`    | number  | `50`    | Max pages to discover                    |
+| `treeOnly`    | boolean | `false` | Return site tree without converting      |
+| `async`       | boolean | `false` | Return 202 immediately                   |
+| `webhook_url` | string  | —       | URL to receive callback on completion    |
+| `email`       | string  | —       | Email to notify on completion with download link (72h expiry) |
+
+Response with `treeOnly: true`:
+
+```json
+{
+  "success": true,
+  "tree": "docs.example.com/\n├── getting-started/\n├── api-reference/\n└── changelog/",
+  "urls": [
+    "https://docs.example.com",
+    "https://docs.example.com/getting-started",
+    "https://docs.example.com/api-reference"
+  ],
+  "stats": { "depth": 3, "maxPages": 50 },
+  "llmsGuided": true,
+  "llmsUrlCount": 5
+}
+```
+
+### Agentify
+
+```
+POST /api/agentify
+Content-Type: application/json
+```
+
+Generate an AI-ready Skill Bundle from a website.
+
+```json
+{
+  "url": "https://example.com/docs",
+  "maxPages": 20,
+  "apiKey": "sk-lf-your-switchai-key",
+  "targetAgent": "web",
+  "async": true,
+  "webhook_url": "https://your-server.com/hook"
+}
+```
+
+| Field              | Type     | Default | Description                              |
+| ------------------ | -------- | ------- | ---------------------------------------- |
+| `url`              | string   | —       | Target URL (required)                    |
+| `maxPages`         | number   | `50`    | Max pages to crawl                       |
+| `apiKey`           | string   | —       | SwitchAI API key (enables AI synthesis)  |
+| `targetAgent`      | string   | `web`   | `web` or `local`                         |
+| `includeApiSchema` | boolean  | `false` | Generate API schemas                     |
+| `urls`             | string[] | `[]`    | Optional predefined URL list             |
+| `async`            | boolean  | `false` | Return 202 immediately                   |
+| `webhook_url`      | string   | —       | Callback on completion                   |
+
+### File2MD
+
+```
+POST /api/file2md
+Content-Type: multipart/form-data
+```
+
+Upload or URL-fetch files for OCR/transcription to Markdown.
+
+| Field    | Type   | Default | Description                              |
+| -------- | ------ | ------- | ---------------------------------------- |
+| `file`   | File   | —       | File to convert (multipart upload)       |
+| `url`    | string | —       | Or: direct URL to a file                 |
+| `apiKey` | string | —       | SwitchAI API key (required)              |
+| `enhance`| string | `true`  | AI-polish the raw OCR output             |
+| `model`  | string | —       | Override the vision/LLM model            |
+| `format` | string | `json`  | `json` or `stream`                       |
+
+Either `file` or `url` must be provided.
+
+### Download Archive
+
+```
+GET /api/download/:site
+```
+
+Downloads all crawled content for the given domain as a ZIP archive.
+
+### Job Management
+
+```
+GET  /api/jobs              — List all jobs (filter by x-client-id header)
+GET  /api/jobs/:id          — Get job metadata (includes emailStatus, emailError)
+GET  /api/jobs/:id/result   — Fetch completed job result
+GET  /api/jobs/:id/logs     — Real-time SSE log stream for running jobs
+DELETE /api/jobs            — Clear registry (optional ?before=ISO-Date)
+```
+
+### Token-Signed Downloads
+
+```
+GET /api/download/job/:id?token=...
+```
+
+Secure, time-limited download endpoint for async job results. The token is an HMAC-SHA256 signed URL generated when the job completes. Links expire after 72 hours (`JOB_TTL_HOURS`). This URL is included in email notifications and webhook payloads.
+
+### Cache Management
+
+```
+GET    /api/cache/stats         — Cache statistics (total pages, per-site counts)
+DELETE /api/cache/:hostname     — Purge all cached pages for a domain
+```
+
+---
+
+## CLI Reference
+
+```
+bin/html2md [options] <url|file>
+bin/html2md --batch <urls.txt>
+bin/html2md --crawl <url> [--depth N]
+bin/html2md --crawl <url> --tree-only
+```
+
+| Flag                    | Description                        | Default                   |
+| ----------------------- | ---------------------------------- | ------------------------- |
+| `-o, --output DIR`      | Custom output directory            | Auto-generated in `jobs/` |
+| `-d, --download-images` | Download referenced images         | `true`                    |
+| `--no-images`           | Skip image downloading             | -                         |
+| `--front-matter`        | Add YAML front matter to output    | `false`                   |
+| `-w, --wait MS`         | Puppeteer JS rendering wait time   | `10000`                   |
+| `--max-image-size MB`   | Skip images larger than N MB       | `10`                      |
+| `--concurrency N`       | Parallel jobs for batch/crawl      | `3`                       |
+| `--depth N`             | Max crawl depth                    | `3`                       |
+| `--max-pages N`         | Max pages to crawl                 | `300`                     |
+| `--tree-only`           | Show site tree but skip conversion | `false`                   |
+| `-q, --quiet`           | Suppress progress output           | `false`                   |
+| `-v, --verbose`         | Show detailed script output        | `false`                   |
+
+Examples:
+
+```bash
+# Convert single URL
+./bin/html2md https://example.com
+
+# Convert with YAML front matter
+./bin/html2md https://blog.example.com/post --front-matter
+
+# Batch convert from file
+./bin/html2md --batch urls.txt --concurrency 5
+
+# Crawl a docs site
+./bin/html2md --crawl https://docs.example.com --depth 2 --max-pages 50
+
+# Preview site tree without converting
+./bin/html2md --crawl https://example.com --tree-only
+```
+
+---
+
+## Architecture
+
+Every URL goes through a multi-step pipeline with automatic method selection:
+
+```
+URL → Method Selection → Fetch → Extract → Convert → Download → Polish → page.md
+```
+
+### Method Selection (Phase 1)
+
+The `auto` method tries extraction in order of efficiency:
+1. **Native** — HTTP content negotiation (`Accept: text/markdown`)
+2. **Static** — cheerio + Readability.js (no browser, fast)
+3. **Browser** — Full Puppeteer rendering (JS-heavy SPAs)
+
+### Fetch (`scripts/fetch.js`)
+
+Renders the page using Puppeteer (headless Chrome) with stealth evasion:
+- `puppeteer-extra-plugin-stealth` for Cloudflare/WAF bypass
+- Rotating realistic Desktop User-Agents
+- Browser `Sec-Fetch-*` and `Accept-Language` headers
+- `navigator.webdriver` masking
+
+### Extract (`scripts/extract.js`)
+
+Extracts main content using a three-tier cascade:
+1. **Readability.js** (primary) — Mozilla's algorithm
+2. **Trafilatura** (Python fallback) — for difficult pages
+3. **Manual strip** (last resort) — removes `<script>`, `<style>`, `<nav>`, `<footer>`
+
+### Convert (`scripts/convert.js`)
+
+Converts clean HTML to Markdown using Turndown.js with GFM plugin.
+
+### Download (`scripts/download.js`)
+
+Downloads all referenced images, rewrites paths, handles base64 data URIs.
+
+### Polish (`scripts/polish.js`)
+
+Final normalization: fixes blank lines, normalizes headings, adds YAML front matter, calculates quality metrics.
+
+---
+
+## Agentic Skills
+
+- [html2md-scraper](/skills/html2md-scraper.md): Actionable instructions, usage guidelines, and CLI architectures for autonomous software agents.
+
+## Getting Started
+
+Prerequisites: Node.js 18+, Python 3 (optional for Trafilatura fallback).
+
+```bash
+# Install dependencies
+npm install
+
+# Convert a single URL
+./bin/html2md https://example.com
+
+# Start the API server
+node server.js
+# Server runs on http://localhost:8222
+
+# Use the API (format=json default)
+curl -X POST http://localhost:8222/api/convert \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'
+```
+
+Job output folder structure:
+
+```
+jobs/<job-name>/
+├── input/
+│   ├── raw.html            # Original HTML
+│   ├── rendered.html       # Rendered DOM after JavaScript
+│   └── screenshot.png      # Page screenshot
+├── processing/
+│   ├── extracted.html      # Clean content after extraction
+│   └── log.txt             # Processing log
+├── output/
+│   ├── page.md             # Final Markdown output
+│   └── assets/             # Downloaded images
+└── job.json                # Job metadata and quality metrics
+```

@@ -1,0 +1,11 @@
+title: 2md
+description: HTML-to-Markdown converter with format negotiation (json/markdown/stream), method selection (auto/native/static/browser), async workflows, and AI-powered Skill Bundle generation.
+endpoint: references/_root.md
+endpoint: references/agentify.md
+endpoint: references/crawl.md
+endpoint: references/file2md--from-url.md
+endpoint: references/file2md.md
+endpoint: references/map.md
+endpoint: references/privacy-html.md
+endpoint: references/security-html.md
+endpoint: references/terms-html.md

@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /jobs/
+
+Sitemap: https://2md.traylinx.com/sitemap.xml
+
+# AI Agent Discovery
+# llms.txt: https://2md.traylinx.com/llms.txt
+# llms-full.txt: https://2md.traylinx.com/llms-full.txt
+# agents.json: https://2md.traylinx.com/agents.json

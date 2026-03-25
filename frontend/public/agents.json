@@ -1,0 +1,51 @@
+{
+  "name": "2md by Traylinx",
+  "description": "Convert any URL, file, or entire website into clean, AI-ready Markdown. Supports headless Chrome rendering, OCR, Vision AI, and deep site crawling.",
+  "url": "https://2md.traylinx.com",
+  "version": "2.0.0",
+  "capabilities": [
+    {
+      "name": "convert",
+      "description": "Convert a single URL to clean Markdown. Supports ?format=json|markdown|stream and ?method=auto|native|static|browser.",
+      "endpoint": "/api/convert",
+      "method": "POST"
+    },
+    {
+      "name": "batch",
+      "description": "Convert multiple URLs to Markdown in parallel. Supports async background execution via 'async': true and 'webhook_url'.",
+      "endpoint": "/api/batch",
+      "method": "POST"
+    },
+    {
+      "name": "crawl",
+      "description": "Crawl an entire website and convert all discovered pages. Supports llms.txt discovery and async background execution.",
+      "endpoint": "/api/crawl",
+      "method": "POST"
+    },
+    {
+      "name": "agentify",
+      "description": "Generate an AI Skill Bundle (SKILL.md + llms.txt + references) from any documentation site. Supports async background execution.",
+      "endpoint": "/api/agentify",
+      "method": "POST"
+    },
+    {
+      "name": "file2md",
+      "description": "Convert uploaded files (PDF, DOCX, images, audio, video) to Markdown via OCR and Vision AI. Supports ?format=json|stream.",
+      "endpoint": "/api/file2md",
+      "method": "POST",
+      "content_type": "multipart/form-data"
+    }
+  ],
+  "discovery": {
+    "llms_txt": "/llms.txt",
+    "llms_full_txt": "/llms-full.txt",
+    "skills": ["/skills/html2md-scraper.md"],
+    "ai_plugin": "/.well-known/ai-plugin.json"
+  },
+  "contact": "hello@traylinx.com",
+  "legal": {
+    "terms": "/terms",
+    "privacy": "/privacy",
+    "security": "/security"
+  }
+}

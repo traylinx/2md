@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<svg baseProfile="tiny" width="34" height="40" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Horizontal bar at top -->
+  <rect fill="#00c3ff" height="10" width="100" x="0" y="0" />
+  <rect fill="#00aaff" height="10" width="100" x="0" y="10" />
+  <rect fill="#0088ff" height="10" width="100" x="0" y="20" />
+  
+  <!-- Vertical bar -->
+  <rect fill="#0066ff" height="10" width="30" x="35" y="30" />
+  <rect fill="#0044ff" height="10" width="30" x="35" y="40" />
+  <rect fill="#0022ff" height="10" width="30" x="35" y="50" />
+  <rect fill="#0000ff" height="10" width="30" x="35" y="60" />
+  <rect fill="#2200ff" height="10" width="30" x="35" y="70" />
+  <rect fill="#4400ff" height="10" width="30" x="35" y="80" />
+  <rect fill="#6600ff" height="10" width="30" x="35" y="90" />
+  <rect fill="#8800ff" height="10" width="30" x="35" y="100" />
+  
+  <!-- Bottom line -->
+  <rect fill="#00c3ff" height="5" width="60" x="20" y="115" />
+</svg>

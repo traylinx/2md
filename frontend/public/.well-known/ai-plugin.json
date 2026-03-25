@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "2md by Traylinx",
+  "name_for_model": "html2md",
+  "description_for_human": "Convert any URL, file, or entire website into clean, structured Markdown. Powered by headless Chrome, OCR, and Vision AI.",
+  "description_for_model": "html2md converts URLs to Markdown using headless Chrome with stealth plugins. It supports single URL conversion, batch processing, deep site crawling, and file-to-Markdown extraction via OCR/Vision models. Use POST /api/convert for single URLs, POST /api/batch for multiple URLs, POST /api/crawl for site crawling, POST /api/file2md for file uploads, and POST /api/agentify to generate AI skill bundles from documentation sites. All endpoints stream real-time logs and return JSON after a __JSON__ delimiter.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://2md.traylinx.com/openapi.json"
+  },
+  "logo_url": "https://2md.traylinx.com/android-chrome-512x512.png",
+  "contact_email": "hello@traylinx.com",
+  "legal_info_url": "https://2md.traylinx.com/terms"
+}

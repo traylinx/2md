@@ -1,0 +1,632 @@
+#!/usr/bin/env node
+
+/**
+ * html2md — Main orchestrator
+ *
+ * Converts HTML pages to Markdown using a Node.js pipeline.
+ *
+ * Modes:
+ *   Single:  bin/html2md <url|file>
+ *   Batch:   bin/html2md --batch urls.txt
+ *   Crawl:   bin/html2md --crawl <url> --depth 3
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { execSync, spawnSync } = require('child_process');
+const Job = require('../lib/job.js');
+const Logger = require('../lib/logger.js');
+
+const ROOT_DIR = path.resolve(__dirname, '..');
+const SCRIPTS_DIR = path.join(ROOT_DIR, 'scripts');
+
+// ── Options ───────────────────────────────────────────────────
+const options = {
+  downloadImages: true,
+  frontMatter: false,
+  waitMs: 10000,
+  maxImageSizeMb: 10,
+  output: null,
+  quiet: false,
+  verbose: false,
+  batch: null,
+  crawl: null,
+  depth: 3,
+  concurrency: 3,
+  maxPages: 300,
+  treeOnly: false,
+  stream: false,
+  outputFormat: 'text',
+  siteDir: null,
+  screenshot: false
+};
+
+const args = process.argv.slice(2);
+const positionalArgs = [];
+
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i];
+  if (arg === '-o' || arg === '--output') {
+    options.output = args[++i];
+  } else if (arg === '-d' || arg === '--download-images') {
+    options.downloadImages = true;
+  } else if (arg === '--no-download-images' || arg === '--no-images') {
+    options.downloadImages = false;
+  } else if (arg === '--front-matter') {
+    options.frontMatter = true;
+  } else if (arg === '-w' || arg === '--wait') {
+    options.waitMs = parseInt(args[++i], 10);
+  } else if (arg === '--max-image-size') {
+    options.maxImageSizeMb = parseInt(args[++i], 10);
+  } else if (arg === '-q' || arg === '--quiet') {
+    options.quiet = true;
+  } else if (arg === '-v' || arg === '--verbose') {
+    options.verbose = true;
+  } else if (arg === '--batch') {
+    options.batch = args[++i];
+  } else if (arg === '--crawl') {
+    options.crawl = args[++i];
+  } else if (arg === '--depth') {
+    options.depth = parseInt(args[++i], 10);
+  } else if (arg === '--concurrency') {
+    options.concurrency = parseInt(args[++i], 10);
+  } else if (arg === '--max-pages') {
+    options.maxPages = parseInt(args[++i], 10);
+  } else if (arg === '--site-dir') {
+    options.siteDir = args[++i];
+  } else if (arg === '--tree-only') {
+    options.treeOnly = true;
+  } else if (arg === '--screenshot') {
+    options.screenshot = true;
+  } else if (arg === '--stream') {
+    options.stream = true;
+    options.outputFormat = 'stream-json';
+  } else if (arg === '--output-format') {
+    options.outputFormat = args[++i];
+    if (options.outputFormat === 'stream-json') options.stream = true;
+    if (options.outputFormat === 'json') options.quiet = true;
+  } else if (arg === '-h' || arg === '--help') {
+    console.log(`Usage: bin/html2md [options] <url|file>
+
+Modes:
+  bin/html2md <url|file>                   Single URL/file conversion
+  bin/html2md --batch <urls.txt>           Batch: convert all URLs from file
+  bin/html2md --crawl <url> --depth 3      Crawl: discover + convert entire site
+
+Options:
+  -o, --output DIR            Output directory
+  -d, --[no-]download-images  Download images (default: true)
+  --no-images                 Alias for --no-download-images
+  --front-matter              Add YAML front matter
+  -w, --wait MS               Wait time for JS rendering (default: 10000)
+  --max-image-size MB         Max image size in MB (default: 10)
+  --concurrency N             Parallel conversions for batch/crawl (default: 3)
+  --depth N                   Max crawl depth (default: 3)
+  --max-pages N               Max pages to crawl (default: 300)
+  --tree-only                 Crawl and show tree, but skip conversion
+  --stream                    Output NDJSON events to stdout (alias for --output-format stream-json)
+  --output-format FORMAT       Output format: text (default), json, stream-json
+  -q, --quiet                 Suppress progress output
+  -v, --verbose               Show detailed output
+  -h, --help                  Show this help`);
+    process.exit(0);
+  } else if (!arg.startsWith('-')) {
+    positionalArgs.push(arg);
+  }
+}
+
+// When --stream is active, force quiet to suppress human output
+if (options.stream) {
+  options.quiet = true;
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function log(message) {
+  if (!options.quiet) console.log(`  ${message}`);
+}
+
+function logStep(emoji, message) {
+  if (!options.quiet) console.log(`  ${emoji} ${message}`);
+}
+
+const escapeShellArg = (arg) => `'${arg.replace(/'/g, "'\\''")}'`;
+
+function emit(event, data = {}) {
+  if (!options.stream) return;
+  const payload = { event, ...data, timestamp: new Date().toISOString() };
+  process.stdout.write(JSON.stringify(payload) + '\n');
+}
+
+function runScript(command, jobDir, stepName) {
+  const jobId = path.basename(jobDir);
+  logStep("⏳", `${stepName}...`);
+  emit('step', { jobId, step: stepName.toLowerCase().replace(/\s+/g, '_'), status: 'start' });
+  Job.log(jobDir, `Starting: ${stepName}`);
+
+
+  const startTime = Date.now();
+  let success = false;
+  let stdoutData = '';
+  let stderrData = '';
+
+  // Parse command string into array for spawnSync
+  // Basic split by space, respecting quotes (simple implementation since we control the commands)
+  const argsRegex = /[^\s"']+|"([^"]*)"|'([^']*)'/g;
+  const cmdArgs = [];
+  let match;
+  while ((match = argsRegex.exec(command)) !== null) {
+    cmdArgs.push(match[1] || match[2] || match[0]);
+  }
+  const cmdExe = cmdArgs.shift();
+
+  try {
+    // 120-second hard timeout for any step to prevent infinite hangs
+    const result = spawnSync(cmdExe, cmdArgs, { 
+      encoding: 'utf8', 
+      timeout: 120000, 
+      killSignal: 'SIGKILL' 
+    });
+    stdoutData = result.stdout || '';
+    stderrData = result.stderr || '';
+    if (result.error && result.error.code === 'ETIMEDOUT') {
+      success = false;
+      stderrData += '\nError: Step exceeded 120-second timeout and was killed.';
+    } else if (result.status === 0) {
+      success = true;
+    } else if (result.error) {
+       stderrData += '\n' + result.error.message;
+    }
+  } catch (err) {
+    stderrData += '\n' + (err.message || String(err));
+  }
+
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+  const combinedOutput = (stdoutData + '\n' + stderrData).trim();
+
+  // 1. Log full output to Job's log.txt
+  if (combinedOutput) {
+    fs.appendFileSync(path.join(jobDir, 'processing', 'log.txt'), `\n--- [Output: ${stepName}] ---\n${combinedOutput}\n------------------------\n`);
+  }
+
+  // 2. Log full output to global logger
+  Logger.appendRaw(jobId, stepName, combinedOutput);
+
+  // 3. Verbose output to terminal
+  if (options.verbose && !options.quiet) {
+    if (combinedOutput) {
+      combinedOutput.split('\n').filter(Boolean).forEach(line => console.log(`     ${line}`));
+    }
+  }
+
+  // Find the JSON result line from stdout (usually the last valid JSON line)
+  let result = {};
+  const lines = stdoutData.trim().split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    let line = lines[i].trim();
+    if (!line) continue;
+    try {
+      result = JSON.parse(line);
+      break;
+    } catch(e) {}
+  }
+
+  const stepNameKey = stepName.toLowerCase().replace(/\s+/g, '_');
+
+  if (success) {
+    logStep("✅", `${stepName} (${elapsed}s)`);
+    Job.log(jobDir, `Completed: ${stepName} in ${elapsed}s`);
+    Job.updateStatus(jobDir, stepNameKey, stepNameKey, { ...result, elapsed_seconds: Number(elapsed) });
+    emit('step', { jobId, step: stepNameKey, status: 'complete', elapsed: Number(elapsed), result });
+  } else {
+    const lastLine = lines[lines.length - 1] || stderrData.split('\n').pop() || 'Unknown error';
+    logStep("❌", `${stepName} failed (${elapsed}s)`);
+    Job.log(jobDir, `FAILED: ${stepName} — ${lastLine}`);
+    Logger.error(`Job [${jobId}] failed at ${stepName}`, { error: lastLine });
+    Job.updateStatus(jobDir, "failed", stepNameKey, { error: lastLine, elapsed_seconds: Number(elapsed) });
+    emit('step', { jobId, step: stepNameKey, status: 'failed', error: lastLine, elapsed: Number(elapsed) });
+  }
+
+  return { success, result, output: combinedOutput, elapsed };
+}
+
+// ── Convert Single URL/File ──────────────────────────────────
+function convertSingle(source, siteDir = null) {
+  const isUrl = /^https?:\/\//.test(source);
+  let isFile = !isUrl && fs.existsSync(path.resolve(source));
+  if (isFile) source = path.resolve(source);
+
+  if (!isUrl && !isFile) {
+    console.error(`Error: '${source}' is not a valid URL or existing file.`);
+    emit('job_failed', { url: source, error: 'Not a valid URL or existing file' });
+    return null;
+  }
+
+  let jobDir;
+  if (siteDir) {
+    // Site-grouped mode (crawl): create page inside site dir
+    jobDir = Job.createPageDir(siteDir, source);
+  } else if (options.output) {
+    jobDir = options.output;
+    fs.mkdirSync(jobDir, { recursive: true });
+    fs.mkdirSync(path.join(jobDir, 'input'), { recursive: true });
+    fs.mkdirSync(path.join(jobDir, 'processing'), { recursive: true });
+    fs.mkdirSync(path.join(jobDir, 'output', 'assets'), { recursive: true });
+    fs.writeFileSync(path.join(jobDir, 'job.json'), JSON.stringify({
+      url: source, status: 'created', createdAt: new Date().toISOString(), steps: {}, metadata: {}
+    }, null, 2));
+  } else if (isFile) {
+    jobDir = Job.createFromFile(source);
+  } else {
+    // If it's a URL and no siteDir or output is provided, dynamically create siteDir for this URL's hostname
+    // so that it follows the standard JOBS_DIR/hostname/pages/slug structure expected by the Server and Cache
+    try {
+      const hostname = new URL(source).hostname;
+      const dynamicSiteDir = Job.createSiteDir(hostname);
+      jobDir = Job.createPageDir(dynamicSiteDir, source);
+    } catch(e) {
+      jobDir = Job.create(source);
+    }
+  }
+
+  const jobId = path.basename(jobDir);
+  log(`Job: ${jobId}`);
+  log(`Source: ${source}\n`);
+  emit('job_start', { jobId, url: source });
+
+  // Step 1: Fetch
+  if (isUrl) {
+    const screenshotArg = options.screenshot ? ' --screenshot' : '';
+    const step1 = runScript(
+      `node ${escapeShellArg(path.join(SCRIPTS_DIR, 'fetch.js'))} ${escapeShellArg(source)} ${escapeShellArg(jobDir)} ${options.waitMs}${screenshotArg}`,
+      jobDir, "Fetch"
+    );
+    if (!step1.success) {
+      console.error(`\nFetch failed. Check ${path.join(jobDir, 'processing', 'log.txt')} for details.`);
+      emit('job_failed', { jobId, url: source, error: 'Fetch failed' });
+      return null;
+    }
+    if (step1.result.metadata) Job.updateMetadata(jobDir, step1.result.metadata);
+
+    // Cache check: compare HTML hash after fetch
+    const renderedPath = path.join(jobDir, 'input', 'rendered.html');
+    const newHash = Job.computeHash(renderedPath);
+    if (siteDir && newHash && Job.isCached(jobDir, newHash)) {
+      logStep("📦", `Cache hit — page unchanged, serving cached markdown`);
+      emit('cache_hit', { jobId, url: source, hash: newHash });
+      Job.log(jobDir, `Cache hit: HTML unchanged (hash: ${newHash.substring(0, 12)}...)`);
+
+      const mdPath = path.join(jobDir, 'output', 'page.md');
+      const stat = fs.statSync(mdPath);
+      const content = fs.readFileSync(mdPath, 'utf8');
+      const wordCount = content.split(/\s+/).filter(Boolean).length;
+      emit('job_complete', { jobId, url: source, words: wordCount, sizeKb: (stat.size / 1024).toFixed(1), output: mdPath, cached: true });
+      return { jobDir, mdPath, sizeKb: (stat.size / 1024).toFixed(1), wordCount, quality: null, cached: true };
+    }
+
+    if (siteDir && newHash) {
+      emit('cache_miss', { jobId, url: source, hash: newHash });
+    }
+  } else {
+    logStep("✅", "Fetch (local file copied)");
+  }
+
+  // Step 2: Extract
+  const step2 = runScript(
+    `node ${escapeShellArg(path.join(SCRIPTS_DIR, 'extract.js'))} ${escapeShellArg(jobDir)}`,
+    jobDir, "Extract"
+  );
+  if (!step2.success) {
+    console.warn("\nExtraction failed. Trying to convert raw HTML instead...");
+    const rendered = path.join(jobDir, 'input', 'rendered.html');
+    const extracted = path.join(jobDir, 'processing', 'extracted.html');
+    if (fs.existsSync(rendered)) fs.copyFileSync(rendered, extracted);
+  }
+  if (step2.result.title) {
+    Job.updateMetadata(jobDir, { title: step2.result.title, byline: step2.result.byline, excerpt: step2.result.excerpt });
+  }
+
+  // Step 3: Convert
+  const step3 = runScript(
+    `node ${escapeShellArg(path.join(SCRIPTS_DIR, 'convert.js'))} ${escapeShellArg(jobDir)}`,
+    jobDir, "Convert"
+  );
+  if (!step3.success) { console.error("\nConversion failed."); emit('job_failed', { jobId, url: source, error: 'Conversion failed' }); return null; }
+
+  // Step 4: Download images
+  if (options.downloadImages) {
+    const step4 = runScript(
+      `node ${escapeShellArg(path.join(SCRIPTS_DIR, 'download.js'))} ${escapeShellArg(jobDir)} ${options.maxImageSizeMb}`,
+      jobDir, "Download images"
+    );
+    const dl = step4.result;
+    if (dl && (dl.downloaded > 0 || dl.failed > 0)) {
+      log(`   Downloaded: ${dl.downloaded}, Failed: ${dl.failed}, Skipped: ${dl.skipped}`);
+    }
+  }
+
+  // Step 5: Polish
+  let polishCmd = `node ${escapeShellArg(path.join(SCRIPTS_DIR, 'polish.js'))} ${escapeShellArg(jobDir)}`;
+  if (options.frontMatter) polishCmd += ' --front-matter';
+  const step5 = runScript(polishCmd, jobDir, "Polish");
+
+  Job.updateStatus(jobDir, "completed");
+
+  // Update page hash after successful conversion
+  const renderedForHash = path.join(jobDir, 'input', 'rendered.html');
+  const finalHash = Job.computeHash(renderedForHash);
+  if (finalHash) {
+    Job.updatePageHash(jobDir, finalHash);
+  }
+
+  // Scan and record all files into page.json
+  Job.updatePageFiles(jobDir);
+
+  const mdPath = path.join(jobDir, 'output', 'page.md');
+  if (!fs.existsSync(mdPath)) return null;
+
+  const stat = fs.statSync(mdPath);
+  const content = fs.readFileSync(mdPath, 'utf8');
+  const wordCount = content.split(/\s+/).filter(Boolean).length;
+
+  const resultData = {
+    jobDir,
+    mdPath,
+    sizeKb: (stat.size / 1024).toFixed(1),
+    wordCount,
+    quality: step5.result.quality || null
+  };
+
+  emit('job_complete', { jobId, url: source, words: wordCount, sizeKb: resultData.sizeKb, output: mdPath });
+
+  return resultData;
+}
+
+// ── Batch Mode ───────────────────────────────────────────────
+async function runBatch(urlsInput, siteDir = null) {
+  const { default: PQueue } = await import('p-queue');
+
+  let urls = [];
+  if (fs.existsSync(urlsInput)) {
+    const content = fs.readFileSync(urlsInput, 'utf8');
+    urls = content.split('\n').map(l => l.trim()).filter(l => l && l.startsWith('http'));
+  } else {
+    urls = urlsInput.split(',').map(u => u.trim()).filter(Boolean);
+  }
+
+  if (urls.length === 0) {
+    console.error("No valid URLs found in input.");
+    emit('complete', { total: 0, success: 0, failed: 0, error: 'No valid URLs' });
+    process.exit(1);
+  }
+
+  if (!options.stream) {
+    console.log(`\n  \x1b[1mhtml2md\x1b[0m — Batch Mode`);
+    console.log(`  ${"━".repeat(44)}`);
+    console.log(`  URLs: ${urls.length} · Concurrency: ${options.concurrency}\n`);
+  }
+
+  Logger.info(`Starting Batch Mode with ${urls.length} URLs`, { concurrency: options.concurrency });
+  emit('start', { mode: 'batch', total: urls.length, concurrency: options.concurrency });
+
+  const queue = new PQueue({ concurrency: options.concurrency });
+  const results = [];
+  let completed = 0;
+
+  for (const url of urls) {
+    queue.add(async () => {
+      const savedQuiet = options.quiet;
+      const savedOutput = options.output;
+      if (!options.verbose && !options.stream) {
+        options.quiet = true;
+      }
+      options.output = null;
+
+      const startTime = Date.now();
+      Logger.info(`Batch processing URL: ${url}`);
+      const result = convertSingle(url, siteDir);
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      completed++;
+
+      options.quiet = savedQuiet;
+      options.output = savedOutput;
+
+      if (result) {
+        if (!options.stream) {
+          const cachedLabel = result.cached ? ' (cached)' : '';
+          console.log(`  ✅ [${completed}/${urls.length}] ${url} → ${result.sizeKb} KB, ${result.wordCount} words (${elapsed}s)${cachedLabel}`);
+        }
+        results.push({ url, status: 'ok', ...result, elapsed });
+      } else {
+        if (!options.stream) {
+          console.log(`  ❌ [${completed}/${urls.length}] ${url} (${elapsed}s)`);
+        }
+        results.push({ url, status: 'failed', elapsed });
+      }
+    });
+  }
+
+  await queue.onIdle();
+
+  const ok = results.filter(r => r.status === 'ok');
+  const failed = results.filter(r => r.status === 'failed');
+  const cached = ok.filter(r => r.cached);
+  const totalWords = ok.reduce((s, r) => s + (r.wordCount || 0), 0);
+
+  if (!options.stream) {
+    console.log(`\n  ${"━".repeat(44)}`);
+    console.log(`  ✅ Success: ${ok.length}/${urls.length}`);
+    if (cached.length > 0) console.log(`  📦 Cached:  ${cached.length}`);
+    console.log(`  ❌ Failed:  ${failed.length}`);
+    console.log(`  📝 Total words: ${totalWords.toLocaleString()}`);
+    console.log(`  ${"━".repeat(44)}\n`);
+
+    if (failed.length > 0) {
+      console.log("  Failed URLs:");
+      failed.forEach(r => console.log(`    - ${r.url}`));
+      console.log("");
+    }
+  }
+
+  emit('complete', { mode: 'batch', total: urls.length, success: ok.length, failed: failed.length, cached: cached.length, totalWords });
+
+  return results;
+}
+
+// ── Crawl Mode ───────────────────────────────────────────────
+async function runCrawl(startUrl) {
+  if (!options.stream) {
+    console.log(`\n  \x1b[1mhtml2md\x1b[0m — Crawl Mode`);
+    console.log(`  ${"━".repeat(44)}`);
+    console.log(`  Target: ${startUrl}`);
+    console.log(`  Depth: ${options.depth} · Max pages: ${options.maxPages}\n`);
+  }
+
+  Logger.info(`Starting Crawl Mode`, { target: startUrl, depth: options.depth, maxPages: options.maxPages });
+  emit('start', { mode: 'crawl', target: startUrl, depth: options.depth, maxPages: options.maxPages });
+
+  logStep("⏳", "Discovering pages...");
+  const crawlScript = path.join(SCRIPTS_DIR, 'crawl.js');
+  let crawlOutput;
+
+  const crawlStdio = options.stream ? 'pipe' : ['pipe', 'pipe', 'inherit'];
+
+  try {
+    crawlOutput = execSync(
+      `node ${escapeShellArg(crawlScript)} ${escapeShellArg(startUrl)} ${options.depth} ${options.maxPages}`,
+      { encoding: 'utf8', stdio: crawlStdio }
+    );
+  } catch (err) {
+    console.error("Crawl failed:", err.stderr || err.message);
+    emit('complete', { mode: 'crawl', total: 0, success: 0, failed: 0, error: 'Crawl failed' });
+    process.exit(1);
+  }
+
+  let crawlResult;
+  const lines = crawlOutput.trim().split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    try {
+      crawlResult = JSON.parse(lines[i]);
+      break;
+    } catch(e) {}
+  }
+
+  if (!crawlResult || !crawlResult.urls || crawlResult.urls.length === 0) {
+    console.error("Crawl discovered no pages.");
+    emit('complete', { mode: 'crawl', total: 0, success: 0, failed: 0, error: 'No pages discovered' });
+    process.exit(1);
+  }
+
+  // Create site-grouped directory
+  const hostname = new URL(startUrl).hostname;
+  const siteDir = Job.createSiteDir(hostname);
+
+  logStep("✅", `Discovered ${crawlResult.urls.length} pages`);
+
+  // Emit discover events for each URL
+  crawlResult.urls.forEach((u, i) => {
+    emit('discover', { url: u, index: i + 1, total: crawlResult.urls.length });
+  });
+
+  if (crawlResult.tree) {
+    if (!options.stream) {
+      console.log(`\n${crawlResult.tree}`);
+    }
+    emit('tree', { tree: crawlResult.tree });
+  }
+
+  // Update site.json with tree and crawl metadata
+  Job.updateSiteJson(siteDir, {
+    lastCrawledAt: new Date().toISOString(),
+    pageCount: crawlResult.urls.length,
+    tree: crawlResult.tree || null,
+    depth: options.depth,
+    maxPages: options.maxPages
+  });
+
+  if (options.treeOnly) {
+    if (!options.stream) {
+      console.log(`\n  \x1b[1m✨ Tree generation complete. Exiting (--tree-only).\x1b[0m\n`);
+      console.log(JSON.stringify({ urls: crawlResult.urls }));
+    }
+    emit('complete', { mode: 'crawl', total: crawlResult.urls.length, treeOnly: true });
+    return;
+  }
+
+  const tmpFile = path.join(require('os').tmpdir(), `html2md_crawl_${Date.now()}.txt`);
+  fs.writeFileSync(tmpFile, crawlResult.urls.join('\n'));
+
+  const batchResults = await runBatch(tmpFile, siteDir);
+
+  // Rebuild site.json files array from all page.json entries
+  Job.rebuildSiteFiles(siteDir);
+
+  const siteJsonPath = path.join(siteDir, 'site.json');
+  if (options.stream) {
+    emit('site_metadata', { siteDir, siteJson: siteJsonPath });
+  } else {
+    console.log(`  \x1b[36mSite Metadata:\x1b[0m ${siteJsonPath}\n`);
+  }
+
+  try { fs.unlinkSync(tmpFile); } catch(e) {}
+}
+
+// ── Entry Point ──────────────────────────────────────────────
+async function main() {
+  if (options.crawl) {
+    await runCrawl(options.crawl);
+  } else if (options.batch) {
+    await runBatch(options.batch, options.siteDir);
+  } else {
+    // Single mode
+    const source = positionalArgs[0];
+    if (!source) {
+      console.error("Usage: bin/html2md [options] <url|file>\nUse --help for options.");
+      process.exit(1);
+    }
+
+    if (!options.quiet) {
+      console.log("\n  \x1b[1mhtml2md\x1b[0m — HTML to Markdown Converter");
+      console.log("  " + "━".repeat(44) + "\n");
+    }
+
+    Logger.info(`Starting Single Conversion`, { source });
+    emit('start', { mode: 'single', target: source });
+
+    const result = convertSingle(source);
+
+    if (result && !options.quiet) {
+      console.log("\n  \x1b[1m✨ Done!\x1b[0m");
+      console.log(`  Output: \x1b[36m${result.mdPath}\x1b[0m`);
+      console.log(`  Size: ${result.sizeKb} KB · ${result.wordCount} words`);
+      if (result.quality) {
+        const q = result.quality;
+        console.log(`  Structure: ${q.headings} headings, ${q.lists} lists, ${q.links} links, ${q.images} images`);
+      }
+      console.log("");
+    } else if (!result) {
+      process.exit(1);
+    }
+
+    emit('complete', { mode: 'single', success: result ? 1 : 0, failed: result ? 0 : 1 });
+
+    // JSON output mode: single structured blob
+    if (options.outputFormat === 'json' && result) {
+      const jsonOutput = {
+        success: true,
+        mode: 'single',
+        url: source,
+        jobId: path.basename(result.jobDir),
+        output: result.mdPath,
+        sizeKb: result.sizeKb,
+        wordCount: result.wordCount,
+        quality: result.quality
+      };
+      process.stdout.write(JSON.stringify(jsonOutput) + '\n');
+    }
+  }
+}
+
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

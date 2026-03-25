@@ -1,0 +1,21 @@
+{
+  "name": "2md by Traylinx",
+  "short_name": "2md",
+  "description": "Convert any URL, file, or website into clean, AI-ready Markdown.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0d0d",
+  "theme_color": "#8800ff",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

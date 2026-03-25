@@ -1,0 +1,15 @@
+node_modules/
+frontend/node_modules/
+venv/
+.git/
+.specs/
+.agents/
+.claude/
+.gemini/
+jobs/
+logs/
+uploads/
+.env
+.env.*
+*.md
+tests/
