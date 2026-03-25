@@ -122,25 +122,26 @@ export default function ConvertPage({ recoveredJob }) {
             }
           }}
           style={{ 
-            display: 'inline-flex', 
-            alignItems: 'stretch', 
+            display: 'flex', 
+            width: '100%',
+            alignItems: 'center', 
             background: 'var(--flat-box-bg)', 
             borderRadius: '4px', 
             border: '1px solid var(--primary)', 
-            overflow: 'hidden',
+            padding: '.4rem 1rem',
+            fontSize: '.85rem',
+            fontWeight: '500',
             boxShadow: 'none',
-            margin: '0'
+            margin: '0',
+            boxSizing: 'border-box'
           }}
         >
           <div style={{ 
-            padding: '6px 0 6px 12px', 
             fontFamily: 'var(--font-sans)', 
-            fontSize: '0.85rem', 
             display: 'flex', 
             alignItems: 'center', 
             userSelect: 'none',
-            whiteSpace: 'nowrap',
-            fontWeight: '500'
+            whiteSpace: 'nowrap'
           }}>
             <span class="gradient-text">GET</span>&nbsp;&nbsp;<span style={{ color: 'var(--text-dim)' }}>https://2md.traylinx.com/</span>
           </div>
@@ -155,28 +156,27 @@ export default function ConvertPage({ recoveredJob }) {
               flex: 1, 
               background: 'transparent', 
               border: 'none', 
-              padding: '6px 12px 6px 0', 
+              padding: '0 8px', 
               color: 'var(--text-primary)', 
               fontFamily: 'monospace', 
-              fontSize: '0.85rem', 
+              fontSize: 'inherit', 
               outline: 'none', 
-              minWidth: '220px' 
+              minWidth: '50px' 
             }}
           />
           <button 
             type="submit"
             style={{ 
-              padding: '0 12px', 
-              background: 'var(--bg-secondary)', 
+              padding: '0', 
+              background: 'transparent', 
               color: 'var(--text-primary)', 
               border: 'none', 
-              borderLeft: '1px solid var(--border)',
               cursor: 'pointer', 
               display: 'flex', 
               alignItems: 'center', 
               gap: '4px',
-              fontSize: '0.85rem',
-              fontWeight: '500',
+              fontSize: 'inherit',
+              fontWeight: 'inherit',
               fontFamily: 'var(--font-sans)',
               transition: 'color 0.2s',
               whiteSpace: 'nowrap'
