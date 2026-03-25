@@ -26,7 +26,7 @@ Thank you for your interest in contributing to html2md! We welcome contributions
 
 ## Reporting Issues
 
-- Use [GitHub Issues](https://github.com/traylinx/html2md/issues) for bugs and feature requests
+- Use [GitHub Issues](https://github.com/traylinx/2md/issues) for bugs and feature requests
 - Include steps to reproduce and expected vs. actual behavior
 
 ## Security

@@ -57,7 +57,7 @@ For local development, the system gracefully bypasses all complex cloud infrastr
 
 ```bash
 # Clone repository
-git clone https://github.com/traylinx/html2md.git
+git clone https://github.com/traylinx/2md.git
 
 # Install dependencies
 npm ci

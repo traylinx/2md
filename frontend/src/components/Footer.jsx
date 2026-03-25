@@ -7,7 +7,7 @@ export default function Footer() {
         <span class="footer-copy">© {CURRENT_YEAR} Traylinx</span>
         <span class="footer-sep">·</span>
         <a
-          href="https://github.com/traylinx/html2md"
+          href="https://github.com/traylinx/2md"
           target="_blank"
           rel="noopener noreferrer"
           class="footer-link"
