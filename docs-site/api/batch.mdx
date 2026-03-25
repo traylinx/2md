@@ -1,0 +1,191 @@
+---
+title: "POST /api/batch"
+description: "Convert multiple URLs to Markdown in parallel. Supports synchronous streaming, async background execution, webhooks, and email delivery."
+---
+
+## Overview
+
+Converts an array of URLs to Markdown in parallel. For small batches, results are streamed back in real time. For large, long-running jobs, use `async: true` to get an immediate `202 Accepted` response and poll or receive a webhook when the job finishes.
+
+<Note>
+  **Streaming & Cancellation:** This endpoint streams progress logs in real time. If the client disconnects before completion, all running child processes are killed immediately and the job continues processing in the background so results are preserved in the job registry.
+</Note>
+
+**Timeout:** 5 minutes (300 seconds) for synchronous mode.
+
+## Request
+
+`POST /api/batch`
+
+**Content-Type:** `application/json`
+
+### Body Parameters
+
+<ParamField body="urls" type="string[]" required>
+  Array of URLs to convert. Must contain at least one entry.
+</ParamField>
+
+<ParamField body="downloadImages" type="boolean" default={true}>
+  Download and embed referenced images locally for each converted page.
+</ParamField>
+
+<ParamField body="frontMatter" type="boolean" default={true}>
+  Prepend a YAML front matter block to each converted page.
+</ParamField>
+
+<ParamField body="async" type="boolean" default={false}>
+  When `true`, the server returns `202 Accepted` immediately with a `job_id` and processes all URLs in the background. Use `GET /api/jobs/:id` to poll for status and `GET /api/jobs/:id/result` to retrieve results when done.
+</ParamField>
+
+<ParamField body="email" type="string">
+  Email address to notify when the job completes. The email contains a secure, 72-hour ZIP download link for all converted pages. Only applies when `async: true`.
+</ParamField>
+
+<ParamField body="webhook_url" type="string">
+  A URL to receive an HTTP POST callback when the job finishes. The payload is signed with `X-Webhook-Signature` (HMAC-SHA256) if the server is configured with a `WEBHOOK_SECRET`. Only applies when `async: true`.
+</ParamField>
+
+<ParamField body="method" type="string" default="auto">
+  Conversion engine for each URL. Same options as `POST /api/convert`: `auto`, `native`, `static`, or `browser`. When set to a non-browser method, the server first attempts the in-process pipeline and falls back to browser only if needed.
+</ParamField>
+
+<ParamField body="preset" type="string">
+  Output preset to apply to each converted Markdown result. Use `chunks` to split the output into semantic chunks (returned as `chunks` array instead of `markdown` string).
+</ParamField>
+
+<ParamField body="screenshot" type="boolean" default={false}>
+  When `true`, captures a screenshot of each rendered page. A `screenshotUrl` is added to each result object pointing to `GET /api/screenshot/:hostname/:slug`.
+</ParamField>
+
+## Response
+
+### 200 — Synchronous success
+
+```json
+{
+  "success": true,
+  "results": [
+    {
+      "url": "https://example.com",
+      "success": true,
+      "markdown": "# Example Domain\n\nThis domain is for...",
+      "htmlTokens": 1240,
+      "mdTokens": 340
+    },
+    {
+      "url": "https://info.cern.ch",
+      "success": true,
+      "markdown": "# CERN...",
+      "htmlTokens": 890,
+      "mdTokens": 210
+    },
+    {
+      "url": "https://unreachable.example.com",
+      "success": false,
+      "error": "Navigation timeout"
+    }
+  ]
+}
+```
+
+<ResponseField name="success" type="boolean">
+  `true` if at least one URL was converted successfully.
+</ResponseField>
+
+<ResponseField name="results" type="object[]">
+  <Expandable title="per-URL result object">
+    <ResponseField name="url" type="string">
+      The URL that was processed.
+    </ResponseField>
+    <ResponseField name="success" type="boolean">
+      Whether this individual URL was converted successfully.
+    </ResponseField>
+    <ResponseField name="markdown" type="string">
+      The extracted Markdown. Present only when `success` is `true`.
+    </ResponseField>
+    <ResponseField name="htmlTokens" type="number">
+      Estimated token count of the raw HTML input.
+    </ResponseField>
+    <ResponseField name="mdTokens" type="number">
+      Estimated token count of the Markdown output.
+    </ResponseField>
+    <ResponseField name="error" type="string">
+      Error description. Present only when `success` is `false`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### 202 — Async mode accepted
+
+Returned immediately when `async: true` is set.
+
+```json
+{
+  "success": true,
+  "job_id": "abc123",
+  "status": "running",
+  "status_url": "/api/jobs/abc123",
+  "result_url": "/api/jobs/abc123/result"
+}
+```
+
+<ResponseField name="job_id" type="string">
+  Unique identifier for the background job.
+</ResponseField>
+
+<ResponseField name="status_url" type="string">
+  Path to poll for job status via `GET /api/jobs/:id`.
+</ResponseField>
+
+<ResponseField name="result_url" type="string">
+  Path to retrieve the final result via `GET /api/jobs/:id/result` once the job completes.
+</ResponseField>
+
+### Error Responses
+
+**400 — Missing or invalid urls array**
+```json
+{ "error": "Missing urls array in request body" }
+```
+
+## Examples
+
+<CodeGroup>
+
+```bash Synchronous batch
+curl -X POST https://2md.traylinx.com/api/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": [
+      "https://example.com",
+      "https://info.cern.ch"
+    ]
+  }'
+```
+
+```bash Async with webhook
+curl -X POST https://2md.traylinx.com/api/batch \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-..." \
+  -d '{
+    "urls": ["https://docs.example.com/page1", "https://docs.example.com/page2"],
+    "async": true,
+    "webhook_url": "https://myapp.example.com/webhooks/2md"
+  }'
+```
+
+```bash Async with email notification
+curl -X POST https://2md.traylinx.com/api/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": ["https://docs.example.com/page1", "https://docs.example.com/page2"],
+    "async": true,
+    "email": "you@example.com"
+  }'
+```
+
+</CodeGroup>
+
+<Tip>
+  For batches larger than ~10 pages, use `async: true`. Synchronous mode will block for the full 5-minute timeout if pages are slow to render.
+</Tip>

@@ -1,0 +1,148 @@
+---
+title: "Authentication"
+description: "API key tiers, how to pass credentials, which endpoints require a key, and BYOK mode for Agentify."
+---
+
+## How Authentication Works
+
+The 2MD API uses **Bearer token authentication**. Pass your API key in the `Authorization` header on every request:
+
+```bash
+curl -X POST https://2md.traylinx.com/api/convert \
+  -H "Authorization: Bearer sk-your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'
+```
+
+Requests without a valid key are served at the **free tier** rate limit (20 req/hr per IP). A valid key unlocks a higher rate limit and gated endpoints.
+
+<Note>
+API keys are validated server-side. The key hash — not the raw key — is used as the rate limit identifier, so sharing the same key across multiple clients draws from a single shared quota.
+</Note>
+
+---
+
+## Authorization Header
+
+<ParamField header="Authorization" type="string">
+  Bearer token identifying your account tier.
+
+  Format: `Bearer <api-key>`
+
+  Example: `Bearer sk-abc123xyz`
+</ParamField>
+
+---
+
+## Rate Limit Tiers
+
+The tier is determined automatically from the key you provide:
+
+| Tier | How to access | Limit |
+|---|---|---|
+| **Free** | No key (IP-based) | 20 req / hour per IP |
+| **Pro** | Valid API key | 1,000 req / hour per key |
+| **Enterprise** | Enterprise API key | 10,000 req / hour per key |
+
+When the limit is exceeded you receive a `429 Too Many Requests` response:
+
+```json
+{
+  "error": "IP rate limit exceeded. Provide an API key via Authorization: Bearer header for higher limits.",
+  "code": "RATE_LIMITED"
+}
+```
+
+---
+
+## Endpoints That Require an API Key
+
+Most endpoints work without an API key (subject to free-tier rate limits). Two endpoints require one:
+
+| Endpoint | Reason |
+|---|---|
+| `POST /api/agentify` | LLM processing costs; requires a Pro or Enterprise key |
+| `POST /api/file2md` (media/vision) | Vision model inference for images, PDFs, and media files |
+
+`/api/file2md` for plain text or HTML files does **not** require a key. The vision pipeline is only invoked for image, PDF, and media file types.
+
+---
+
+## Agentify: Bring Your Own Key (BYOK)
+
+When the server is started with `AGENTIFY_BYOK=true`, the `/api/agentify` endpoint does not use a server-side LLM key. Instead, you must supply your own OpenAI-compatible key in the request body:
+
+```bash
+curl -X POST https://2md.traylinx.com/api/agentify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "maxPages": 10,
+    "apiKey": "sk-your-openai-key"
+  }'
+```
+
+<ParamField body="apiKey" type="string">
+  Your OpenAI-compatible API key. Required when the server operates in `AGENTIFY_BYOK=true` mode.
+</ParamField>
+
+---
+
+## URL-Prepend Shortcut: API Key via Query Param
+
+When using the URL-prepend shortcut for media or file conversions, pass the API key as a query parameter instead of a header:
+
+```bash
+# Convert a remote PDF (requires key — vision model)
+curl "https://2md.traylinx.com/https://example.com/report.pdf?apiKey=sk-..."
+
+# Convert a remote image
+curl "https://2md.traylinx.com/https://example.com/chart.png?apiKey=sk-..."
+```
+
+<Warning>
+The `?apiKey=` query parameter is only supported on the URL-prepend shortcut route (`GET /:url`). For all standard `POST /api/*` endpoints use the `Authorization: Bearer` header.
+</Warning>
+
+---
+
+## curl Examples
+
+<CodeGroup>
+
+```bash Convert with auth
+curl -X POST https://2md.traylinx.com/api/convert \
+  -H "Authorization: Bearer sk-your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'
+```
+
+```bash Batch with auth
+curl -X POST https://2md.traylinx.com/api/batch \
+  -H "Authorization: Bearer sk-your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "urls": ["https://example.com", "https://info.cern.ch"],
+    "downloadImages": true
+  }'
+```
+
+```bash file2md (vision) with auth
+curl -X POST https://2md.traylinx.com/api/file2md \
+  -H "Authorization: Bearer sk-your-api-key" \
+  -F "file=@/path/to/document.pdf" \
+  -F "apiKey=sk-your-openai-key"
+```
+
+```bash Agentify with BYOK
+curl -X POST https://2md.traylinx.com/api/agentify \
+  -H "Authorization: Bearer sk-your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "maxPages": 15,
+    "apiKey": "sk-your-openai-key"
+  }'
+```
+
+</CodeGroup>

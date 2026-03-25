@@ -1,0 +1,375 @@
+---
+title: "Job Management"
+description: "Endpoints for listing, inspecting, retrieving results from, and deleting background jobs. Includes health check, upload info, and site ZIP download."
+---
+
+## Overview
+
+Long-running endpoints (`batch`, `crawl`, `agentify`) can run asynchronously by passing `async: true`. The job registry stores status and results for all jobs. Use these endpoints to monitor and retrieve outputs.
+
+## Endpoints
+
+### GET /api/jobs
+
+List all stored jobs visible to the current client session.
+
+```
+GET /api/jobs
+```
+
+**Request Headers:**
+
+| Header | Description |
+|---|---|
+| `x-client-id` | Optional client identifier. When present, only jobs created by this client ID are returned for private job types (`convert`, `file2md`). |
+
+**Response:**
+
+```json
+{
+  "jobs": [
+    {
+      "id": "abc123",
+      "type": "batch",
+      "status": "done",
+      "createdAt": "2026-03-25T10:00:00.000Z",
+      "completedAt": "2026-03-25T10:02:30.000Z",
+      "hasResult": true
+    }
+  ]
+}
+```
+
+<ResponseField name="jobs" type="object[]">
+  Array of job metadata objects. See `GET /api/jobs/:id` for the full schema of each object.
+</ResponseField>
+
+---
+
+### GET /api/jobs/:id
+
+Get metadata for a specific job.
+
+```
+GET /api/jobs/:id
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "abc123",
+  "type": "crawl",
+  "status": "done",
+  "url": "https://docs.example.com",
+  "label": "docs.example.com",
+  "createdAt": "2026-03-25T10:00:00.000Z",
+  "completedAt": "2026-03-25T10:04:15.000Z",
+  "hasResult": true,
+  "resultSummary": {
+    "url": "https://docs.example.com",
+    "depth": 3,
+    "maxPages": 50,
+    "llmsGuided": false
+  }
+}
+```
+
+<ResponseField name="id" type="string">
+  Unique job identifier.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Job type: `convert`, `batch`, `crawl`, `agentify`, or `file2md`.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status: `running`, `done`, or `failed`.
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  The primary URL associated with the job.
+</ResponseField>
+
+<ResponseField name="label" type="string">
+  Human-readable label for the job.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp when the job was created.
+</ResponseField>
+
+<ResponseField name="completedAt" type="string">
+  ISO 8601 timestamp when the job completed. `null` if still running.
+</ResponseField>
+
+<ResponseField name="hasResult" type="boolean">
+  `true` if a result is available to fetch via `GET /api/jobs/:id/result`.
+</ResponseField>
+
+<ResponseField name="resultSummary" type="object">
+  Type-specific summary of the job outcome.
+</ResponseField>
+
+**Error (404):**
+```json
+{ "error": "Job not found" }
+```
+
+---
+
+### GET /api/jobs/:id/result
+
+Fetch the full result of a completed job.
+
+```
+GET /api/jobs/:id/result
+```
+
+Returns the complete result object stored when the job finished. The schema varies by job type — for `batch` jobs this is the full `results` array; for `crawl` or `agentify` jobs this is the run summary.
+
+**Error (404):**
+```json
+{ "error": "Job result not found or expired" }
+```
+
+---
+
+### DELETE /api/jobs
+
+Clear the job registry. Optionally delete only jobs older than a given date.
+
+```
+DELETE /api/jobs
+DELETE /api/jobs?before=2026-01-01T00:00:00.000Z
+```
+
+**Query Parameters:**
+
+| Parameter | Description |
+|---|---|
+| `before` | ISO 8601 date string. Only jobs created before this timestamp are deleted. Omit to delete all jobs visible to the current client. |
+
+**Response:**
+
+```json
+{ "deleted": 14 }
+```
+
+<ResponseField name="deleted" type="number">
+  Number of jobs removed from the registry.
+</ResponseField>
+
+---
+
+### GET /api/jobs/:id/logs
+
+Stream real-time logs for a running job via Server-Sent Events (SSE). If the job has already completed, returns the stored log buffer as plain text.
+
+```
+GET /api/jobs/:id/logs
+```
+
+**Response for running jobs:** `text/event-stream` (SSE) with `data:` events:
+
+```
+data: {"type":"log","text":"[Crawl] Discovering pages..."}
+
+data: {"type":"status","status":"done"}
+```
+
+**Response for completed jobs:** `text/plain` — the full stored log buffer.
+
+---
+
+### GET /api/download/:site
+
+Download a ZIP archive of all converted pages for a site.
+
+```
+GET /api/download/:site
+GET /api/download/:site?slugs=page-slug1,page-slug2
+```
+
+**Path Parameters:**
+
+| Parameter | Description |
+|---|---|
+| `site` | The site hostname (e.g., `docs.example.com`). Dashes are resolved to dots automatically (e.g., `docs-example-com` → `docs.example.com`). |
+
+**Query Parameters:**
+
+| Parameter | Description |
+|---|---|
+| `slugs` | Comma-separated list of page slugs to include. When omitted, the full site archive is returned. |
+
+**Response (200):** A `.zip` file download containing the Markdown pages and a `site.json` manifest.
+
+**Error (404):**
+```json
+{ "error": "Site directory not found" }
+```
+
+---
+
+### GET /api/health
+
+Health check endpoint.
+
+```
+GET /api/health
+```
+
+**Response:**
+
+```json
+{
+  "status": "ok",
+  "api": "html2md",
+  "version": "2.0.0",
+  "time": "2026-03-25T10:00:00.000Z"
+}
+```
+
+---
+
+### GET /api/upload-info
+
+Returns the list of supported file extensions, their MIME families, and the file size limit for `POST /api/file2md`.
+
+```
+GET /api/upload-info
+```
+
+**Response:**
+
+```json
+{
+  "extensions": [
+    ".png", ".jpg", ".jpeg", ".gif", ".webp",
+    ".pdf", ".docx", ".pptx",
+    ".csv", ".xlsx",
+    ".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac",
+    ".mp4", ".mov", ".webm", ".mkv", ".avi",
+    ".json", ".md", ".txt"
+  ],
+  "families": ["image", "document", "tabular", "media", "structured", "text-markdown"],
+  "acceptString": ".png,.jpg,.jpeg,.gif,.webp,.pdf,.docx,.pptx,.csv,.xlsx,.mp3,.wav,.m4a,.flac,.ogg,.aac,.mp4,.mov,.webm,.mkv,.avi,.json,.md,.txt",
+  "maxFileSizeMb": 100
+}
+```
+
+---
+
+### GET /api/cache/stats
+
+Returns statistics about the local page cache — total cached pages and a per-hostname breakdown.
+
+```
+GET /api/cache/stats
+```
+
+**Response:**
+
+```json
+{
+  "status": "ok",
+  "totalCachedPages": 142,
+  "cachedSites": 3,
+  "sites": [
+    { "hostname": "docs.example.com", "cachedPages": 98 },
+    { "hostname": "blog.example.com", "cachedPages": 32 },
+    { "hostname": "example.com", "cachedPages": 12 }
+  ]
+}
+```
+
+---
+
+### DELETE /api/cache/:hostname
+
+Purges all cached pages for a specific hostname.
+
+```
+DELETE /api/cache/:hostname
+```
+
+**Path Parameters:**
+
+| Parameter | Description |
+|---|---|
+| `hostname` | The site hostname whose cache to purge (e.g., `docs.example.com`). |
+
+**Response (200):**
+```json
+{ "status": "ok", "message": "Purged all cached pages for docs.example.com" }
+```
+
+**Error (404):**
+```json
+{ "error": "No cache found for docs.example.com" }
+```
+
+---
+
+### GET /api/screenshot/:hostname/:slug
+
+Returns the screenshot image for a specific cached page, captured when the page was last converted with `screenshot: true`.
+
+```
+GET /api/screenshot/:hostname/:slug
+```
+
+**Path Parameters:**
+
+| Parameter | Description |
+|---|---|
+| `hostname` | The site hostname (e.g., `docs.example.com`). |
+| `slug` | The page slug (e.g., `getting-started`). |
+
+**Response (200):** PNG or JPG image file.
+
+**Error (404):**
+```json
+{ "error": "Screenshot not found" }
+```
+
+---
+
+## Examples
+
+<CodeGroup>
+
+```bash Check health
+curl https://2md.traylinx.com/api/health
+```
+
+```bash List jobs
+curl https://2md.traylinx.com/api/jobs \
+  -H "x-client-id: my-app-session-id"
+```
+
+```bash Poll async job status
+curl https://2md.traylinx.com/api/jobs/abc123
+```
+
+```bash Retrieve job result
+curl https://2md.traylinx.com/api/jobs/abc123/result
+```
+
+```bash Download site ZIP
+curl -L "https://2md.traylinx.com/api/download/docs.example.com" \
+  -o docs.example.com.zip
+```
+
+```bash Download scoped ZIP (selected pages only)
+curl -L "https://2md.traylinx.com/api/download/docs.example.com?slugs=introduction,api-reference" \
+  -o docs-selected.zip
+```
+
+```bash Clear jobs older than a date
+curl -X DELETE "https://2md.traylinx.com/api/jobs?before=2026-01-01T00:00:00.000Z" \
+  -H "x-client-id: my-app-session-id"
+```
+
+</CodeGroup>

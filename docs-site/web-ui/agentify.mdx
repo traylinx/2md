@@ -1,0 +1,196 @@
+---
+title: "Agentify"
+description: "Convert any website into an AI Skill Bundle — a structured package of SKILL.md, llms.txt, and Markdown reference files that AI coding tools can read and navigate."
+---
+
+Agentify is an advanced pipeline that converts a website into a machine-readable AI Skill Bundle. Where the Crawl page gives you raw Markdown files, Agentify goes further: it runs all extracted pages through an LLM to generate a structured routing index and discovery files that AI tools like Cursor, Windsurf, and Claude can use directly.
+
+<Info>
+  Agentify is available via the **Web UI** (`/agentify`) and the **REST API** only. It is not available from the CLI.
+</Info>
+
+## What is a Skill Bundle?
+
+A Skill Bundle is a set of files that makes a website understandable to AI agents:
+
+| File | Purpose |
+|------|----------|
+| `SKILL.md` | A routing index mapping topics to reference files. AI tools read this first to know which file covers which topic. |
+| `llms.txt` | A machine-readable discovery file following the [llms.txt open standard](https://llmstxt.org). Placed at the root of a site like `robots.txt` for search crawlers. |
+| `references/*.md` | Clean Markdown versions of the site's key pages, named and organized for agent consumption. |
+
+Example `SKILL.md` output:
+
+```markdown
+# YourProduct Knowledge Base
+
+## Routing
+
+| Topic | File |
+|-------|------|
+| Authentication & API Keys | references/auth.md |
+| Webhooks Setup | references/webhooks.md |
+| Rate Limits | references/rate-limits.md |
+| SDK Overview | references/sdk.md |
+
+## How to use this bundle
+1. Read the relevant reference file for the topic you need.
+2. Use llms.txt for full site discovery.
+```
+
+Example `llms.txt` output:
+
+```text
+# YourProduct
+
+> AI-ready documentation for developers integrating YourProduct
+
+## Docs
+- [Authentication](https://yoursite.com/references/auth.md)
+- [Webhooks](https://yoursite.com/references/webhooks.md)
+
+## Optional
+- [Full API Reference](https://yoursite.com/references/api.md)
+```
+
+## Prerequisites
+
+- API server running: `npm start`
+- A **SwitchAI API key** — required for the AI synthesis step that generates `SKILL.md` routing logic. The page scraping and Markdown conversion steps run without a key.
+
+<Note>
+  Get a free SwitchAI API key at [traylinx.com/switchai](https://traylinx.com/switchai). Your key is stored in the browser only — it never appears in server logs.
+</Note>
+
+## Accessing the Agentify page
+
+Start the API server (`npm start`) and navigate to `http://localhost:8222/agentify`.
+
+## Workflow
+
+<Steps>
+  <Step title="Enter your SwitchAI API key">
+    The API key input appears at the top of the page. Enter your SwitchAI key. It is stored in `localStorage` under `agentify_api_key` and reused across sessions.
+  </Step>
+  <Step title="Enter the target URL and max pages">
+    Paste the base URL of the site you want to Agentify (e.g., `https://docs.stripe.com`). Set `maxPages` to control how many pages are discovered (default: `50`).
+  </Step>
+  <Step title="Click Discover Pages">
+    Runs a `treeOnly` crawl via `POST /api/crawl`. Shows a site tree and a list of all discovered URLs with checkboxes. No content is converted at this stage.
+  </Step>
+  <Step title="Select pages to include">
+    All discovered pages are pre-selected. Deselect any pages you do not want included in the Skill Bundle. The **Select All** and **Deselect All** buttons are available.
+  </Step>
+  <Step title="Click Agentify Selected">
+    Sends the selected URLs to `POST /api/agentify` along with your API key. The pipeline:
+    1. Converts each selected page to clean Markdown
+    2. Sends page summaries to the SwitchAI LLM router
+    3. Generates the `SKILL.md` routing index and `llms.txt` discovery file
+    4. Returns the complete file bundle
+
+    A live streaming log shows progress throughout.
+  </Step>
+  <Step title="Inspect and edit the bundle">
+    When the pipeline completes, a three-panel Agent Console opens:
+
+    - **Left panel (Explorer)** — a file tree of all files in the bundle: `SKILL.md`, `llms.txt`, `references/*.md`
+    - **Right panel (Editor)** — an editable textarea showing the selected file's content. All files are editable before download.
+
+    Click any file in the explorer to view and edit it.
+  </Step>
+  <Step title="Download the bundle">
+    Click **Download Bundle (.zip)** to download `agentify-skill-bundle.zip` containing all files in the bundle.
+  </Step>
+</Steps>
+
+## Options
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `url` | string | — | Root URL of the website to Agentify. Required. |
+| `maxPages` | number | `50` | Maximum pages to discover and extract. |
+| `includeApiSchema` | boolean | `false` | Instruct the LLM to generate API schemas during synthesis. |
+| `targetAgent` | string | `"web"` | Target agent profile. `web` for cloud-hosted agents, `local` for local models (Cursor, Windsurf). |
+| `apiKey` | string | — | SwitchAI API key. Required when `AGENTIFY_BYOK=true` is set server-side. |
+| `urls` | string[] | `[]` | Optional predefined list of URLs to include instead of running discovery. |
+
+## Where to deploy the bundle
+
+After downloading, place the files at the root of your documentation site:
+
+```text
+your-docs-site/
+├── index.html           ← Add <meta> discovery tags here
+├── llms.txt             ← Root-level, discoverable by all AI crawlers
+├── SKILL.md             ← Root-level routing index for agents
+└── references/
+    ├── quickstart.md
+    ├── api.md
+    └── webhooks.md
+```
+
+Add these tags to your `<head>` to make the bundle auto-discoverable:
+
+```html
+<!-- AI Discoverability -->
+<link rel="llms" href="https://yoursite.com/llms.txt" />
+<meta name="llms-txt" content="https://yoursite.com/llms.txt" />
+<meta name="ai-skill-bundle" content="https://yoursite.com/SKILL.md" />
+```
+
+## Retrieving a skill bundle via API
+
+Generated skill bundles are served from the `GET /skills/:skillName.md` endpoint:
+
+```bash
+curl http://localhost:8222/skills/example-com.md
+```
+
+This allows AI tools to fetch the `SKILL.md` bundle directly by hostname without downloading the ZIP.
+
+## REST API
+
+```bash
+curl -X POST http://localhost:8222/api/agentify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://docs.yourproduct.com",
+    "maxPages": 30,
+    "targetAgent": "web",
+    "apiKey": "sk-..."
+  }'
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "files": {
+    "SKILL.md": "# YourProduct Docs\n\n## Routing\n...",
+    "llms.txt": "# YourProduct\n\n> AI-ready documentation...",
+    "references/quickstart.md": "# Quickstart\n\n...",
+    "references/api.md": "# API Reference\n\n..."
+  }
+}
+```
+
+For large sites, use async mode to avoid timeout issues:
+
+```bash
+curl -X POST http://localhost:8222/api/agentify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://docs.yourproduct.com",
+    "maxPages": 100,
+    "apiKey": "sk-...",
+    "async": true,
+    "webhook_url": "https://your-server.com/webhooks/agentify"
+  }'
+```
+
+The `202` response returns a `job_id` immediately. Poll `GET /api/jobs/:id` for status, or wait for the webhook callback.
+
+<Warning>
+  The `apiKey` field is only required when `AGENTIFY_BYOK=true` is set in the server environment. If the server is configured with its own `AGENTIFY_LLM_API_KEY`, the `apiKey` field in the request is ignored.
+</Warning>

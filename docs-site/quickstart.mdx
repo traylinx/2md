@@ -1,0 +1,164 @@
+---
+title: "Quickstart"
+description: "Get from zero to your first Markdown conversion in under five minutes."
+---
+
+## Prerequisites
+
+- **Node.js 18+** (tested on 22.x)
+- **Python 3** (optional — enables the Trafilatura fallback for difficult pages)
+
+## Installation
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone <repo-url>
+    cd html2md
+    ```
+  </Step>
+
+  <Step title="Install Node.js dependencies">
+    ```bash
+    npm install
+    ```
+  </Step>
+
+  <Step title="(Optional) Set up the Python fallback">
+    Trafilatura is a Python library that acts as a secondary extraction engine for pages where the default extractor struggles.
+
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install trafilatura
+    ```
+
+    <Note>
+      The Python fallback is entirely optional. Most pages convert successfully without it.
+    </Note>
+  </Step>
+</Steps>
+
+## Your First Conversion
+
+Convert any public URL directly from the command line:
+
+```bash
+./bin/html2md https://example.com
+```
+
+You'll see a live progress display as each pipeline stage completes:
+
+```text
+  html2md — HTML to Markdown Converter
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Job: 2026-03-03_10-36-17_example-com
+  Source: https://example.com
+
+  ⏳ Fetch...
+  ✅ Fetch (7.96s)
+  ⏳ Extract...
+  ✅ Extract (2.54s)
+  ⏳ Convert...
+  ✅ Convert (0.22s)
+  ⏳ Download images...
+  ✅ Download images (0.10s)
+  ⏳ Polish...
+  ✅ Polish (0.10s)
+
+  ✨ Done!
+  Output: ~/.2md/jobs/2026-03-03_10-36-17_example-com/output/page.md
+  Size: 0.3 KB · 31 words
+  Structure: 1 headings, 0 lists, 1 links, 0 images
+```
+
+The output Markdown file is written to `JOBS_DIR` (defaults to `~/.2md/jobs`). Each job gets its own isolated folder containing the raw HTML, rendered HTML, screenshot, extracted content, and final Markdown.
+
+You can also convert a local HTML file:
+
+```bash
+./bin/html2md ./my-page.html
+```
+
+## Using the API Server
+
+Start the server with `npm start`, then send conversions over HTTP:
+
+```bash
+npm start
+```
+
+The server starts on port `8222` by default and logs:
+
+```text
+HTML2MD API running on port 8222
+  Memory watchdog active (RSS: 142MB, ceiling: 768MB)
+```
+
+Send a conversion request with `curl`:
+
+<CodeGroup>
+  ```bash curl
+  curl -X POST http://localhost:8222/api/convert \
+    -H "Content-Type: application/json" \
+    -d '{"url": "https://example.com", "format": "markdown"}'
+  ```
+
+  ```json Response
+  {
+    "success": true,
+    "markdown": "# Example Domain\n\nThis domain is for use in illustrative examples...",
+    "jobId": "2026-03-03_10-36-17_example-com",
+    "stats": {
+      "words": 31,
+      "headings": 1,
+      "links": 1,
+      "images": 0
+    }
+  }
+  ```
+</CodeGroup>
+
+<Tip>
+  The `/api/` routes accept requests from any origin (`Access-Control-Allow-Origin: *`), so you can call the API directly from a browser or another service without CORS issues.
+</Tip>
+
+## URL-Prepend Shortcut
+
+With the server running, you can convert any URL instantly by prepending the server address — no `curl`, no API call:
+
+```text
+http://localhost:8222/https://example.com
+```
+
+Navigate to that address in your browser or hit it with `curl` and 2md returns the raw Markdown (or JSON if `?format=json` is appended). The address bar stays clean because the rewrite is handled server-side.
+
+```bash
+curl http://localhost:8222/https://example.com
+```
+
+## Web UI
+
+The Web UI is bundled with the server. With the server running, open your browser to:
+
+```text
+http://localhost:8222
+```
+
+From the UI you can run single-page conversions, crawl entire sites, run the Agentify pipeline to produce AI skill bundles, and convert local files (PDFs, DOCX, images) via File2MD.
+
+<CardGroup cols={2}>
+  <Card title="CLI Reference" icon="terminal" href="/cli/reference">
+    All flags, options, and batch modes for the `html2md` binary.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Full REST API documentation with request and response schemas.
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/configuration">
+    Environment variables for storage, LLM features, queues, and more.
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/deployment/architecture">
+    How the fetch → extract → convert pipeline works under the hood.
+  </Card>
+</CardGroup>

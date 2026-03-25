@@ -1,0 +1,230 @@
+---
+title: "CI/CD"
+description: "Automated deployment pipeline: Netlify for the frontend, GitHub Actions for the backend DigitalOcean Droplet."
+---
+
+## Split deployment architecture
+
+The frontend and backend are deployed independently, each to the platform best suited for it:
+
+| Component | Platform | Trigger |
+|---|---|---|
+| Frontend (Preact + Vite) | Netlify | Push to `production` branch |
+| Backend API + Workers | DigitalOcean Droplet via GitHub Actions | Push to `production` branch (non-frontend paths) |
+
+Both deployments trigger automatically when code is pushed to the `production` branch on GitHub.
+
+## Frontend — Netlify
+
+Netlify detects pushes to `production`, builds the frontend from the `frontend/` directory, and publishes the output to its global edge CDN.
+
+```toml
+[build]
+  base = "frontend/"
+  command = "npm run build"
+  publish = "dist"
+
+# URL-prepend proxy: GET /http(s)://... → API server
+[[redirects]]
+  from = "/http*"
+  to = "https://api.2md.traylinx.com/http:splat"
+  status = 200
+  force = true
+
+# API proxy: /api/* → API server
+[[redirects]]
+  from = "/api/*"
+  to = "https://api.2md.traylinx.com/api/:splat"
+  status = 200
+  force = true
+
+# SPA fallback: everything else → index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+```
+
+Netlify proxies all `/api/*` and URL-prefixed requests to `api.2md.traylinx.com`, so the frontend never makes cross-origin requests from the browser's perspective.
+
+**Required Netlify environment variable:**
+
+| Variable | Value |
+|---|---|
+| `VITE_API_BASE_URL` | `https://api.2md.traylinx.com` |
+
+## Backend — GitHub Actions → DigitalOcean
+
+The backend workflow is defined in `.github/workflows/deploy-production.yml`. It runs on every push to `production` that touches backend files (frontend changes are excluded via `paths-ignore`).
+
+### Workflow file
+
+```yaml
+name: Deploy Production Backend
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - production
+    paths-ignore:
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+      - 'README.md'
+
+jobs:
+  deploy:
+    name: Deploy to DigitalOcean
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Package Application
+        run: |
+          tar -czf /tmp/deploy.tar.gz \
+            --exclude=node_modules \
+            --exclude=.git \
+            --exclude=frontend \
+            --exclude=logs \
+            --exclude=venv \
+            --exclude=.env \
+            .
+          mv /tmp/deploy.tar.gz ./deploy.tar.gz
+
+      - name: Copy files via SSH
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DO_BACKEND_HOST }}
+          username: ${{ secrets.DO_BACKEND_USER }}
+          key: ${{ secrets.DO_BACKEND_SSH_KEY }}
+          source: "deploy.tar.gz"
+          target: "/opt/html2md"
+          rm: false
+
+      - name: Rebuild and Restart Docker Containers
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_BACKEND_HOST }}
+          username: ${{ secrets.DO_BACKEND_USER }}
+          key: ${{ secrets.DO_BACKEND_SSH_KEY }}
+          script: |
+            cd /opt/html2md
+
+            # Extract application code
+            tar -xzf deploy.tar.gz
+            rm deploy.tar.gz
+
+            # Write .env from GitHub Secrets
+            cat > .env << ENVEOF
+            AGENTIFY_LLM_API_KEY=${{ secrets.AGENTIFY_LLM_API_KEY }}
+            STORAGE_PROVIDER=s3
+            S3_BUCKET=${{ secrets.S3_BUCKET }}
+            S3_REGION=eu-west-1
+            S3_ACCESS_KEY_ID=${{ secrets.S3_ACCESS_KEY_ID }}
+            S3_SECRET_ACCESS_KEY=${{ secrets.S3_SECRET_ACCESS_KEY }}
+            REDIS_URL=${{ secrets.REDIS_URL }}
+            JOB_DOWNLOAD_SECRET=${{ secrets.JOB_DOWNLOAD_SECRET }}
+            ENVEOF
+
+            docker compose down --remove-orphans || true
+            docker compose up -d --build
+```
+
+### Deployment steps in detail
+
+<Steps>
+  <Step title="Checkout">
+    GitHub Actions checks out the `production` branch onto the runner using `actions/checkout@v4`.
+  </Step>
+  <Step title="Package">
+    The runner creates a `deploy.tar.gz` archive, excluding `node_modules`, `.git`, `frontend/`, `logs/`, `venv/`, and `.env`. This keeps the transfer small and ensures no local secrets are copied.
+  </Step>
+  <Step title="SCP to Droplet">
+    `appleboy/scp-action` uploads `deploy.tar.gz` to `/opt/html2md` on the Droplet over SSH.
+  </Step>
+  <Step title="Extract and write .env">
+    An SSH session extracts the archive and atomically writes a fresh `.env` file assembled entirely from GitHub Secrets. The production `.env` on the Droplet is never committed to the repository.
+  </Step>
+  <Step title="Rebuild containers">
+    `docker compose down --remove-orphans` tears down the running stack (errors are tolerated if nothing is running), then `docker compose up -d --build` rebuilds both the `api` and `worker` images from the new code and starts them in detached mode.
+  </Step>
+</Steps>
+
+## Required GitHub Secrets
+
+Configure these secrets in **Settings → Secrets and variables → Actions** in the GitHub repository before the workflow will succeed:
+
+| Secret | Description |
+|---|---|
+| `DO_BACKEND_HOST` | IP address of the DigitalOcean Droplet |
+| `DO_BACKEND_USER` | SSH username (typically `root`) |
+| `DO_BACKEND_SSH_KEY` | Private SSH key for Droplet access |
+| `S3_BUCKET` | AWS S3 bucket name |
+| `S3_ACCESS_KEY_ID` | AWS access key ID |
+| `S3_SECRET_ACCESS_KEY` | AWS secret access key |
+| `REDIS_URL` | Valkey/Redis connection string (`rediss://...`) |
+| `JOB_DOWNLOAD_SECRET` | 64-character hex secret for download URL signing |
+| `AGENTIFY_LLM_API_KEY` | Agentify API key |
+| `SWITCHAI_API_KEY` | SwitchAI API key |
+| `SYSTEM_FILE_ENGINE_KEY` | Freemium document pipeline key |
+
+<Warning>
+  If any of the three SSH secrets (`DO_BACKEND_HOST`, `DO_BACKEND_USER`, `DO_BACKEND_SSH_KEY`) are missing or incorrect, both the SCP and SSH steps will fail and the Droplet will continue running the previous version.
+</Warning>
+
+## Storage lifecycle — AWS S3
+
+Completed crawl archives are uploaded to the `2md-traylinx-production` S3 bucket. When a user requests a download, the API issues an **HTTP 302 redirect** to a presigned S3 URL that expires after 1 hour. This offloads all outbound bandwidth from the Droplet entirely.
+
+The bucket has a **7-day auto-expiry lifecycle rule** configured. Any object older than 7 days is automatically deleted, keeping storage costs predictable without manual pruning.
+
+## Local development — no cloud required
+
+You do not need Redis, S3, or a DigitalOcean Droplet to develop locally:
+
+```bash
+# Clone and install
+git clone https://github.com/traylinx/2md.git
+npm ci
+
+# Start the API server and static frontend
+npm start
+```
+
+**Automatic fallbacks:**
+
+- **No Redis** — if `REDIS_URL` is absent from `.env`, the job queue falls back to synchronous `spawn()` execution. No BullMQ, no workers needed.
+- **No S3** — if AWS credentials are missing, the storage layer writes ZIP files to `~/.2md/jobs/` and serves them directly from disk.
+
+## Utility workflow — fetch logs
+
+A second workflow, `.github/workflows/fetch-logs.yml`, can be triggered manually from the GitHub Actions UI (`workflow_dispatch`). It SSHs into the Droplet and prints system memory, Docker container stats, and the last 30 lines of `api` container logs — useful for quick diagnostics without needing direct Droplet access.
+
+```yaml
+name: Fetch Logs
+on: workflow_dispatch
+jobs:
+  logs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_BACKEND_HOST }}
+          username: ${{ secrets.DO_BACKEND_USER }}
+          key: ${{ secrets.DO_BACKEND_SSH_KEY }}
+          script: |
+            cd /opt/html2md
+            echo "=== SYSTEM MEMORY ==="
+            free -m
+            echo "=== DOCKER STATS ==="
+            docker stats --no-stream
+            echo "=== API LOGS (last 30) ==="
+            docker compose logs api --tail 30
+```

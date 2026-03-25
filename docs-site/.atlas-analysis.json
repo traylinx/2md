@@ -1,0 +1,103 @@
+{
+  "projectType": "saas",
+  "projectName": "2md",
+  "projectDescription": "High-fidelity HTML-to-Markdown converter with a CLI, REST API, and web UI — supporting single pages, batch jobs, full-site crawls, file uploads, and AI Skill Bundle generation.",
+  "theme": "palm",
+  "primaryColor": "#7c7c80",
+  "lightColor": "#151c28",
+  "darkColor": "#f2f2f2",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "configuration"
+            ]
+          },
+          {
+            "group": "CLI",
+            "pages": [
+              "cli/overview",
+              "cli/reference"
+            ]
+          },
+          {
+            "group": "Web UI",
+            "pages": [
+              "web-ui/convert",
+              "web-ui/crawl",
+              "web-ui/agentify",
+              "web-ui/file2md"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/architecture",
+              "deployment/docker",
+              "deployment/ci-cd"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview",
+              "api/authentication",
+              "api/async-jobs"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/convert",
+              "api/batch",
+              "api/crawl",
+              "api/agentify",
+              "api/file2md",
+              "api/jobs",
+              "api/agent-discovery"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Single-URL, batch, and full-site crawl conversion to Markdown",
+    "Advanced stealth browser rendering (Puppeteer + WAF bypass)",
+    "Agentify pipeline — converts websites into AI-ready Skill Bundles",
+    "File2MD — converts PDFs, images, audio/video via Vision and Whisper models",
+    "NDJSON streaming with real-time progress and cross-tab cancellation",
+    "Async job queue with email notifications and webhook callbacks",
+    "URL-prepend zero-friction conversion shortcut",
+    "AI agent discovery via /llms.txt and /skills/:name.md"
+  ],
+  "publicApiSurface": [
+    "POST /api/convert",
+    "POST /api/batch",
+    "POST /api/crawl",
+    "POST /api/agentify",
+    "POST /api/file2md",
+    "GET /api/download/:site",
+    "GET /api/jobs",
+    "GET /api/jobs/:id",
+    "GET /api/jobs/:id/result",
+    "DELETE /api/jobs",
+    "GET /api/health",
+    "GET /llms.txt",
+    "GET /llms-full.txt",
+    "GET /skills/:skillName.md",
+    "bin/html2md (CLI)",
+    "bin/interactive.js (Interactive CLI)"
+  ]
+}

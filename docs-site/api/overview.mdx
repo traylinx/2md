@@ -1,0 +1,201 @@
+---
+title: "Overview"
+description: "Base URLs, available endpoints, response formats, conversion methods, rate limits, and the URL-prepend shortcut."
+---
+
+## Base URL
+
+When running locally the server binds to port `8222` by default:
+
+```
+http://localhost:8222
+```
+
+The hosted production API is available at:
+
+```
+https://2md.traylinx.com
+```
+
+Set the `PORT` environment variable to change the local port.
+
+---
+
+## Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Health" icon="heart-pulse">
+    `GET /api/health` — Check server status
+  </Card>
+  <Card title="Convert" icon="arrow-right-arrow-left">
+    `POST /api/convert` — Convert a single URL to Markdown
+  </Card>
+  <Card title="Batch" icon="layer-group">
+    `POST /api/batch` — Convert multiple URLs in parallel
+  </Card>
+  <Card title="Crawl" icon="spider-web">
+    `POST /api/crawl` — Crawl a domain and convert all pages
+  </Card>
+  <Card title="Agentify" icon="robot">
+    `POST /api/agentify` — Produce an AI-ready Skill Bundle
+  </Card>
+  <Card title="File to Markdown" icon="file-lines">
+    `POST /api/file2md` — Upload a file (PDF, image, etc.) for conversion
+  </Card>
+  <Card title="Download" icon="download">
+    `GET /api/download/:site` — Download a ZIP of processed results
+  </Card>
+  <Card title="Jobs" icon="clock">
+    `GET /api/jobs` — Manage async job history
+  </Card>
+</CardGroup>
+
+Full details for each endpoint are documented in their individual reference pages.
+
+---
+
+## Response Formats
+
+All core conversion endpoints (`/api/convert`, `/api/batch`, `/api/file2md`) support content negotiation via the `format` query parameter, or the `Accept` header on `/api/convert`.
+
+| Format | Query param | Description |
+|---|---|---|
+| JSON | `?format=json` | Structured JSON response (default for API clients) |
+| Markdown | `?format=markdown` | Raw Markdown text (`/api/convert` only) |
+| Stream | `?format=stream` | NDJSON log events followed by a final `__JSON__` result block (default for the Web UI) |
+
+### Content negotiation via Accept header
+
+`/api/convert` also respects the `Accept` request header:
+
+```bash
+# Returns raw Markdown text
+curl -X POST https://2md.traylinx.com/api/convert \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/markdown" \
+  -d '{"url": "https://example.com"}'
+```
+
+---
+
+## Conversion Methods
+
+Control the conversion engine with the `method` request parameter:
+
+| Method | Description |
+|---|---|
+| `auto` | **Default.** Attempts `native` → `static` → `browser` in sequence until one succeeds |
+| `native` | Fetches raw Markdown if the target server supports content negotiation |
+| `static` | Lightweight extraction using cheerio + Mozilla Readability — no JavaScript execution |
+| `browser` | Spawns a full headless Puppeteer instance for JavaScript-heavy SPAs |
+
+```json
+{
+  "url": "https://example.com",
+  "method": "browser"
+}
+```
+
+<Tip>
+Use `static` for speed when the target page does not require JavaScript. Use `browser` for SPAs or pages that load content dynamically.
+</Tip>
+
+---
+
+## Rate Limiting
+
+The API enforces per-key (or per-IP) rate limits. Provide an API key via the `Authorization: Bearer <token>` header to access a higher tier.
+
+| Tier | Limit | Window |
+|---|---|---|
+| **Free** (no key) | 20 requests | per hour, per IP |
+| **Pro** | 1,000 requests | per hour, per key |
+| **Enterprise** | 10,000 requests | per hour, per key |
+
+### Rate limit headers
+
+Every API response includes the following standard headers:
+
+| Header | Description |
+|---|---|
+| `RateLimit-Limit` | Maximum requests allowed in the current window |
+| `RateLimit-Remaining` | Requests remaining before you hit the limit |
+| `RateLimit-Reset` | Unix timestamp when the window resets |
+
+When the limit is exceeded the API responds with `429 Too Many Requests` and a structured error:
+
+```json
+{
+  "error": "IP rate limit exceeded. Provide an API key via Authorization: Bearer header for higher limits.",
+  "code": "RATE_LIMITED"
+}
+```
+
+---
+
+## Health Check
+
+```bash
+curl https://2md.traylinx.com/api/health
+```
+
+```json
+{
+  "status": "ok",
+  "api": "html2md",
+  "version": "2.0.0",
+  "time": "2026-03-25T10:00:00.000Z"
+}
+```
+
+---
+
+## URL-Prepend Shortcut
+
+For quick one-off conversions without writing API code, prepend the service hostname directly to any target URL in your browser or with `curl`:
+
+<Tabs>
+  <Tab title="Pages & Documents">
+    Works without an API key:
+
+    ```bash
+    curl https://2md.traylinx.com/https://example.com/page
+    ```
+
+    Returns raw Markdown by default. Append `?format=json` for a JSON response.
+  </Tab>
+  <Tab title="Media & Files (Vision)">
+    Requires an API key for image, PDF, and other media types:
+
+    ```bash
+    curl "https://2md.traylinx.com/https://example.com/diagram.png?apiKey=sk-..."
+    ```
+  </Tab>
+  <Tab title="Crawl Shortcut">
+    Trigger an async crawl by prepending `/crawl/`:
+
+    ```bash
+    curl "https://2md.traylinx.com/crawl/https://docs.example.com?depth=2&email=you@example.com"
+    ```
+
+    Returns a `202 Accepted` with a `job_id`. The server emails you a download link when the crawl completes.
+  </Tab>
+</Tabs>
+
+<Note>
+The URL-prepend route is a zero-friction shortcut that internally rewrites the request to `POST /api/convert` (or `POST /api/file2md` for recognised file extensions). The same rate limits apply.
+</Note>
+
+---
+
+## Agent Discovery
+
+AI agents can auto-discover the service capabilities:
+
+| Endpoint | Description |
+|---|---|
+| `GET /llms.txt` | Standard entry point describing the service to AI agents |
+| `GET /llms-full.txt` | Verbose entry point with full context |
+| `GET /skills/:skillName.md` | Fetch a generated `SKILL.md` bundle by name |
+| `GET /.well-known/ai-plugin.json` | OpenAI plugin manifest |
+| `GET /agents.json` | Agent capability manifest |

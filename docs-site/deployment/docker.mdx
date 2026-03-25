@@ -1,0 +1,212 @@
+---
+title: "Docker"
+description: "Run the full 2md stack locally or in production with Docker Compose."
+---
+
+## Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) 24+
+- [Docker Compose](https://docs.docker.com/compose/install/) v2 (bundled with Docker Desktop)
+
+## Local development
+
+The quickest way to run the full stack locally:
+
+```bash
+git clone https://github.com/traylinx/2md.git
+cd 2md
+cp .env.example .env   # fill in values — see Environment variables below
+docker compose up
+```
+
+The API server starts on port `8222`. If you are not running Caddy locally, access it directly at `http://localhost:8222`.
+
+<Note>
+  Redis and S3 are both optional for local development. See [Graceful fallbacks](#graceful-fallbacks) below.
+</Note>
+
+## The Dockerfile
+
+The image is based on `node:22-slim` and bundles everything the pipeline needs in a single layer: Node.js 22, headless Chromium, and a Python 3 virtualenv with Trafilatura.
+
+```dockerfile
+FROM node:22-slim
+
+RUN apt-get update && apt-get install -y \
+    dumb-init \
+    wget gnupg ca-certificates procps curl \
+    python3 python3-pip python3-venv \
+    chromium \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+WORKDIR /app
+
+RUN python3 -m venv venv
+RUN /app/venv/bin/pip install --no-cache-dir trafilatura
+
+COPY package*.json ./
+RUN npm ci --only=production
+
+COPY . .
+
+EXPOSE 8222
+
+HEALTHCHECK --interval=30s --timeout=5s \
+    CMD curl -f http://localhost:8222/api/health || exit 1
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "--expose-gc", "--max-old-space-size=512", "server.js"]
+```
+
+**Key decisions:**
+
+- `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true` — prevents Puppeteer from downloading a second Chromium binary; the system-installed `chromium` package is used instead.
+- `dumb-init` as the entrypoint — ensures correct signal forwarding and zombie process reaping inside the container.
+- `--expose-gc --max-old-space-size=512` — exposes the V8 garbage collector and caps the Node.js heap at 512 MB. Combined with the container's `mem_limit`, this prevents runaway memory growth from long-running Puppeteer sessions.
+- Python virtualenv at `/app/venv` — isolates the Trafilatura dependency from the system Python installation.
+
+## docker-compose.yml
+
+The Compose file defines three services:
+
+```yaml
+version: '3.8'
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    command: >
+      caddy reverse-proxy --from api.2md.traylinx.com --to api:8222
+
+  api:
+    build: .
+    restart: unless-stopped
+    mem_limit: 1g
+    environment:
+      - NODE_ENV=production
+      - JOBS_DIR=/app/jobs
+    env_file:
+      - .env
+    volumes:
+      - html2md-data:/app/jobs
+
+  worker:
+    build: .
+    restart: unless-stopped
+    mem_limit: 1g
+    command: ["node", "--expose-gc", "--max-old-space-size=512", "worker.js"]
+    environment:
+      - NODE_ENV=production
+      - JOBS_DIR=/app/jobs
+    env_file:
+      - .env
+    volumes:
+      - html2md-data:/app/jobs
+
+volumes:
+  html2md-data:
+  caddy_data:
+  caddy_config:
+```
+
+### Services
+
+| Service | Image | Port | Role |
+|---|---|---|---|
+| `caddy` | `caddy:2` | 80, 443 | TLS termination and reverse proxy to `api:8222` |
+| `api` | built from `Dockerfile` | 8222 (internal) | Express HTTP API, job submission, download redirects |
+| `worker` | built from `Dockerfile` | — | BullMQ job processor; runs headless Chrome and conversion |
+
+Both `api` and `worker` are built from the same `Dockerfile`. The worker overrides `CMD` to run `worker.js` instead of `server.js`.
+
+### Volume mounts
+
+| Volume | Mount path | Purpose |
+|---|---|---|
+| `html2md-data` | `/app/jobs` | Shared job scratch space between `api` and `worker` |
+| `caddy_data` | `/data` | Caddy's certificate storage (ACME) |
+| `caddy_config` | `/config` | Caddy runtime configuration |
+
+## Environment variables
+
+Copy `.env.example` to `.env` and fill in the values relevant to your setup. All cloud credentials are optional for local use.
+
+```bash
+# Storage — defaults to ~/.2md/jobs if not set
+# JOBS_DIR=~/.2md/jobs
+
+# Agentify Settings
+AGENTIFY_BYOK=false
+AGENTIFY_LLM_BASE_URL=https://api.traylinx.com/v1
+AGENTIFY_LLM_API_KEY=your_agentify_api_key_here
+AGENTIFY_LLM_MODEL=openai/gpt-oss-20b
+AGENTIFY_MAX_PAGES=10
+
+# File2MD — Agentic Upload Engines Integration
+AGENTIC_UPLOAD_ENGINES_URL=https://api.makakoo.com/agentic-upload-engines/v1/api
+FILE2MD_ENHANCE_MODEL=openai/gpt-oss-20b
+
+# AWS S3 Storage (optional — for production job persistence)
+STORAGE_PROVIDER=s3
+S3_BUCKET=your-bucket-name
+S3_REGION=eu-west-1
+S3_ACCESS_KEY_ID=your_aws_access_key_id
+S3_SECRET_ACCESS_KEY=your_aws_secret_access_key
+
+# Freemium Document Pipeline
+SYSTEM_FILE_ENGINE_KEY=your_system_file_engine_key
+
+# The base URL of your live production API
+PRODUCTION_API_URL=https://2md.traylinx.com
+# SwitchAI Key for Media/Vision/Audio extraction
+SWITCHAI_API_KEY=your_switchai_api_key_here
+
+# Job Download Settings
+JOB_TTL_HOURS=72
+JOB_DOWNLOAD_SECRET=generate_a_random_64_char_hex_string
+
+# SNS Notifications (optional)
+SNS_TOPIC_PREFIX=notifications-development
+
+# Redis (required for job queue)
+REDIS_URL=redis://localhost:6379
+```
+
+## Graceful fallbacks
+
+2md is designed to run without any cloud infrastructure for local development.
+
+<CardGroup cols={2}>
+  <Card title="No Redis" icon="circle-slash">
+    If `REDIS_URL` is absent from `.env`, the job queue bypasses BullMQ entirely and falls back to synchronous `spawn()` execution. Jobs run inline with the API request instead of being dispatched to workers.
+  </Card>
+  <Card title="No S3" icon="circle-slash">
+    If AWS credentials are missing, the storage layer skips S3 and writes ZIP archives locally to `~/.2md/jobs/`. The API serves downloads directly from disk instead of issuing presigned URL redirects.
+  </Card>
+</CardGroup>
+
+## Memory considerations for Puppeteer
+
+<Warning>
+  Headless Chrome is the most memory-intensive part of the stack. Each concurrent crawl can consume 500 MB–1 GB of RSS. Running multiple workers on an under-resourced host will cause OOM kills.
+</Warning>
+
+The stack uses two layers of memory control:
+
+1. **Node.js heap cap** — `--max-old-space-size=512` limits the V8 heap to 512 MB per process.
+2. **Container hard limit** — `mem_limit: 1g` in `docker-compose.yml` enforces a 1 GB ceiling at the container level.
+
+The `--expose-gc` flag allows the application to call `global.gc()` explicitly after each job completes, returning memory to the OS before the next job begins.
+
+If you scale workers horizontally, provision at minimum **1.5 GB of free RAM per worker replica** to avoid instability.

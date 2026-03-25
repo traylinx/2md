@@ -1,0 +1,161 @@
+---
+title: "Architecture"
+description: "How 2md converts any URL into clean Markdown — the 5-step pipeline and production ecosystem."
+---
+
+## Pipeline overview
+
+Every conversion request runs through the same five-step pipeline, regardless of whether it comes from the CLI, the web UI, or the background job queue:
+
+```text
+URL → Fetch → Extract → Convert → Download → Polish → page.md
+```
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                        Orchestrator                          │
+│                       (bin/html2md)                          │
+├──────────┬──────────┬──────────┬──────────┬─────────────────┤
+│  fetch   │ extract  │ convert  │ download │     polish      │
+│  .js     │  .js     │  .js     │  .js     │      .js        │
+│          │    ↓     │          │          │                  │
+│ Puppeteer│Readability│Turndown │  fetch   │  whitespace     │
+│          │    ↓     │  +GFM   │  +Buffer │  +front matter  │
+│          │Trafilatura│         │          │  +quality       │
+│          │  (Python)│          │          │                  │
+└──────────┴──────────┴──────────┴──────────┴─────────────────┘
+```
+
+## Step details
+
+<Steps>
+  <Step title="Fetch — scripts/fetch.js">
+    Renders the target page using Puppeteer (headless Chromium) with advanced stealth evasion enabled.
+
+    **Anti-bot evasion techniques:**
+    - `puppeteer-extra-plugin-stealth` plugin
+    - Rotates realistic desktop User-Agent strings
+    - Injects standard `Sec-Fetch-*` and `Accept-Language` headers
+    - Masks `navigator.webdriver` execution traces
+
+    Puppeteer handles SPAs (React, Next.js, Angular, Vue) correctly and bypasses typical WAF/Cloudflare 403 blocks that break plain HTTP fetchers.
+
+    | Output file | Contents |
+    |---|---|
+    | `input/raw.html` | Original HTML before JS rendering |
+    | `input/rendered.html` | Fully rendered DOM after JavaScript execution |
+    | `input/screenshot.png` | Full-page screenshot |
+  </Step>
+
+  <Step title="Extract — scripts/extract.js">
+    Strips boilerplate (navigation, ads, footers, cookie banners) and returns only the main article content.
+
+    The extractor runs a cascade — each stage only triggers if the previous one fails the quality check:
+
+    1. **Readability.js** (primary) — Mozilla's algorithm, the same engine as Firefox Reader View.
+    2. **Trafilatura** (Python fallback) — activated when Readability strips too much document structure.
+    3. **Manual strip** (last resort) — removes `<script>`, `<style>`, `<nav>`, `<footer>`, and similar elements directly.
+
+    **Quality check:** heading, table, image, and list counts are compared before and after extraction. If Readability preserves fewer than 30% of headings or 50% of tables, the fallback triggers automatically.
+
+    | I/O | Path |
+    |---|---|
+    | Input | `input/rendered.html` |
+    | Output | `processing/extracted.html` (Readability) or `processing/extracted.md` (Trafilatura) |
+  </Step>
+
+  <Step title="Convert — scripts/convert.js">
+    Converts the clean HTML to Markdown using [Turndown.js](https://github.com/mixmark-io/turndown) with the GFM (GitHub Flavored Markdown) plugin.
+
+    **Custom Turndown rules:**
+    - Fenced code blocks with language detection from `language-python`, `highlight-js`, and similar class names
+    - YouTube/Vimeo iframes converted to clickable thumbnail links
+    - `<details>/<summary>` passed through as HTML for GFM compatibility
+    - `<dl>/<dt>/<dd>` rendered as bold term + colon definition
+    - Relative URLs rewritten to absolute URLs
+
+    | I/O | Path |
+    |---|---|
+    | Input | `processing/extracted.html` |
+    | Output | `output/page.md` |
+  </Step>
+
+  <Step title="Download — scripts/download.js">
+    Downloads every image referenced in the Markdown output and rewrites paths to local relative paths.
+
+    - Skips images exceeding `--max-image-size`
+    - Handles base64 data URIs (decodes and writes to files)
+    - Generates `output/assets/manifest.json` with a full inventory of downloaded assets
+
+    | I/O | Path |
+    |---|---|
+    | Input | `output/page.md` |
+    | Output | `output/assets/*.{png,jpg,gif,webp,...}`, updated `output/page.md` |
+  </Step>
+
+  <Step title="Polish — scripts/polish.js">
+    Final normalization pass and quality scoring.
+
+    - Removes excessive blank lines
+    - Normalizes heading spacing
+    - Cleans up empty links and images
+    - Adds YAML front matter (when `--front-matter` is passed)
+    - Calculates quality metrics: word count, heading count, link count, image count, list count
+
+    | I/O | Path |
+    |---|---|
+    | Input | `output/page.md` |
+    | Output | `output/page.md` (updated in place), updated `job.json` |
+  </Step>
+</Steps>
+
+## Production ecosystem
+
+The production deployment is a decentralized architecture, with each concern isolated to the platform best suited for it:
+
+<CardGroup cols={2}>
+  <Card title="Frontend" icon="globe">
+    **Netlify Edge CDN**
+
+    Static Preact + Vite UI served globally via Netlify's edge network. Auto-deploys on push to the `production` branch.
+  </Card>
+  <Card title="Backend API & Workers" icon="server">
+    **DigitalOcean Droplet**
+
+    Docker Compose stack running the Express API, Caddy reverse proxy, and BullMQ workers on a `s-2vcpu-4gb` Droplet (2 vCPU / 4 GB RAM).
+  </Card>
+  <Card title="Task Queue" icon="list-checks">
+    **DigitalOcean Valkey**
+
+    Managed Valkey cluster (Redis-compatible) connected via TLS (`rediss://`). BullMQ dispatches crawl, batch, and convert jobs across workers.
+  </Card>
+  <Card title="Storage" icon="database">
+    **AWS S3**
+
+    Completed ZIP archives are uploaded to `2md-traylinx-production`. Download requests receive an HTTP 302 redirect to a presigned S3 URL, keeping all bandwidth off the Droplet.
+  </Card>
+</CardGroup>
+
+## Why a standalone Droplet instead of serverless?
+
+Puppeteer (headless Chromium) is memory-bound by nature. A single Chrome instance typically consumes 500 MB–1 GB of RAM depending on the size of the crawled DOM. Serverless platforms are not viable:
+
+- **Netlify Functions** — 10-second timeout, 50 MB memory limit
+- **Managed App Platforms** — functional but prohibitively expensive at scale
+
+A `$24/mo` DigitalOcean Droplet (`s-2vcpu-4gb`) running Docker Compose safely handles up to ~3 concurrent headless Chrome instances around the clock.
+
+## File map
+
+```text
+html2md/
+├── bin/html2md              # Main CLI orchestrator
+├── frontend/                # Preact/Vite frontend web UI
+├── server.js                # Express API server
+├── worker.js                # BullMQ background job processor
+├── lib/queue.js             # Valkey/Redis queue module
+├── lib/storage/s3.js        # AWS S3 storage adapter
+├── Dockerfile               # Node.js + headless Chrome + Python container
+├── docker-compose.yml       # Production stack (API + Worker + Caddy)
+└── .github/workflows/       # GitHub Actions deploy pipeline
+```

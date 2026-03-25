@@ -1,0 +1,161 @@
+---
+title: "Configuration"
+description: "Environment variables that control storage, server behavior, LLM features, job queuing, and more."
+---
+
+2md is configured entirely through environment variables. All variables are optional unless noted — sensible defaults are applied for local development.
+
+## Setting Up `.env`
+
+Copy the example file to `.env` in the project root and fill in the values you need:
+
+```bash
+cp .env.example .env
+```
+
+The `.env` file is loaded automatically by `dotenv` on startup. Here is the full example file shipped with the project:
+
+```bash .env.example
+# Storage — defaults to ~/.2md/jobs if not set
+# JOBS_DIR=~/.2md/jobs
+
+# Agentify Settings
+AGENTIFY_BYOK=false
+AGENTIFY_LLM_BASE_URL=https://api.traylinx.com/v1
+AGENTIFY_LLM_API_KEY=your_agentify_api_key_here
+AGENTIFY_LLM_MODEL=openai/gpt-oss-20b
+AGENTIFY_MAX_PAGES=10
+
+# File2MD — Agentic Upload Engines Integration
+AGENTIC_UPLOAD_ENGINES_URL=https://api.makakoo.com/agentic-upload-engines/v1/api
+FILE2MD_ENHANCE_MODEL=openai/gpt-oss-20b
+
+# AWS S3 Storage (optional — for production job persistence)
+STORAGE_PROVIDER=s3
+S3_BUCKET=your-bucket-name
+S3_REGION=eu-west-1
+S3_ACCESS_KEY_ID=your_aws_access_key_id
+S3_SECRET_ACCESS_KEY=your_aws_secret_access_key
+
+# Freemium Document Pipeline
+SYSTEM_FILE_ENGINE_KEY=your_system_file_engine_key
+
+# The base URL of your live production API
+PRODUCTION_API_URL=https://2md.traylinx.com
+# SwitchAI Key for Media/Vision/Audio extraction
+SWITCHAI_API_KEY=your_switchai_api_key_here
+
+# Job Download Settings
+JOB_TTL_HOURS=72
+JOB_DOWNLOAD_SECRET=generate_a_random_64_char_hex_string
+
+# SNS Notifications (optional)
+SNS_TOPIC_PREFIX=notifications-development
+
+# Redis (required for job queue)
+REDIS_URL=redis://localhost:6379
+```
+
+---
+
+## Core
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `8222` | TCP port the API server listens on. |
+| `JOBS_DIR` | `~/.2md/jobs` | Root directory for all job folders, the job registry, and downloaded assets. |
+| `UPLOADS_DIR` | OS temp dir | Temporary directory for file uploads before processing. |
+| `MAX_CONCURRENT_PAGES` | `5` | Maximum number of pages processed in parallel (1–50). |
+| `MEMORY_THRESHOLD` | `0.85` | RSS fraction (0.1–1.0) at which the memory watchdog triggers garbage collection. |
+| `RSS_CEILING_MB` | `768` | Hard RSS ceiling in MB; the memory watchdog uses this as its upper bound. |
+| `CORS_ORIGINS` | See below | Comma-separated list of allowed CORS origins for non-API routes. Defaults to `localhost:3000` and `localhost:5173` in development, and the production Traylinx domains in production. |
+| `PRODUCTION_API_URL` | — | Base URL of the live production API, used for self-referential links. |
+
+<Note>
+  `/api/` routes always accept requests from any origin (`*`) regardless of `CORS_ORIGINS`. This variable only applies to non-API paths.
+</Note>
+
+---
+
+## LLM / AI Features
+
+### SwitchAI
+
+`SWITCHAI_API_KEY` is the primary API key used by the internal routing layer for media, vision, and audio extraction tasks.
+
+| Variable | Default | Description |
+|---|---|---|
+| `SWITCHAI_API_KEY` | — | API key for the SwitchAI routing layer (media/vision/audio). Required for File2MD media conversions. |
+
+### Agentify Pipeline
+
+The Agentify pipeline crawls a site and produces AI-ready skill bundles (`llms.txt`, `SKILL.md`, Markdown pages). These variables configure its LLM backend.
+
+| Variable | Default | Description |
+|---|---|---|
+| `AGENTIFY_LLM_BASE_URL` | `https://api.traylinx.com/v1` | Base URL for the LLM provider used during Agentify extraction. |
+| `AGENTIFY_LLM_API_KEY` | — | API key for the Agentify LLM provider. |
+| `AGENTIFY_LLM_MODEL` | `openai/gpt-oss-20b` | Model identifier passed to the LLM provider during Agentify runs. |
+| `AGENTIFY_MAX_PAGES` | `10` | Default maximum number of pages to crawl per Agentify job. |
+| `AGENTIFY_BYOK` | `false` | When `true`, API users must supply their own LLM API key (bring-your-own-key mode). |
+
+### File2MD
+
+File2MD converts local PDFs, DOCX files, images, and YouTube videos to Markdown via a remote processing engine.
+
+| Variable | Default | Description |
+|---|---|---|
+| `FILE2MD_ENHANCE_MODEL` | `openai/gpt-oss-20b` | Vision model used for File2MD image enhancement and OCR post-processing. |
+| `AGENTIC_UPLOAD_ENGINES_URL` | `https://api.makakoo.com/agentic-upload-engines/v1/api` | Base URL for the remote Agentic Upload processing service. |
+| `SYSTEM_FILE_ENGINE_KEY` | — | API key for the freemium document pipeline. |
+
+---
+
+## Storage
+
+By default, job output is written to the local filesystem under `JOBS_DIR`. For production deployments that require persistence across restarts or multiple instances, configure S3.
+
+| Variable | Default | Description |
+|---|---|---|
+| `STORAGE_PROVIDER` | `local` | Set to `s3` to enable AWS S3 job storage. |
+| `S3_BUCKET` | — | Name of the S3 bucket for job storage. |
+| `S3_REGION` | `eu-west-1` | AWS region of the S3 bucket. |
+| `S3_ACCESS_KEY_ID` | — | AWS access key ID. |
+| `S3_SECRET_ACCESS_KEY` | — | AWS secret access key. |
+
+<Warning>
+  Never commit real AWS credentials to source control. Use IAM roles when running on AWS infrastructure instead of static credentials.
+</Warning>
+
+---
+
+## Job Lifecycle
+
+| Variable | Default | Description |
+|---|---|---|
+| `JOB_TTL_HOURS` | `72` | Number of hours before completed jobs are eligible for expiration by the background sweeper. |
+| `JOB_DOWNLOAD_SECRET` | Random 64-char hex | HMAC secret used to sign job download tokens. Set this explicitly in production so tokens survive server restarts. |
+
+---
+
+## Queue
+
+Background job queueing is powered by [BullMQ](https://docs.bullmq.io/) and requires a Redis connection.
+
+| Variable | Default | Description |
+|---|---|---|
+| `REDIS_URL` | — | Redis connection string (e.g. `redis://localhost:6379`). Required to use the async job queue. |
+| `REDIS_TLS_URL` | — | TLS Redis connection string. Used instead of `REDIS_URL` when TLS is required (e.g. Heroku Redis, Railway). |
+
+<Info>
+  The synchronous `/api/convert` endpoint does not require Redis. Redis is only needed for async batch jobs, crawl jobs, and the worker process (`npm run worker`).
+</Info>
+
+---
+
+## Notifications
+
+| Variable | Default | Description |
+|---|---|---|
+| `SNS_TOPIC_PREFIX` | — | Prefix for AWS SNS topic names used for job completion notifications (e.g. `notifications-development`). |
+| `WEBHOOK_SECRET` | — | Secret used to sign outbound webhook payloads for job completion callbacks. |

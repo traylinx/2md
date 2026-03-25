@@ -1,0 +1,191 @@
+---
+title: "File2MD"
+description: "Convert PDFs, images, audio, video, and documents to Markdown using OCR, Vision models, and Whisper transcription."
+---
+
+File2MD converts local files and remote file URLs into structured Markdown. It handles formats that are not standard web pages — PDFs, scanned images, spreadsheets, audio recordings, and video files — using a combination of OCR, Vision models, and Whisper transcription.
+
+<Info>
+  File2MD is available via the **Web UI** (`/file2md`) and the **REST API** only. It is not available from the CLI.
+</Info>
+
+## Supported file types
+
+| Category | Formats | Processing method |
+|----------|---------|------------------|
+| Documents | `PDF` | Per-page OCR extraction |
+| Images | `PNG` `JPG` `JPEG` `GIF` `WEBP` | Vision-based text extraction |
+| Office | `DOCX` `XLSX` `PPTX` | Document parsing |
+| Data | `CSV` `JSON` | Direct conversion to Markdown tables and code blocks |
+| Text | `TXT` `MD` | Pass-through with optional AI cleanup |
+| Media | `MP4` `MOV` `WEBM` `MKV` `AVI` | Whisper transcription |
+| Audio | `MP3` `WAV` `M4A` `FLAC` `OGG` `AAC` | Whisper transcription |
+| YouTube | YouTube URLs | Audio download + Whisper transcription |
+
+<Note>
+  PDFs and document formats are extracted for free. Images, audio, and video require a SwitchAI API key because they use Vision and Whisper models.
+</Note>
+
+## Prerequisites
+
+- API server running: `npm start`
+- A **SwitchAI API key** — required for images, audio, and video. PDFs and plain-text documents can be processed without a key when the server has a `SYSTEM_FILE_ENGINE_KEY` configured.
+
+Get a free SwitchAI key at [traylinx.com/switchai](https://traylinx.com/switchai). Your key is stored in the browser only — it never appears in server logs.
+
+## Accessing the File2MD page
+
+Start the API server (`npm start`) and navigate to `http://localhost:8222/file2md`.
+
+The page has two tabs:
+
+- **Upload** — drag and drop a local file
+- **From URL** — paste a direct URL to a remote file
+
+## Upload workflow
+
+<Steps>
+  <Step title="Enter your API key">
+    The SwitchAI API key input appears at the top of the page. Enter your key — it is stored in `localStorage` and shared with the Agentify page.
+  </Step>
+  <Step title="Drop or select a file">
+    Drag and drop a file onto the upload zone, or click to open the file browser. Accepted formats are listed at the bottom of the zone.
+  </Step>
+  <Step title="Configure enhancement">
+    After selecting a file, a preview card appears with an **AI Enhancement** toggle. When enabled, the raw OCR output is passed through an LLM to clean up formatting, fix headings, and produce more readable Markdown. Recommended for scanned documents and messy PDFs.
+  </Step>
+  <Step title="Click Process">
+    The button submits a `multipart/form-data` POST to `/api/file2md` with the file, API key, and enhancement setting. A live streaming log shows progress.
+  </Step>
+  <Step title="Review the Markdown output">
+    When processing completes, the result card shows the extracted Markdown. For multi-page documents like PDFs, individual page outputs are also available.
+  </Step>
+</Steps>
+
+## From URL workflow
+
+<Steps>
+  <Step title="Enter your API key">
+    Same as the Upload tab — enter your SwitchAI key at the top.
+  </Step>
+  <Step title="Paste a direct file URL">
+    Enter a URL that resolves directly to a downloadable file (e.g., `https://example.com/report.pdf`). YouTube URLs are also accepted.
+
+    <Warning>
+      The URL must point to the raw file, not to an HTML page that displays or embeds the file. Use the Convert page for HTML pages.
+    </Warning>
+  </Step>
+  <Step title="Click Convert">
+    Submits a `multipart/form-data` POST to `/api/file2md` with the URL in the `url` form field instead of a file upload.
+  </Step>
+  <Step title="Review the output">
+    Same output format as the Upload tab.
+  </Step>
+</Steps>
+
+## Options
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `file` | File | — | The file to convert (multipart upload). Either `file` or `url` is required. |
+| `url` | string | — | Direct URL to a remote file. Either `file` or `url` is required. |
+| `apiKey` | string | — | SwitchAI API key. Required for images, audio, and video. |
+| `enhance` | string | `"true"` | When `"true"`, the raw OCR output is polished by an AI model for cleaner Markdown. |
+| `model` | string | — | Override the Vision model used during processing. Falls back to the server's `FILE2MD_ENHANCE_MODEL` environment variable. |
+| `format` | string | `json` | Response format: `json` (structured), `markdown` (raw text), or `stream` (NDJSON logs + `__JSON__` result). The Web UI always uses `stream`. |
+
+## Output
+
+A successful conversion returns a structured file set:
+
+```json
+{
+  "success": true,
+  "files": {
+    "pages/page_1.md": "# Introduction\n\nThis report covers...",
+    "pages/page_2.md": "## Methodology\n\n...",
+    "full_document.md": "# Introduction\n\n...\n\n## Methodology...",
+    "full_document_raw.md": "<!-- Page 1 -->\nIntroduction...",
+    "metadata.json": "{ \"original_filename\": \"report.pdf\", \"total_pages\": 2 }"
+  }
+}
+```
+
+| File | Description |
+|------|-------------|
+| `pages/page_N.md` | Per-page Markdown for multi-page documents |
+| `full_document.md` | Complete Markdown with all pages concatenated |
+| `full_document_raw.md` | Raw OCR output before AI enhancement |
+| `metadata.json` | Processing metadata including filename, page count, and LLM metrics |
+
+## URL-prepend shortcut
+
+For remote file URLs, prepend the service URL to convert directly without opening the UI:
+
+```text
+# Free — PDFs and documents (no key needed)
+https://2md.traylinx.com/https://example.com/report.pdf
+
+# Premium — images require an API key as a query parameter
+https://2md.traylinx.com/https://example.com/diagram.png?apiKey=sk-lf-...
+```
+
+The server automatically detects the file type from the URL extension and routes the request to the `/api/file2md` engine.
+
+<Warning>
+  Never embed `?apiKey=` in client-side HTML links (`<a>`, `<iframe>`) on a public website — your key would be visible in the page source. For media URLs in production, proxy the request through your own backend.
+</Warning>
+
+## REST API
+
+<Tabs>
+  <Tab title="Upload a file">
+    ```bash
+    curl -X POST http://localhost:8222/api/file2md \
+      -F "file=@report.pdf" \
+      -F "apiKey=sk-lf-your-switchai-key" \
+      -F "enhance=true"
+    ```
+  </Tab>
+  <Tab title="Convert from URL">
+    ```bash
+    curl -X POST http://localhost:8222/api/file2md \
+      -F "url=https://example.com/report.pdf" \
+      -F "apiKey=sk-lf-your-switchai-key" \
+      -F "enhance=true"
+    ```
+  </Tab>
+  <Tab title="JavaScript">
+    ```javascript
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('apiKey', 'sk-lf-your-switchai-key');
+    formData.append('enhance', 'true');
+    formData.append('format', 'json');
+
+    const res = await fetch('http://localhost:8222/api/file2md', {
+      method: 'POST',
+      body: formData
+    });
+    const { files } = await res.json();
+    console.log(files['full_document.md']);
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import requests
+
+    with open('document.pdf', 'rb') as f:
+        res = requests.post('http://localhost:8222/api/file2md',
+            files={'file': f},
+            data={
+                'apiKey': 'sk-lf-your-switchai-key',
+                'enhance': 'true',
+                'format': 'json'
+            }
+        )
+    data = res.json()
+    print(data['files']['full_document.md'][:500])
+    ```
+  </Tab>
+</Tabs>

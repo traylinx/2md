@@ -1,0 +1,171 @@
+---
+title: "POST /api/file2md"
+description: "Convert uploaded files or remote file URLs to Markdown using OCR, Vision AI, and Whisper transcription."
+---
+
+## Overview
+
+Converts a local file upload or a remote file URL to Markdown. The processing engine is selected based on the file type:
+- **Documents** (PDF, DOCX, PPTX) — Agentic document extraction engine
+- **Spreadsheets** (XLSX, CSV) — Tabular-to-Markdown conversion
+- **Images** (PNG, JPG, GIF, WEBP) — Vision AI via OpenAI-compatible models
+- **Audio/Video** (MP3, WAV, MP4, MOV, etc.) — Whisper transcription
+- **Structured data** (JSON) and **Text** (MD, TXT) — Direct extraction
+
+<Note>
+  **Streaming:** The response is a stream of plain-text log lines followed by a `__JSON__` delimiter and the final JSON result. Use `?format=json` to receive a standard JSON response after processing completes.
+</Note>
+
+**File size limit:** 100 MB per upload.
+
+## Request
+
+`POST /api/file2md`
+
+**Content-Type:** `multipart/form-data`
+
+### Form Fields
+
+<ParamField body="file" type="File">
+  The file to convert. One of `file` or `url` must be provided.
+
+  Accepted file types: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.pdf`, `.docx`, `.pptx`, `.csv`, `.xlsx`, `.mp3`, `.wav`, `.m4a`, `.flac`, `.ogg`, `.aac`, `.mp4`, `.mov`, `.webm`, `.mkv`, `.avi`, `.json`, `.md`, `.txt`
+</ParamField>
+
+<ParamField body="url" type="string">
+  A remote URL pointing to a file to download and convert. Used as a fallback when no `file` upload is provided. One of `file` or `url` must be provided.
+</ParamField>
+
+<ParamField body="apiKey" type="string">
+  LLM API key (OpenAI-compatible). Required for image, audio, and video files. Free-tier document formats (PDF, DOCX, PPTX, XLSX, CSV) use the server's configured system key when no `apiKey` is provided.
+</ParamField>
+
+<ParamField body="enhance" type="string">
+  `"true"` or `"false"`. When `"true"` (default), the Vision model enhances and structures the extracted content. Set to `"false"` to skip enhancement and return the raw extraction.
+</ParamField>
+
+<ParamField body="model" type="string">
+  Override the Vision or transcription model. When not set, the server uses its configured default (overridable with the `FILE2MD_ENHANCE_MODEL` environment variable).
+</ParamField>
+
+## Response
+
+### 200 — NDJSON stream (default)
+
+The response body is a stream of log lines followed by a `__JSON__` delimiter:
+
+```
+[File2MD] Processing document.pdf...
+[File2MD] Extracting text from 12 pages...
+[File2MD] Enhancement complete.
+__JSON__{"success":true,"markdown":"# Document Title\n\n...","tokens":{"md":1420}}
+```
+
+<ResponseField name="success" type="boolean">
+  `true` when conversion succeeded.
+</ResponseField>
+
+<ResponseField name="markdown" type="string">
+  The extracted Markdown content.
+</ResponseField>
+
+<ResponseField name="tokens" type="object">
+  <Expandable title="token counts">
+    <ResponseField name="md" type="number">
+      Estimated token count of the Markdown output.
+    </ResponseField>
+    <ResponseField name="html" type="number">
+      Estimated token count of the raw input (when applicable).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Error Responses
+
+**400 — No file or URL provided**
+```json
+{ "error": "Missing file or url in request" }
+```
+
+**400 — Unsupported file type**
+```json
+{ "error": "Unsupported file type: .xyz. Allowed: .png,.jpg,..." }
+```
+
+**401 — API key required**
+```json
+{ "error": "File extraction for PNG format requires an API key in the request body." }
+```
+
+## Supported File Types
+
+<CardGroup cols={3}>
+  <Card title="Images" icon="image">
+    PNG, JPG, JPEG, GIF, WEBP
+    
+    Processed via Vision AI. Requires `apiKey`.
+  </Card>
+  <Card title="Documents" icon="file-text">
+    PDF, DOCX, PPTX
+    
+    Agentic document extraction. Free tier uses system key.
+  </Card>
+  <Card title="Spreadsheets" icon="table">
+    XLSX, CSV
+    
+    Tabular-to-Markdown. Free tier uses system key.
+  </Card>
+  <Card title="Audio" icon="microphone">
+    MP3, WAV, M4A, FLAC, OGG, AAC
+    
+    Whisper transcription. Requires `apiKey`.
+  </Card>
+  <Card title="Video" icon="video">
+    MP4, MOV, WEBM, MKV, AVI
+    
+    Audio track transcription via Whisper. Requires `apiKey`.
+  </Card>
+  <Card title="Text & Data" icon="code">
+    JSON, MD, TXT
+    
+    Direct extraction. Free tier uses system key.
+  </Card>
+</CardGroup>
+
+## Examples
+
+<CodeGroup>
+
+```bash Upload a PDF
+curl -X POST https://2md.traylinx.com/api/file2md \
+  -F "file=@/path/to/document.pdf" \
+  -F "apiKey=sk-..."
+```
+
+```bash Upload an image (Vision AI)
+curl -X POST https://2md.traylinx.com/api/file2md \
+  -F "file=@/path/to/screenshot.png" \
+  -F "apiKey=sk-..."
+```
+
+```bash Remote file URL
+curl -X POST https://2md.traylinx.com/api/file2md \
+  -F "url=https://example.com/report.pdf" \
+  -F "apiKey=sk-..."
+```
+
+```bash JSON format response
+curl -X POST "https://2md.traylinx.com/api/file2md?format=json" \
+  -F "file=@/path/to/document.pdf" \
+  -F "apiKey=sk-..."
+```
+
+```bash URL-prepend shortcut (media requires apiKey)
+curl "https://2md.traylinx.com/https://example.com/image.png?apiKey=sk-..."
+```
+
+</CodeGroup>
+
+<Tip>
+  For audio and video files, the `apiKey` is passed to a Whisper-compatible transcription endpoint. Ensure your key has access to the `whisper-1` model or the model you specify with the `model` parameter.
+</Tip>

@@ -1,0 +1,208 @@
+---
+title: "Agent Discovery"
+description: "Endpoints that let AI agents auto-discover 2md's capabilities, skill bundles, and plugin manifest."
+---
+
+## Overview
+
+2md exposes a set of standard discovery endpoints so that AI agents, crawlers, and tool registries can automatically understand the service's capabilities and retrieve generated Skill Bundles without human configuration.
+
+The implementation follows the [llmstxt.org](https://llmstxt.org) specification for `llms.txt` files and the OpenAI plugin manifest convention for `/.well-known/ai-plugin.json`.
+
+## Endpoints
+
+### GET /llms.txt
+
+The standard entry point for AI agents. Returns a concise machine-readable description of the service and its capabilities, following the llmstxt.org specification.
+
+```
+GET /llms.txt
+```
+
+**Response:** `text/plain; charset=utf-8`
+
+The file lists the service name, a brief description, and links to key documentation pages. All `{{BASE_URL}}` placeholders in the stored file are replaced at runtime with the actual server host, so URLs are always correct regardless of deployment environment.
+
+---
+
+### GET /llms-full.txt
+
+The verbose entry point for AI agents that need complete context — includes full API documentation, all endpoint descriptions, parameter tables, and example requests.
+
+```
+GET /llms-full.txt
+```
+
+**Response:** `text/plain; charset=utf-8`
+
+Like `/llms.txt`, all `{{BASE_URL}}` placeholders are replaced with the runtime host at serve time.
+
+---
+
+### GET /skills/:skillName.md
+
+Retrieve a generated AI Skill Bundle by the site hostname slug. Skill Bundles are created by running `POST /api/agentify` against a documentation site.
+
+```
+GET /skills/html2md-scraper.md
+GET /skills/:skillName.md
+```
+
+**Path Parameters:**
+
+| Parameter | Description |
+|---|---|
+| `skillName` | The skill name slug. Only alphanumeric characters, hyphens, and underscores are allowed. |
+
+**Response (200):** `text/markdown; charset=utf-8` — the `SKILL.md` file for the named skill.
+
+**Error (400):**
+```
+Invalid skill name
+```
+
+**Error (404):**
+```
+Skill not found
+```
+
+Skill files are stored at `.agents/skills/:skillName/SKILL.md` on the server after a successful Agentify run.
+
+---
+
+### GET /.well-known/ai-plugin.json
+
+OpenAI-compatible plugin manifest. Describes the service name, a machine-readable description of available tools, and a link to the OpenAPI schema.
+
+```
+GET /.well-known/ai-plugin.json
+```
+
+**Response:**
+
+```json
+{
+  "schema_version": "v1",
+  "name_for_human": "2md by Traylinx",
+  "name_for_model": "html2md",
+  "description_for_human": "Convert any URL, file, or entire website into clean, structured Markdown. Powered by headless Chrome, OCR, and Vision AI.",
+  "description_for_model": "html2md converts URLs to Markdown using headless Chrome with stealth plugins. It supports single URL conversion, batch processing, deep site crawling, and file-to-Markdown extraction via OCR/Vision models. Use POST /api/convert for single URLs, POST /api/batch for multiple URLs, POST /api/crawl for site crawling, POST /api/file2md for file uploads, and POST /api/agentify to generate AI skill bundles from documentation sites. All endpoints stream real-time logs and return JSON after a __JSON__ delimiter.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://2md.traylinx.com/openapi.json"
+  },
+  "logo_url": "https://2md.traylinx.com/android-chrome-512x512.png",
+  "contact_email": "hello@traylinx.com",
+  "legal_info_url": "https://2md.traylinx.com/terms"
+}
+```
+
+---
+
+### GET /agents.json
+
+A structured manifest of all agent-facing capabilities. Useful for agent registries and tool-discovery pipelines.
+
+```
+GET /agents.json
+```
+
+**Response:**
+
+```json
+{
+  "name": "2md by Traylinx",
+  "description": "Convert any URL, file, or entire website into clean, AI-ready Markdown. Supports headless Chrome rendering, OCR, Vision AI, and deep site crawling.",
+  "url": "https://2md.traylinx.com",
+  "version": "2.0.0",
+  "capabilities": [
+    {
+      "name": "convert",
+      "description": "Convert a single URL to clean Markdown.",
+      "endpoint": "/api/convert",
+      "method": "POST"
+    },
+    {
+      "name": "batch",
+      "description": "Convert multiple URLs to Markdown in parallel.",
+      "endpoint": "/api/batch",
+      "method": "POST"
+    },
+    {
+      "name": "crawl",
+      "description": "Crawl an entire website and convert all discovered pages.",
+      "endpoint": "/api/crawl",
+      "method": "POST"
+    },
+    {
+      "name": "agentify",
+      "description": "Generate an AI Skill Bundle from any documentation site.",
+      "endpoint": "/api/agentify",
+      "method": "POST"
+    },
+    {
+      "name": "file2md",
+      "description": "Convert uploaded files to Markdown via OCR and Vision AI.",
+      "endpoint": "/api/file2md",
+      "method": "POST",
+      "content_type": "multipart/form-data"
+    }
+  ],
+  "discovery": {
+    "llms_txt": "/llms.txt",
+    "llms_full_txt": "/llms-full.txt",
+    "skills": ["/skills/html2md-scraper.md"],
+    "ai_plugin": "/.well-known/ai-plugin.json"
+  },
+  "contact": "hello@traylinx.com"
+}
+```
+
+## Dynamic BASE_URL Replacement
+
+The `llms.txt` and `llms-full.txt` files are stored on disk with `{{BASE_URL}}` placeholders. At request time, the server replaces every occurrence with the actual runtime base URL derived from the incoming request's `x-forwarded-proto` and `host` headers:
+
+```
+https://{{BASE_URL}}/api/convert
+↓ at runtime
+https://2md.traylinx.com/api/convert
+```
+
+This means the same server binary can be deployed to any domain and the discovery files will always contain correct, absolute URLs without any rebuild or manual configuration step.
+
+## llmstxt.org Specification
+
+The `/llms.txt` endpoint implements the [llmstxt.org](https://llmstxt.org) community specification for making web services legible to Large Language Models. The spec defines:
+
+- A plain-text file at `/llms.txt` with a title, optional description, and a list of URLs
+- A verbose companion at `/llms-full.txt` for agents that need complete context
+- Human-readable Markdown formatting so the file is useful to both people and models
+
+<Info>
+  The full specification is available at [llmstxt.org](https://llmstxt.org). 2md implements both the standard `/llms.txt` and the `/llms-full.txt` companion as described in the spec.
+</Info>
+
+## Examples
+
+<CodeGroup>
+
+```bash Fetch llms.txt
+curl https://2md.traylinx.com/llms.txt
+```
+
+```bash Fetch plugin manifest
+curl https://2md.traylinx.com/.well-known/ai-plugin.json
+```
+
+```bash Fetch agents manifest
+curl https://2md.traylinx.com/agents.json
+```
+
+```bash Retrieve a Skill Bundle
+curl https://2md.traylinx.com/skills/html2md-scraper.md
+```
+
+</CodeGroup>

@@ -1,0 +1,174 @@
+---
+title: "CLI Overview"
+description: "Two ways to use 2md from the terminal: the direct CLI for scripts and automation, and the interactive CLI for guided menu-driven conversions."
+---
+
+2md ships with two terminal interfaces. Both drive the same conversion pipeline — the difference is how you interact with them.
+
+<CardGroup cols={2}>
+  <Card title="Direct CLI" icon="terminal">
+    `bin/html2md` — pass flags and URLs directly. Best for scripts, CI pipelines, and automation.
+  </Card>
+  <Card title="Interactive CLI" icon="list">
+    `npm run interactive` — a guided menu that prompts for each option. No flags to memorize.
+  </Card>
+</CardGroup>
+
+## Comparison
+
+| | Direct CLI | Interactive CLI | Web UI |
+|---|---|---|---|
+| Single URL | `./bin/html2md <url>` | Menu option 1 | URL bar |
+| Local HTML file | `./bin/html2md ./file.html` | Menu option 2 | — |
+| Batch convert | `--batch urls.txt` | Menu option 3 | — |
+| Crawl site | `--crawl <url>` | Menu option 4 | Crawl tab |
+| View site tree | `--crawl <url> --tree-only` | Menu option 5 | Visual tree |
+| Agentify Pipeline | — | — | Only |
+| File2MD (PDF/media) | — | — | Only |
+| Start API server | — | Menu option 6 | — |
+
+<Note>
+  The **Agentify Pipeline** and **File2MD** (PDF, DOCX, image, and video uploads with Vision and Whisper models) are exclusively available via the Web UI and REST API. To access them, run `npm start` and open `http://localhost:8222` in your browser.
+</Note>
+
+## Direct CLI
+
+The `bin/html2md` binary is the main orchestrator. It accepts a URL or file path as a positional argument and supports four operating modes via flags.
+
+<Steps>
+  <Step title="Single conversion">
+    Pass any URL or local HTML file path directly:
+
+    ```bash
+    ./bin/html2md https://example.com
+    ./bin/html2md ./my-page.html
+    ```
+
+    Terminal output:
+
+    ```text
+      html2md — HTML to Markdown Converter
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      Job: 2026-03-03_10-36-17_example-com
+      Source: https://example.com
+
+      ⏳ Fetch...
+      ✅ Fetch (7.96s)
+      ⏳ Extract...
+      ✅ Extract (2.54s)
+      ⏳ Convert...
+      ✅ Convert (0.22s)
+      ⏳ Download images...
+      ✅ Download images (0.10s)
+      ⏳ Polish...
+      ✅ Polish (0.10s)
+
+      ✨ Done!
+      Output: ~/.2md/jobs/2026-03-03_10-36-17_example-com/output/page.md
+      Size: 0.3 KB · 31 words
+      Structure: 1 headings, 0 lists, 1 links, 0 images
+    ```
+  </Step>
+  <Step title="Batch mode">
+    Convert multiple URLs in parallel from a text file (one URL per line):
+
+    ```bash
+    ./bin/html2md --batch urls.txt --concurrency 5
+    ```
+  </Step>
+  <Step title="Crawl mode">
+    Discover all pages on a domain via BFS link crawling, then convert them all:
+
+    ```bash
+    ./bin/html2md --crawl https://docs.example.com --depth 3 --max-pages 100
+    ```
+  </Step>
+  <Step title="Tree-only mode">
+    Preview a site's structure without performing any conversions:
+
+    ```bash
+    ./bin/html2md --crawl https://docs.example.com --tree-only
+    ```
+  </Step>
+</Steps>
+
+See the [CLI Reference](/cli/reference) for the complete flags table and more examples.
+
+## Interactive CLI
+
+The interactive CLI provides a guided, menu-driven experience with zero flags to memorize. Launch it with:
+
+<Tabs>
+  <Tab title="npm">
+    ```bash
+    npm run interactive
+    ```
+  </Tab>
+  <Tab title="node">
+    ```bash
+    node bin/interactive.js
+    ```
+  </Tab>
+</Tabs>
+
+### Main menu
+
+```text
+  html2md  — Interactive Mode
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. 🌐  Convert URL         Convert a single web page to Markdown
+  2. 📄  Convert File        Convert a local HTML file
+  3. 📦  Batch Convert       Convert multiple URLs from a file
+  4. 🕷️  Crawl Site          Discover and convert all pages on a domain
+  5. 🌳  View Site Tree      Show site structure without converting
+  6. 🚀  Start API Server    Launch the REST API on localhost
+
+  0. 👋  Exit
+
+  › Choose (0): _
+```
+
+### Menu options
+
+<CardGroup cols={2}>
+  <Card title="1. Convert URL" icon="globe">
+    Prompts for URL, front matter, image downloading, verbose output, and output directory. Runs a single-page conversion.
+  </Card>
+  <Card title="2. Convert File" icon="file">
+    Prompts for a local `.html` file path, front matter, and verbose output.
+  </Card>
+  <Card title="3. Batch Convert" icon="layer-group">
+    Prompts for a `.txt` file of URLs, concurrency level (default: 3), front matter, and verbose output.
+  </Card>
+  <Card title="4. Crawl Site" icon="spider">
+    Prompts for site URL, max depth (default: 3), max pages (default: 300), front matter, image downloading, and verbose output.
+  </Card>
+  <Card title="5. View Site Tree" icon="sitemap">
+    Crawls a site and displays its page structure as a visual tree — no conversion performed. Prompts for URL, max depth, and max pages.
+
+    Example output:
+    ```text
+    /  # My Docs Site
+    ├── getting-started  # Getting Started
+    ├── guides
+    │   ├── installation  # Installation Guide
+    │   └── configuration  # Configuration
+    └── api
+        ├── endpoints  # API Endpoints
+        └── authentication  # Authentication
+    ```
+  </Card>
+  <Card title="6. Start API Server" icon="rocket">
+    Launches the Express REST API on `localhost:8222` (or the port set by the `PORT` environment variable). Press `Ctrl+C` to stop.
+  </Card>
+</CardGroup>
+
+<Tip>
+  Type `0`, `q`, or `exit` at the menu prompt to quit the interactive CLI.
+</Tip>
+
+## Web UI alternative
+
+For a graphical interface, start the API server from the interactive menu (option 6) or with `npm start`, then open `http://localhost:8222` in your browser. The Web UI provides a visual site tree, page selection, and access to the Agentify and File2MD features that are not available in the CLI.

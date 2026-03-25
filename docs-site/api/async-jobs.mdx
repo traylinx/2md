@@ -1,0 +1,305 @@
+---
+title: "Async Jobs"
+description: "Run long-running batch, crawl, and agentify operations in the background with webhooks, email notifications, and the job management API."
+---
+
+## When to Use Async Mode
+
+Synchronous requests to `/api/batch`, `/api/crawl`, and `/api/agentify` can run for minutes. Async mode lets you fire-and-forget: the server accepts the job immediately and continues processing after your connection closes.
+
+Use async mode when:
+- Crawling large sites (many pages or deep depth)
+- Running batch conversions with many URLs
+- Running the Agentify pipeline on a full domain
+- You want an email or webhook notification when the job finishes
+
+---
+
+## Triggering an Async Job
+
+Add `"async": true` to any `/api/batch`, `/api/crawl`, or `/api/agentify` request body. The server responds with `202 Accepted` and a `job_id` immediately:
+
+```bash
+curl -X POST https://2md.traylinx.com/api/crawl \
+  -H "Authorization: Bearer sk-your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://docs.example.com",
+    "depth": 3,
+    "maxPages": 50,
+    "async": true
+  }'
+```
+
+```json
+{
+  "success": true,
+  "job_id": "job_a1b2c3d4e5f6",
+  "status": "running",
+  "status_url": "/api/jobs/job_a1b2c3d4e5f6",
+  "result_url": "/api/jobs/job_a1b2c3d4e5f6/result"
+}
+```
+
+---
+
+## Notifications
+
+### Email notification
+
+Pass `"email"` in the request body to receive a branded email with a secure download link when the job completes. The link expires after **72 hours** (configurable via `JOB_TTL_HOURS`):
+
+```json
+{
+  "url": "https://docs.example.com",
+  "async": true,
+  "email": "you@example.com"
+}
+```
+
+The email is sent from `noreply@traylinx.com` via **2MD by Traylinx** and includes a **Download Results** button linked to a time-limited signed URL.
+
+### Webhook callback
+
+Pass `"webhook_url"` to receive an HTTP `POST` to your endpoint when the job completes:
+
+```json
+{
+  "url": "https://docs.example.com",
+  "async": true,
+  "webhook_url": "https://your-server.example.com/hooks/2md"
+}
+```
+
+The server retries failed webhook deliveries up to **3 times** with exponential backoff (1 s, 4 s, 16 s). 4xx responses (except 429) are not retried.
+
+#### Webhook payload
+
+```json
+{
+  "job_id": "job_a1b2c3d4e5f6",
+  "status": "done",
+  "type": "crawl",
+  "completed_at": "2026-03-25T11:30:00.000Z",
+  "download_url": "/api/download/job/job_a1b2c3d4e5f6?token=eyJ..."
+}
+```
+
+#### Webhook signature verification
+
+When the server is configured with a `WEBHOOK_SECRET` environment variable, every delivery includes an `X-Webhook-Signature` header. Verify it to confirm the request came from 2MD:
+
+```
+X-Webhook-Signature: sha256=<hmac-sha256-hex>
+X-Job-Id: job_a1b2c3d4e5f6
+```
+
+The signature is computed as `HMAC-SHA256(secret, JSON.stringify(payload))`. Example verification in Node.js:
+
+```js
+const crypto = require('crypto');
+
+function verifyWebhook(rawBody, signatureHeader, secret) {
+  const expected = 'sha256=' + crypto
+    .createHmac('sha256', secret)
+    .update(rawBody)
+    .digest('hex');
+  return crypto.timingSafeEqual(
+    Buffer.from(signatureHeader),
+    Buffer.from(expected)
+  );
+}
+```
+
+<Warning>
+Always verify the webhook signature in production environments. Without verification, any party that knows your webhook URL can send spoofed job completion events.
+</Warning>
+
+---
+
+## Job Management Endpoints
+
+### List all jobs
+
+```bash
+GET /api/jobs
+```
+
+Returns jobs scoped to the current `X-Client-Id` session header.
+
+```json
+{
+  "jobs": [
+    {
+      "id": "job_a1b2c3d4e5f6",
+      "type": "crawl",
+      "status": "done",
+      "url": "https://docs.example.com",
+      "createdAt": "2026-03-25T11:00:00.000Z",
+      "completedAt": "2026-03-25T11:30:00.000Z",
+      "hasResult": true
+    }
+  ]
+}
+```
+
+### Get job status
+
+```bash
+GET /api/jobs/:id
+```
+
+Returns metadata for a single job without the full result payload. The `hasResult` field indicates whether a result is available to fetch.
+
+```json
+{
+  "id": "job_a1b2c3d4e5f6",
+  "type": "crawl",
+  "status": "done",
+  "url": "https://docs.example.com",
+  "createdAt": "2026-03-25T11:00:00.000Z",
+  "completedAt": "2026-03-25T11:30:00.000Z",
+  "hasResult": true,
+  "downloadUrl": "/api/download/job/job_a1b2c3d4e5f6?token=eyJ...",
+  "webhookStatus": "delivered",
+  "emailStatus": "sent"
+}
+```
+
+Possible `status` values: `pending` | `running` | `done` | `failed`
+
+### Fetch job result
+
+```bash
+GET /api/jobs/:id/result
+```
+
+Returns the full result payload for a completed job. Returns `404` if the job does not exist, has not completed, or has expired.
+
+### Stream job logs (SSE)
+
+```bash
+GET /api/jobs/:id/logs
+```
+
+For in-progress jobs, opens a Server-Sent Events stream that publishes log lines in real time. For completed jobs, returns the stored log buffer as plain text.
+
+### Download job archive
+
+```bash
+GET /api/download/job/:id?token=<signed-token>
+```
+
+Returns a `.zip` archive of the job results. The `token` is a time-limited signed URL generated when the job completes (included in the `downloadUrl` field of the job record and in the webhook payload). Tokens expire after `JOB_TTL_HOURS` (default: 72 hours).
+
+### Delete jobs
+
+```bash
+DELETE /api/jobs
+```
+
+Clears the job registry. Pass `?before=<ISO-date>` to delete only jobs created before that timestamp:
+
+```bash
+curl -X DELETE "https://2md.traylinx.com/api/jobs?before=2026-03-01T00:00:00Z" \
+  -H "Authorization: Bearer sk-your-api-key"
+```
+
+```json
+{ "deleted": 12 }
+```
+
+<Note>
+Job records and their associated files are automatically swept by a background process every 30 minutes. Records with a past `expiresAt` timestamp are deleted along with any result files on disk.
+</Note>
+
+---
+
+## Cross-Tab Cancellation
+
+For synchronous (streaming) requests, if the client disconnects — for example by closing the browser tab — the server immediately detects the dropped connection and uses `tree-kill` to terminate all running child processes (headless browsers, crawlers). No orphaned processes are left behind.
+
+For async jobs the process runs on the server regardless of client connectivity, which is why async mode is preferred for long-running work.
+
+---
+
+## Full Workflow Example
+
+<Steps>
+  <Step title="Submit an async crawl">
+    ```bash
+    curl -X POST https://2md.traylinx.com/api/crawl \
+      -H "Authorization: Bearer sk-your-api-key" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "url": "https://docs.example.com",
+        "depth": 2,
+        "maxPages": 30,
+        "async": true,
+        "webhook_url": "https://your-server.example.com/hooks/2md",
+        "email": "you@example.com"
+      }'
+    ```
+
+    Response (`202 Accepted`):
+
+    ```json
+    {
+      "success": true,
+      "job_id": "job_a1b2c3d4e5f6",
+      "status": "running",
+      "status_url": "/api/jobs/job_a1b2c3d4e5f6",
+      "result_url": "/api/jobs/job_a1b2c3d4e5f6/result"
+    }
+    ```
+  </Step>
+
+  <Step title="Poll for status">
+    ```bash
+    curl https://2md.traylinx.com/api/jobs/job_a1b2c3d4e5f6 \
+      -H "Authorization: Bearer sk-your-api-key"
+    ```
+
+    While running:
+
+    ```json
+    {
+      "id": "job_a1b2c3d4e5f6",
+      "status": "running",
+      "hasResult": false
+    }
+    ```
+
+    When complete:
+
+    ```json
+    {
+      "id": "job_a1b2c3d4e5f6",
+      "status": "done",
+      "hasResult": true,
+      "downloadUrl": "/api/download/job/job_a1b2c3d4e5f6?token=eyJ...",
+      "completedAt": "2026-03-25T11:30:00.000Z"
+    }
+    ```
+  </Step>
+
+  <Step title="Fetch the result">
+    ```bash
+    curl https://2md.traylinx.com/api/jobs/job_a1b2c3d4e5f6/result \
+      -H "Authorization: Bearer sk-your-api-key"
+    ```
+
+    Returns the full structured result payload for the crawl.
+  </Step>
+
+  <Step title="Download the ZIP archive">
+    Use the `downloadUrl` returned in the job record (or delivered by webhook/email):
+
+    ```bash
+    curl -L "https://2md.traylinx.com/api/download/job/job_a1b2c3d4e5f6?token=eyJ..." \
+      -o results.zip
+    ```
+
+    The archive contains all converted Markdown files plus a `manifest.json` describing the job.
+  </Step>
+</Steps>

@@ -1,0 +1,228 @@
+---
+title: "CLI Reference"
+description: "Complete reference for bin/html2md — all modes, flags, examples, and exit codes."
+---
+
+## Synopsis
+
+```text
+bin/html2md [options] <url|file>
+bin/html2md --batch <urls.txt> [options]
+bin/html2md --crawl <url> [--depth N] [options]
+bin/html2md --crawl <url> --tree-only
+```
+
+<Note>
+  This CLI covers HTML-to-Markdown conversion (`single`, `batch`, `crawl`). The **Agentify Pipeline** and **File2MD** (PDF, DOCX, image, and video processing with Vision and Whisper models) are exclusively available via the Web UI and REST API. Run `npm start` and open `http://localhost:8222` to access them.
+</Note>
+
+## Modes
+
+### Single URL or file
+
+Convert one URL or local HTML file. The pipeline runs Fetch → Extract → Convert → Download images → Polish and saves the result to a job folder.
+
+```bash
+./bin/html2md https://example.com
+./bin/html2md ./local-page.html
+```
+
+Example output:
+
+```text
+  html2md — HTML to Markdown Converter
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Job: 2026-03-03_10-36-17_example-com
+  Source: https://example.com
+
+  ⏳ Fetch...
+  ✅ Fetch (7.96s)
+  ⏳ Extract...
+  ✅ Extract (2.54s)
+  ⏳ Convert...
+  ✅ Convert (0.22s)
+  ⏳ Download images...
+  ✅ Download images (0.10s)
+  ⏳ Polish...
+  ✅ Polish (0.10s)
+
+  ✨ Done!
+  Output: ~/.2md/jobs/2026-03-03_10-36-17_example-com/output/page.md
+  Size: 0.3 KB · 31 words
+  Structure: 1 headings, 0 lists, 1 links, 0 images
+```
+
+### Batch mode
+
+Convert multiple URLs in parallel from a plain-text file with one URL per line.
+
+```bash
+./bin/html2md --batch urls.txt
+./bin/html2md --batch urls.txt --concurrency 5 --front-matter
+```
+
+**`urls.txt` format:**
+
+```text
+https://example.com
+https://dev.to/some-article
+https://github.com/some/repo
+```
+
+Batch mode prints a summary when all jobs complete:
+
+```text
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✅ Success: 3/3
+  ❌ Failed:  0
+  📝 Total words: 4,821
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Crawl mode
+
+Discover all pages on a domain via BFS link crawling, then convert them all. The crawler first checks for `sitemap.xml` before falling back to BFS.
+
+```bash
+./bin/html2md --crawl https://docs.example.com
+./bin/html2md --crawl https://docs.stripe.com --depth 2 --max-pages 50
+```
+
+All pages from a crawl are saved under a site-grouped directory structure:
+
+```text
+~/.2md/jobs/<hostname>/
+├── site.json
+└── pages/
+    ├── <slug-1>/
+    │   ├── output/page.md
+    │   └── job.json
+    └── <slug-2>/
+        ├── output/page.md
+        └── job.json
+```
+
+### Tree-only mode
+
+Crawl a site and display its page structure as a visual tree without converting any pages. Useful for previewing a site before committing to a full crawl.
+
+```bash
+./bin/html2md --crawl https://docs.example.com --tree-only
+```
+
+Example output:
+
+```text
+/  # My Docs
+├── getting-started  # Getting Started
+├── guides
+│   ├── installation  # Installation
+│   └── configuration  # Config Guide
+└── api
+    └── endpoints  # API Endpoints
+```
+
+## Flags
+
+| Flag | Type | Default | Description |
+|---|---|---|---|
+| `-o, --output DIR` | string | auto | Custom output directory. Defaults to an auto-generated folder inside `JOBS_DIR`. |
+| `-d, --download-images` | boolean | `true` | Download images referenced in the page. |
+| `--no-images` | boolean | — | Skip image downloading. Alias for `--no-download-images`. |
+| `--front-matter` | boolean | `false` | Prepend a YAML front matter block (`title`, `source`, `date`) to the output. |
+| `-w, --wait MS` | number | `10000` | Puppeteer JS rendering wait time in milliseconds. |
+| `--max-image-size MB` | number | `10` | Skip downloading images larger than N megabytes. |
+| `--concurrency N` | number | `3` | Number of parallel jobs for batch and crawl modes. |
+| `--depth N` | number | `3` | Maximum link-follow depth for crawl mode. |
+| `--max-pages N` | number | `300` | Maximum number of pages to crawl. |
+| `--tree-only` | boolean | `false` | Show the site tree without converting any pages. Requires `--crawl`. |
+| `--stream` | boolean | `false` | Output NDJSON events to stdout. Implies `--quiet`. Alias for `--output-format stream-json`. |
+| `--output-format FMT` | string | `text` | Output format: `text`, `json`, or `stream-json`. Setting `json` also enables `--quiet`. |
+| `--site-dir DIR` | string | — | Group converted pages under a specific site directory instead of auto-detecting from the hostname. |
+| `-q, --quiet` | boolean | `false` | Suppress all progress output to stdout. |
+| `-v, --verbose` | boolean | `false` | Print detailed per-step script output to the terminal. |
+| `-h, --help` | boolean | — | Print the help message and exit. |
+| `--batch FILE` | string | — | Enable batch mode. Accepts a path to a `.txt` file or a comma-separated list of URLs. |
+| `--crawl URL` | string | — | Enable crawl mode. Accepts the root URL to start crawling from. |
+
+## Examples
+
+<CodeGroup>
+
+```bash Convert with YAML front matter
+./bin/html2md https://blog.example.com/post --front-matter
+```
+
+```bash Convert without downloading images
+./bin/html2md https://example.com --no-images
+```
+
+```bash Batch with custom concurrency and front matter
+./bin/html2md --batch urls.txt --concurrency 5 --front-matter
+```
+
+```bash Crawl a docs site with limits
+./bin/html2md --crawl https://docs.stripe.com --depth 2 --max-pages 50
+```
+
+```bash Preview site structure before crawling
+./bin/html2md --crawl https://example.com --tree-only
+```
+
+```bash Quiet mode for scripts and CI
+./bin/html2md https://example.com -q -o ./output
+```
+
+```bash Stream NDJSON progress events
+./bin/html2md https://example.com --stream > output.ndjson
+```
+
+```bash Get structured JSON output
+./bin/html2md https://example.com --output-format json
+```
+
+</CodeGroup>
+
+### Front matter output example
+
+When `--front-matter` is set, the output file begins with a YAML header:
+
+```yaml
+---
+title: "My Blog Post"
+source: "https://blog.example.com/post"
+date: "2026-03-03"
+---
+
+# My Blog Post
+...
+```
+
+### NDJSON stream event example
+
+With `--stream`, each pipeline step emits a JSON object on its own line:
+
+```text
+{"event":"start","mode":"single","target":"https://example.com","timestamp":"2026-03-03T10:36:17.000Z"}
+{"event":"step","jobId":"2026-03-03_10-36-17_example-com","step":"fetch","status":"start","timestamp":"..."}
+{"event":"step","jobId":"2026-03-03_10-36-17_example-com","step":"fetch","status":"complete","elapsed":7.96,"timestamp":"..."}
+{"event":"job_complete","jobId":"2026-03-03_10-36-17_example-com","url":"https://example.com","words":31,"sizeKb":"0.3","output":"...page.md","timestamp":"..."}
+{"event":"complete","mode":"single","success":1,"failed":0,"timestamp":"..."}
+```
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success |
+| `1` | Error — invalid input, fetch failure, or conversion failure |
+
+## Advanced features (Web UI / REST API only)
+
+The following features are **not** available in `bin/html2md` and require the Web UI or REST API:
+
+- **Agentify Pipeline** — crawl a site and produce an AI-ready Skill bundle (`llms.txt`, `SKILL.md`, and structured Markdown pages).
+- **File2MD** — convert local PDFs, DOCX files, images, and YouTube videos to Markdown using Vision and Whisper models.
+
+To access these features, start the server with `npm start` and open `http://localhost:8222` in your browser.

@@ -1,0 +1,216 @@
+---
+title: "POST /api/convert"
+description: "Convert a single URL to Markdown using auto-selected or explicitly specified extraction engines."
+---
+
+## Overview
+
+Converts a single URL to clean Markdown. The server automatically selects the best extraction engine (`native` → `static` → `browser`) unless you explicitly set the `method` parameter.
+
+<Note>
+  **Streaming & Cancellation:** This endpoint streams real-time progress logs as plain text. If the client disconnects before the process completes (e.g., closing a tab or cancelling a request), the server instantly detects the disconnect and uses `tree-kill` to safely terminate the running headless Puppeteer instance, freeing memory immediately.
+</Note>
+
+## Request
+
+`POST /api/convert`
+
+**Content-Type:** `application/json`
+
+### Body Parameters
+
+<ParamField body="url" type="string" required>
+  The URL to convert to Markdown.
+</ParamField>
+
+<ParamField body="method" type="string" default="auto">
+  Conversion engine to use. Options:
+  - `auto` — Tries `native` → `static` → `browser` in order (default)
+  - `native` — Fetches raw Markdown if the server supports content negotiation
+  - `static` — Lightweight extraction via Cheerio/Readability without JS execution
+  - `browser` — Spawns a headless Puppeteer instance for JS-heavy SPAs
+</ParamField>
+
+<ParamField body="format" type="string">
+  Response format. Also configurable via `?format=` query string or `Accept` header.
+  - `json` — Structured JSON response (default for API clients)
+  - `markdown` — Raw Markdown text
+  - `stream` — NDJSON log stream followed by a `__JSON__` result delimiter (default for Web UI)
+</ParamField>
+
+<ParamField body="downloadImages" type="boolean" default={true}>
+  Download and embed referenced images locally.
+</ParamField>
+
+<ParamField body="frontMatter" type="boolean" default={true}>
+  Prepend a YAML front matter block to the output Markdown.
+</ParamField>
+
+<ParamField body="waitMs" type="number" default={10000}>
+  Milliseconds to wait for JavaScript rendering when using the `browser` method.
+</ParamField>
+
+<ParamField body="maxImageSizeMb" type="number" default={10}>
+  Maximum image file size (in MB) to download. Images exceeding this limit are skipped.
+</ParamField>
+
+<ParamField body="screenshot" type="boolean" default={false}>
+  When `true`, captures a screenshot of the rendered page and returns a `screenshotUrl` in the response pointing to `GET /api/screenshot/:hostname/:slug`.
+</ParamField>
+
+## Response
+
+### 200 — Success
+
+```json
+{
+  "success": true,
+  "url": "https://example.com",
+  "markdown": "# Example Domain\n\nThis domain is for...",
+  "cache": "miss",
+  "method": "native",
+  "tokens": {
+    "html": 1240,
+    "md": 340
+  },
+  "metadata": {
+    "title": "Example Domain",
+    "byline": null,
+    "excerpt": null
+  },
+  "quality": {
+    "headings": 1,
+    "links": 1,
+    "images": 0,
+    "lists": 0
+  }
+}
+```
+
+<ResponseField name="success" type="boolean">
+  `true` when conversion succeeded.
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  The original URL that was converted.
+</ResponseField>
+
+<ResponseField name="markdown" type="string">
+  The extracted Markdown content.
+</ResponseField>
+
+<ResponseField name="cache" type="string">
+  Whether the result was served from cache (`hit`) or freshly extracted (`miss`).
+</ResponseField>
+
+<ResponseField name="method" type="string">
+  The actual extraction method used: `native`, `static`, `browser`, or `local_cache`.
+</ResponseField>
+
+<ResponseField name="tokens" type="object">
+  <Expandable title="token counts">
+    <ResponseField name="html" type="number">
+      Estimated token count of the raw HTML input.
+    </ResponseField>
+    <ResponseField name="md" type="number">
+      Estimated token count of the Markdown output.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  <Expandable title="page metadata">
+    <ResponseField name="title" type="string">
+      Page title extracted by Readability.
+    </ResponseField>
+    <ResponseField name="byline" type="string | null">
+      Author or byline if detected.
+    </ResponseField>
+    <ResponseField name="excerpt" type="string | null">
+      Short excerpt or description if detected.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="quality" type="object">
+  <Expandable title="quality metrics">
+    <ResponseField name="headings" type="number">
+      Number of headings in the Markdown output.
+    </ResponseField>
+    <ResponseField name="links" type="number">
+      Number of links in the Markdown output.
+    </ResponseField>
+    <ResponseField name="images" type="number">
+      Number of images in the Markdown output.
+    </ResponseField>
+    <ResponseField name="lists" type="number">
+      Number of list items in the Markdown output.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="screenshotUrl" type="string">
+  URL to the captured screenshot image (`/api/screenshot/:hostname/:slug`). Only present when `screenshot: true` was set in the request and a screenshot was successfully captured.
+</ResponseField>
+
+### Error Responses
+
+**400 — Missing URL**
+```json
+{ "error": "Missing url in request body" }
+```
+
+**400 — Invalid method**
+```json
+{ "error": "Invalid method \"xyz\". Valid: auto, native, static, browser" }
+```
+
+**500 — Conversion failed**
+```json
+{ "error": "Conversion failed", "details": "..." }
+```
+
+## Response Headers
+
+Every response includes the following headers:
+
+| Header | Description |
+|---|---|
+| `X-Job-Id` | Unique job ID for this request |
+| `X-Request-Id` | Request trace ID |
+| `RateLimit-Limit` | Your tier's rate limit |
+| `RateLimit-Remaining` | Requests remaining in the current window |
+| `RateLimit-Reset` | Unix timestamp when the window resets |
+
+## Examples
+
+<CodeGroup>
+
+```bash JSON format
+curl -X POST https://2md.traylinx.com/api/convert \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'
+```
+
+```bash Markdown format
+curl -X POST https://2md.traylinx.com/api/convert \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com", "format": "markdown"}'
+```
+
+```bash Force browser engine
+curl -X POST https://2md.traylinx.com/api/convert \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-..." \
+  -d '{"url": "https://app.example.com", "method": "browser", "waitMs": 5000}'
+```
+
+```bash URL-prepend shortcut
+curl https://2md.traylinx.com/https://example.com
+```
+
+</CodeGroup>
+
+<Tip>
+  The URL-prepend shortcut (`/https://example.com`) is a zero-friction alternative to calling `POST /api/convert`. It returns raw Markdown by default.
+</Tip>

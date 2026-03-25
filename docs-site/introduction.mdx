@@ -1,0 +1,89 @@
+---
+title: "Introduction"
+description: "High-fidelity HTML-to-Markdown converter with a CLI, REST API, and web UI — supporting single pages, batch jobs, full-site crawls, file uploads, and AI Skill Bundle generation."
+---
+
+## What is 2md?
+
+**2md** is a high-fidelity HTML-to-Markdown converter built for developers, AI engineers, and content teams who need reliable, structured Markdown from any web source.
+
+It combines a headless Chrome rendering engine with intelligent content extraction to produce clean, structured Markdown — even from complex SPAs, JavaScript-heavy sites, and behind Cloudflare WAF protection.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Convert your first URL to Markdown in under a minute
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/cli/reference">
+    All CLI flags, modes, and usage examples
+  </Card>
+  <Card title="REST API" icon="code" href="/api/overview">
+    Integrate conversion into your own apps and pipelines
+  </Card>
+  <Card title="Agentify" icon="robot" href="/web-ui/agentify">
+    Convert entire websites into AI-ready Skill Bundles
+  </Card>
+</CardGroup>
+
+## Core capabilities
+
+<CardGroup cols={2}>
+  <Card title="Single URL conversion" icon="link">
+    Convert any web page to Markdown with near-100% fidelity, including JS-rendered SPAs
+  </Card>
+  <Card title="Batch processing" icon="layer-group">
+    Convert dozens of URLs in parallel from a text file or API call
+  </Card>
+  <Card title="Site crawling" icon="spider">
+    Discover all pages on a domain via sitemap or BFS link crawling, then convert them all
+  </Card>
+  <Card title="File2MD" icon="file-arrow-up">
+    Upload PDFs, images, audio, and video for conversion using Vision and Whisper models
+  </Card>
+  <Card title="Agentify pipeline" icon="brain">
+    Transform entire websites into structured AI Skill Bundles (llms.txt + SKILL.md)
+  </Card>
+  <Card title="URL-prepend shortcut" icon="bolt">
+    Instantly convert any URL by prepending the 2md service hostname — no API call needed
+  </Card>
+</CardGroup>
+
+## How it works
+
+Every conversion runs through a 5-step pipeline:
+
+```
+URL → Fetch → Extract → Convert → Download → Polish → page.md
+```
+
+| Step | Tool | What it does |
+|------|------|-------------|
+| **Fetch** | Puppeteer + Stealth | Renders the page in headless Chrome, bypasses WAF/Cloudflare |
+| **Extract** | Readability.js → Trafilatura | Strips boilerplate; falls back to Python if quality is low |
+| **Convert** | Turndown.js + GFM | Converts clean HTML to GitHub-Flavored Markdown |
+| **Download** | Node fetch | Downloads referenced images, rewrites paths |
+| **Polish** | Custom rules | Normalizes whitespace, adds YAML front matter, scores quality |
+
+## Access modes
+
+2md is available through three interfaces:
+
+- **CLI** — `./bin/html2md` and interactive mode (`npm run interactive`)
+- **REST API** — `POST /api/convert`, `/api/batch`, `/api/crawl`, `/api/agentify`, `/api/file2md`
+- **Web UI** — full SPA at `http://localhost:8222` (or `https://2md.traylinx.com`)
+
+<Note>
+  Advanced features — **Agentify** and **File2MD** (PDF/media with Vision and Whisper) — are only available via the Web UI and REST API. The CLI covers single URL, batch, and crawl conversions.
+</Note>
+
+## Tech stack
+
+| Component | Tool |
+|-----------|------|
+| Page rendering | Puppeteer (headless Chrome) |
+| Content extraction | Readability.js + Trafilatura (Python fallback) |
+| HTML → Markdown | Turndown.js + GFM plugin |
+| API server | Express.js |
+| Concurrency | p-queue |
+| Job queuing | BullMQ + Valkey (Redis) |
+| Storage | AWS S3 |
+| Container | Docker (Node 22 + Chrome + Python 3) |
