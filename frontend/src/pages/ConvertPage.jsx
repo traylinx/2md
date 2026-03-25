@@ -105,7 +105,7 @@ export default function ConvertPage({ recoveredJob }) {
         defaultUrl={recoveredUrl}
       />
 
-      <div class="prepend-hero-banner" style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '8px', border: '1px solid var(--border)', marginTop: '1.5rem', marginBottom: '1.5rem', textAlign: 'left' }}>
+      <div class="prepend-hero-banner" style={{ marginTop: '2rem', marginBottom: '1.5rem', textAlign: 'left' }}>
         <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span class="material-symbols-outlined" style={{ color: 'var(--primary)', fontSize: '20px' }}>bolt</span>
           Zero-Friction: URL-Prepend Conversion
@@ -113,9 +113,16 @@ export default function ConvertPage({ recoveredJob }) {
         <p style={{ margin: '0 0 1rem 0', color: 'var(--text-dim)', fontSize: '0.95rem', lineHeight: '1.5' }}>
           Prepend <code>https://2md.traylinx.com/</code> to any URL to instantly get clean Markdown — no API call, no POST body, no configuration needed.
         </p>
-        <div style={{ background: '#000000', padding: '12px 16px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '0.9rem', color: '#c084fc', border: '1px solid rgba(255,255,255,0.1)', overflowX: 'auto' }}>
-          https://2md.traylinx.com/https://example.com/article
-        </div>
+        <a 
+          href="https://2md.traylinx.com/https://2md.traylinx.com/docs/web-ui/convert"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: 'block', background: 'var(--bg-secondary)', padding: '12px 16px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '0.9rem', color: 'var(--primary)', border: '1px solid var(--border)', overflowX: 'auto', textDecoration: 'none', transition: 'border-color 0.2s', whiteSpace: 'nowrap' }}
+          onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+          onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+        >
+          https://2md.traylinx.com/https://2md.traylinx.com/docs/web-ui/convert
+        </a>
       </div>
 
       {loading && (
