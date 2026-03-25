@@ -58,6 +58,7 @@ export default function ConvertPage({ recoveredJob }) {
 
   const [recoveredUrl, setRecoveredUrl] = useState('');
   const [recoveredLog, setRecoveredLog] = useState('');
+  const [isPinging, setIsPinging] = useState(false);
 
   useEffect(() => {
     if (recoveredJob && recoveredJob.type === 'convert' && recoveredJob.resultData) {
@@ -114,7 +115,7 @@ export default function ConvertPage({ recoveredJob }) {
           Prepend <code>https://2md.traylinx.com/</code> to any URL to instantly get clean Markdown — no API call, no POST body, no configuration needed.
         </p>
         <form 
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             let targetUrl = e.target.elements.urlInput.value.trim();
             if (targetUrl) {
@@ -123,9 +124,15 @@ export default function ConvertPage({ recoveredJob }) {
               }
               try {
                 new URL(targetUrl);
+                setIsPinging(true);
+                const pingRes = await fetch(`/api/ping?url=${encodeURIComponent(targetUrl)}`);
+                if (!pingRes.ok) throw new Error('Bad URL');
+                
                 window.open(`https://2md.traylinx.com/${targetUrl}`, '_blank');
               } catch (err) {
-                alert('Please enter a valid URL (e.g., https://example.com/article)');
+                alert('Website is unreachable or returned an error (e.g. 404 Not Found).');
+              } finally {
+                setIsPinging(false);
               }
             }
           }}
@@ -174,12 +181,13 @@ export default function ConvertPage({ recoveredJob }) {
           />
           <button 
             type="submit"
+            disabled={isPinging}
             style={{ 
               padding: '0', 
               background: 'transparent', 
               color: 'var(--text-primary)', 
               border: 'none', 
-              cursor: 'pointer', 
+              cursor: isPinging ? 'not-allowed' : 'pointer', 
               display: 'flex', 
               alignItems: 'center', 
               gap: '4px',
@@ -187,13 +195,16 @@ export default function ConvertPage({ recoveredJob }) {
               fontWeight: 'inherit',
               fontFamily: 'var(--font-sans)',
               transition: 'color 0.2s',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              opacity: isPinging ? 0.5 : 1
             }}
-            onMouseOver={(e) => e.currentTarget.style.color = 'var(--primary)'}
-            onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
+            onMouseOver={(e) => { if(!isPinging) e.currentTarget.style.color = 'var(--primary)' }}
+            onMouseOut={(e) => { if(!isPinging) e.currentTarget.style.color = 'var(--text-primary)' }}
           >
-            Markdown
-            <span class="material-symbols-outlined" style={{ fontSize: '14px' }}>open_in_new</span>
+            {isPinging ? 'Ping...' : 'Markdown'}
+            <span class={`material-symbols-outlined ${isPinging ? 'preact-spin' : ''}`} style={{ fontSize: '14px' }}>
+              {isPinging ? 'sync' : 'open_in_new'}
+            </span>
           </button>
         </form>
       </div>

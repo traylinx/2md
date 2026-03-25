@@ -59,6 +59,34 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+app.get('/api/ping', async (req, res) => {
+  const targetUrl = req.query.url;
+  if (!targetUrl) return res.status(400).json({ error: 'Missing url' });
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch(targetUrl, { 
+      method: 'GET', 
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' } 
+    });
+    clearTimeout(timeout);
+    
+    // Aggressively destroy the incoming HTTP byte stream since we only care if it's a 200
+    if (response.body && typeof response.body.cancel === 'function') {
+      response.body.cancel().catch(() => {});
+    }
+    
+    if (response.ok) {
+      return res.status(200).json({ status: response.status });
+    } else {
+      return res.status(response.status).json({ error: `HTTP ${response.status}` });
+    }
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+});
+
 app.get('/api/upload-info', (req, res) => {
   res.json({
     extensions: UPLOAD_ALLOWED.map(f => `.${f.ext}`),
