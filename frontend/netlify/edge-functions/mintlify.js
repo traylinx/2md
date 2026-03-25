@@ -3,7 +3,7 @@ export default async (request, context) => {
     const urlObject = new URL(request.url);
 
     if (urlObject.pathname.startsWith("/docs") || urlObject.pathname.startsWith("/_mintlify") || urlObject.pathname.startsWith("/mintlify-assets")) {
-      const DOCS_URL = "traylinx-2md-49.mintlify.app";
+      const DOCS_URL = "traylinx-2md-49.mintlify.dev";
       const CUSTOM_URL = "2md.traylinx.com";
 
       let url = new URL(request.url);
