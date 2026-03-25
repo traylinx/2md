@@ -113,16 +113,80 @@ export default function ConvertPage({ recoveredJob }) {
         <p style={{ margin: '0 0 1rem 0', color: 'var(--text-dim)', fontSize: '0.95rem', lineHeight: '1.5' }}>
           Prepend <code>https://2md.traylinx.com/</code> to any URL to instantly get clean Markdown — no API call, no POST body, no configuration needed.
         </p>
-        <a 
-          href="https://2md.traylinx.com/https://2md.traylinx.com/docs/web-ui/convert"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ display: 'block', background: 'var(--bg-secondary)', padding: '12px 16px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '0.9rem', color: 'var(--primary)', border: '1px solid var(--border)', overflowX: 'auto', textDecoration: 'none', transition: 'border-color 0.2s', whiteSpace: 'nowrap' }}
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault();
+            const targetUrl = e.target.elements.urlInput.value;
+            if (targetUrl) {
+              window.open(`https://2md.traylinx.com/${targetUrl}`, '_blank');
+            }
+          }}
+          style={{ 
+            display: 'flex', 
+            alignItems: 'stretch', 
+            background: 'var(--bg-secondary)', 
+            borderRadius: '6px', 
+            border: '1px solid var(--border)', 
+            overflow: 'hidden',
+            transition: 'border-color 0.2s'
+          }}
           onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
           onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
         >
-          https://2md.traylinx.com/https://2md.traylinx.com/docs/web-ui/convert
-        </a>
+          <div style={{ 
+            padding: '12px 0 12px 16px', 
+            color: 'var(--text-dim)', 
+            fontFamily: 'monospace', 
+            fontSize: '0.9rem', 
+            display: 'flex', 
+            alignItems: 'center', 
+            userSelect: 'none',
+            whiteSpace: 'nowrap'
+          }}>
+            https://2md.traylinx.com/
+          </div>
+          <input 
+            name="urlInput"
+            type="text"
+            defaultValue="https://2md.traylinx.com/docs/web-ui/convert"
+            placeholder="https://example.com/article"
+            required
+            spellCheck="false"
+            style={{ 
+              flex: 1, 
+              background: 'transparent', 
+              border: 'none', 
+              padding: '12px 16px 12px 0', 
+              color: 'var(--primary)', 
+              fontFamily: 'monospace', 
+              fontSize: '0.9rem', 
+              outline: 'none', 
+              minWidth: '100px' 
+            }}
+          />
+          <button 
+            type="submit"
+            style={{ 
+              padding: '0 16px', 
+              background: 'var(--primary)', 
+              color: '#fff', 
+              border: 'none', 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              fontSize: '0.85rem',
+              fontWeight: '500',
+              transition: 'opacity 0.2s',
+              whiteSpace: 'nowrap'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+            onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+          >
+            Get Markdown
+            <span class="material-symbols-outlined" style={{ fontSize: '16px' }}>open_in_new</span>
+          </button>
+        </form>
       </div>
 
       {loading && (
