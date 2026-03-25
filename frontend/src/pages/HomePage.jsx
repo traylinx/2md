@@ -20,30 +20,41 @@ curl -X POST https://api.traylinx.com/api/convert \\
 Supported formats: json (structured, recommended), markdown (raw text), stream (NDJSON logs).
 Supported methods: auto (default), native, static, browser (for JS-heavy SPAs).
 
-STEP 3 — API: Crawl an entire website:
+STEP 3 — API: Batch Convert multiple URLs in parallel:
+curl -X POST https://api.traylinx.com/api/batch \\
+  -H "Content-Type: application/json" \\
+  -d '{"urls": ["https://example.com/1", "https://example.com/2"], "format": "json", "async": true}'
+
+STEP 4 — API: Crawl an entire website:
 curl -X POST https://api.traylinx.com/api/crawl \\
   -H "Content-Type: application/json" \\
   -d '{"url": "https://example.com", "format": "json", "async": true}'
 
 Returns a job_id for async processing. Optionally pass "email" or "webhook_url" for notifications.
 
-STEP 4 — API: Convert uploaded files (PDF, DOCX, images, audio, video):
+STEP 5 — API: Map a Website (Generate Sitemap):
+curl -X POST https://api.traylinx.com/api/map \\
+  -H "Content-Type: application/json" \\
+  -d '{"url": "https://example.com", "format": "json"}'
+
+STEP 6 — API: Convert uploaded files (PDF, DOCX, images, audio, video):
 curl -X POST https://api.traylinx.com/api/file2md \\
   -F "file=@document.pdf" \\
   -F "format=json"
 
 Uses OCR and Vision AI to extract structured text from any media.
 
-STEP 5 — API: Agentify (generate AI Skill Bundles):
+STEP 7 — API: Agentify (generate AI Skill Bundles):
 curl -X POST https://api.traylinx.com/api/agentify \\
   -H "Content-Type: application/json" \\
   -d '{"url": "https://docs.example.com", "format": "json", "async": true}'
 
 Generates SKILL.md + llms.txt + reference files for injecting human knowledge into autonomous agents.
 
-STEP 6 — Format Negotiation:
+STEP 8 — Format Negotiation & Workflows:
 All endpoints accept ?format=json (recommended for agents), ?format=markdown (raw), or ?format=stream (NDJSON).
 Use method=browser only for JavaScript-heavy single-page apps.
+Long-running jobs (batch, crawl, agentify) support "async": true payload.
 
 IMPORTANT:
 - Free tier: unlimited public page conversions, no API key required.

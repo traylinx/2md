@@ -1,97 +1,105 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Welcome to 2md"
+description: "The data-extraction API that converts any URL, file, or website into clean, AI-ready Markdown."
 ---
 
-## Setting up
+## 🤖 Copy Instructions for My Agent
 
-Get your documentation site up and running in minutes.
+Give your AI agent (Cursor, Windsurf, OpenClaw, Claude Code) full access to the 2md extraction ecosystem. **Copy and paste the prompt below to your agent** so it understands how to use all the endpoints natively:
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+```text
+I'd like you to use 2md by Traylinx — a powerful data-extraction API that converts any URL, file, or website into clean, AI-ready Markdown.
 
-## Make it yours
+STEP 1 — Quick Convert (URL-Prepend shortcut):
+For instant extraction, simply prepend the service URL to any target:
+https://2md.traylinx.com/https://example.com/any-page
 
-Design a docs site that looks great and empowers your users.
+This returns clean Markdown immediately — no API key needed for public pages.
 
-<Columns cols={2}>
+STEP 2 — API: Convert a single URL:
+curl -X POST https://api.traylinx.com/api/convert \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/docs", "format": "json"}'
+
+Supported formats: json (structured, recommended), markdown (raw text), stream (NDJSON logs).
+Supported methods: auto (default), native, static, browser (for JS-heavy SPAs).
+
+STEP 3 — API: Batch Convert multiple URLs in parallel:
+curl -X POST https://api.traylinx.com/api/batch \
+  -H "Content-Type: application/json" \
+  -d '{"urls": ["https://example.com/1", "https://example.com/2"], "format": "json", "async": true}'
+
+STEP 4 — API: Crawl an entire website:
+curl -X POST https://api.traylinx.com/api/crawl \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com", "format": "json", "async": true}'
+
+Returns a job_id for async processing. Optionally pass "email" or "webhook_url" for notifications.
+
+STEP 5 — API: Map a Website (Generate Sitemap):
+curl -X POST https://api.traylinx.com/api/map \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com", "format": "json"}'
+
+STEP 6 — API: Convert uploaded files (PDF, DOCX, images, audio, video):
+curl -X POST https://api.traylinx.com/api/file2md \
+  -F "file=@document.pdf" \
+  -F "format=json"
+
+Uses OCR and Vision AI to extract structured text from any media.
+
+STEP 7 — API: Agentify (generate AI Skill Bundles):
+curl -X POST https://api.traylinx.com/api/agentify \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://docs.example.com", "format": "json", "async": true}'
+
+Generates SKILL.md + llms.txt + reference files for injecting human knowledge into autonomous agents.
+
+STEP 8 — Format Negotiation & Workflows:
+All endpoints accept ?format=json (recommended for agents), ?format=markdown (raw), or ?format=stream (NDJSON).
+Use method=browser only for JavaScript-heavy single-page apps.
+Long-running jobs (batch, crawl, agentify) support "async": true payload.
+
+IMPORTANT:
+- Free tier: unlimited public page conversions, no API key required.
+- For media/vision extraction, pass ?apiKey=sk-... with your key.
+- Full API reference: https://docs.traylinx.com
+- Agent discovery files: https://2md.traylinx.com/llms.txt and https://2md.traylinx.com/agents.json
+```
+
+---
+
+## Explore the Documentation
+
+Get your integration up and running or explore advanced workflows.
+
+<CardGroup cols={2}>
   <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
+    title="Introduction"
+    icon="book-open"
+    href="/introduction"
   >
-    Edit your docs locally and preview them in real time.
+    Learn how the 2md extraction pipeline works.
   </Card>
   <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
   >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+    Convert your first URL to Markdown in under a minute.
   </Card>
   <Card
-    title="API documentation"
-    icon="terminal"
+    title="API Reference"
+    icon="code"
     href="/api-reference/introduction"
   >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
-
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+    Explore detailed API endpoints and request formats.
   </Card>
   <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
+    title="CLI Reference"
+    icon="terminal"
+    href="/cli/overview"
   >
-    Add sample code to demonstrate how to use your product.
+    Run 2md directly from your terminal or CI/CD pipeline.
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+</CardGroup>
