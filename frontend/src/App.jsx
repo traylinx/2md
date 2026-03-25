@@ -534,7 +534,7 @@ export default function App() {
   const [docsLoading, setDocsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const agentPrompt = `Read https://2md.traylinx.com/skills/2md.md and follow the instructions to use 2md natively.`;
+  const agentPrompt = `Read https://raw.githubusercontent.com/traylinx/2md/main/.agents/skills/2md/SKILL.md and follow the instructions to use 2md natively.`;
 
   const handleCopyPrompt = () => {
     navigator.clipboard.writeText(agentPrompt);
