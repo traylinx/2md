@@ -24,11 +24,13 @@ export default function Footer() {
           Powered by <strong>Traylinx</strong>
         </a>
         <span class="footer-sep">·</span>
-        <a href="/privacy.html" class="footer-link">Privacy</a>
+        <a href="/docs" class="footer-link">Docs</a>
         <span class="footer-sep">·</span>
-        <a href="/terms.html" class="footer-link">Terms</a>
+        <a href="/privacy" class="footer-link">Privacy</a>
         <span class="footer-sep">·</span>
-        <a href="/security.html" class="footer-link">Security</a>
+        <a href="/terms" class="footer-link">Terms</a>
+        <span class="footer-sep">·</span>
+        <a href="/security" class="footer-link">Security</a>
       </div>
     </footer>
   );

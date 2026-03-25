@@ -533,6 +533,13 @@ export default function App() {
                   {prod.label}
                 </a>
               ))}
+              <a
+                class="product-tab"
+                href="/docs"
+                style={{ textDecoration: 'none' }}
+              >
+                Docs
+              </a>
               <button
                 class="job-history-btn"
                 onClick={() => setHistoryOpen(prev => !prev)}
@@ -579,6 +586,13 @@ export default function App() {
                 {prod.label}
               </a>
             ))}
+            <a
+              class="product-tab"
+              href="/docs"
+              style={{ textDecoration: 'none' }}
+            >
+              Docs
+            </a>
             <button
               class="job-history-btn"
               onClick={() => setHistoryOpen(prev => !prev)}
