@@ -124,26 +124,28 @@ export default function ConvertPage({ recoveredJob }) {
           style={{ 
             display: 'flex', 
             alignItems: 'stretch', 
-            background: 'var(--bg-secondary)', 
+            background: '#0d0d0d', 
             borderRadius: '6px', 
             border: '1px solid var(--border)', 
             overflow: 'hidden',
-            transition: 'border-color 0.2s'
+            transition: 'border-color 0.2s',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
           }}
           onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
           onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
         >
           <div style={{ 
-            padding: '12px 0 12px 16px', 
-            color: 'var(--text-dim)', 
+            padding: '12px 0 12px 14px', 
+            color: '#c084fc', 
             fontFamily: 'monospace', 
             fontSize: '0.9rem', 
             display: 'flex', 
             alignItems: 'center', 
             userSelect: 'none',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            fontWeight: '600'
           }}>
-            https://2md.traylinx.com/
+            GET&nbsp;&nbsp;https://2md.traylinx.com/
           </div>
           <input 
             name="urlInput"
@@ -156,8 +158,8 @@ export default function ConvertPage({ recoveredJob }) {
               flex: 1, 
               background: 'transparent', 
               border: 'none', 
-              padding: '12px 16px 12px 0', 
-              color: 'var(--primary)', 
+              padding: '12px 14px 12px 0', 
+              color: '#ffffff', 
               fontFamily: 'monospace', 
               fontSize: '0.9rem', 
               outline: 'none', 
@@ -168,22 +170,24 @@ export default function ConvertPage({ recoveredJob }) {
             type="submit"
             style={{ 
               padding: '0 16px', 
-              background: 'var(--primary)', 
-              color: '#fff', 
+              background: 'rgba(136, 0, 255, 0.15)', 
+              color: '#c084fc', 
               border: 'none', 
+              borderLeft: '1px solid rgba(136, 0, 255, 0.3)',
               cursor: 'pointer', 
               display: 'flex', 
               alignItems: 'center', 
               gap: '6px',
               fontSize: '0.85rem',
-              fontWeight: '500',
-              transition: 'opacity 0.2s',
+              fontWeight: '600',
+              fontFamily: 'monospace',
+              transition: 'background 0.2s',
               whiteSpace: 'nowrap'
             }}
-            onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
-            onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(136, 0, 255, 0.25)'}
+            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(136, 0, 255, 0.15)'}
           >
-            Get Markdown
+            Markdown
             <span class="material-symbols-outlined" style={{ fontSize: '16px' }}>open_in_new</span>
           </button>
         </form>
