@@ -3293,3 +3293,30 @@ body {
 .term-arg { color: #8b949e; }
 .term-string { color: #a5d6ff; }
 .term-comment { color: #8b949e; font-style: italic; }
+
+/* ═══ AGENT ICON TOOLTIPS ═══ */
+.custom-tooltip-container {
+  position: relative;
+  display: inline-flex;
+  cursor: pointer;
+}
+.custom-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #27272a;
+  color: #e4e4e7;
+  font-size: 0.75rem;
+  font-family: var(--font-sans);
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.custom-tooltip-container:hover .custom-tooltip {
+  opacity: 1;
+}

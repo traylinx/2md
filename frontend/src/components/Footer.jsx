@@ -31,6 +31,27 @@ export default function Footer() {
         <a href="/terms" class="footer-link">Terms</a>
         <span class="footer-sep">·</span>
         <a href="/security" class="footer-link">Security</a>
+        <span class="footer-sep">·</span>
+        <span class="footer-copy">
+          Our other projects:{" "}
+          <a
+            href="https://scoutica.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="footer-link"
+          >
+            Scoutica
+          </a>
+          {" "}and{" "}
+          <a
+            href="https://ail.traylinx.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="footer-link"
+          >
+            switchAILocal
+          </a>
+        </span>
       </div>
     </footer>
   );
