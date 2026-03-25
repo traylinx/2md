@@ -421,7 +421,7 @@ function renderAllPages(product, endpoint, recoveredJob) {
 }
 
 const AgentInstallBlock = ({ copied, handleCopyPrompt, isBottomMode = false }) => (
-  <section className={isBottomMode ? "doc-section flat-box agent-install-section" : "agent-install-section"} style={{ margin: isBottomMode ? '4rem 0' : '2rem 0 3rem', width: '100%', padding: isBottomMode ? '3rem 2rem' : '0' }}>
+  <section className={isBottomMode ? "doc-section flat-box agent-install-section" : "agent-install-section"} style={isBottomMode ? {} : { marginBottom: '3rem' }}>
     {isBottomMode && (
       <div className="doc-header" style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
         <h2>Empower Your AI Agents</h2>
@@ -429,7 +429,7 @@ const AgentInstallBlock = ({ copied, handleCopyPrompt, isBottomMode = false }) =
       </div>
     )}
     
-    <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'left' }}>
+    <div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '2.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ background: '#e4e4e7', color: '#09090b', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 800, borderRadius: '4px', flexShrink: 0, lineHeight: 1 }}>1</div>
