@@ -122,30 +122,27 @@ export default function ConvertPage({ recoveredJob }) {
             }
           }}
           style={{ 
-            display: 'flex', 
+            display: 'inline-flex', 
             alignItems: 'stretch', 
-            background: '#0d0d0d', 
-            borderRadius: '6px', 
-            border: '1px solid var(--border)', 
+            background: 'var(--flat-box-bg)', 
+            borderRadius: '4px', 
+            border: '1px solid var(--primary)', 
             overflow: 'hidden',
-            transition: 'border-color 0.2s',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+            boxShadow: 'none',
+            margin: '0'
           }}
-          onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
-          onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
         >
           <div style={{ 
-            padding: '12px 0 12px 14px', 
-            color: '#c084fc', 
-            fontFamily: 'monospace', 
-            fontSize: '0.9rem', 
+            padding: '6px 0 6px 12px', 
+            fontFamily: 'var(--font-sans)', 
+            fontSize: '0.85rem', 
             display: 'flex', 
             alignItems: 'center', 
             userSelect: 'none',
             whiteSpace: 'nowrap',
-            fontWeight: '600'
+            fontWeight: '500'
           }}>
-            GET&nbsp;&nbsp;https://2md.traylinx.com/
+            <span class="gradient-text">GET</span>&nbsp;&nbsp;<span style={{ color: 'var(--text-dim)' }}>https://2md.traylinx.com/</span>
           </div>
           <input 
             name="urlInput"
@@ -158,37 +155,37 @@ export default function ConvertPage({ recoveredJob }) {
               flex: 1, 
               background: 'transparent', 
               border: 'none', 
-              padding: '12px 14px 12px 0', 
-              color: '#ffffff', 
+              padding: '6px 12px 6px 0', 
+              color: 'var(--text-primary)', 
               fontFamily: 'monospace', 
-              fontSize: '0.9rem', 
+              fontSize: '0.85rem', 
               outline: 'none', 
-              minWidth: '100px' 
+              minWidth: '220px' 
             }}
           />
           <button 
             type="submit"
             style={{ 
-              padding: '0 16px', 
-              background: 'rgba(136, 0, 255, 0.15)', 
-              color: '#c084fc', 
+              padding: '0 12px', 
+              background: 'var(--bg-secondary)', 
+              color: 'var(--text-primary)', 
               border: 'none', 
-              borderLeft: '1px solid rgba(136, 0, 255, 0.3)',
+              borderLeft: '1px solid var(--border)',
               cursor: 'pointer', 
               display: 'flex', 
               alignItems: 'center', 
-              gap: '6px',
+              gap: '4px',
               fontSize: '0.85rem',
-              fontWeight: '600',
-              fontFamily: 'monospace',
-              transition: 'background 0.2s',
+              fontWeight: '500',
+              fontFamily: 'var(--font-sans)',
+              transition: 'color 0.2s',
               whiteSpace: 'nowrap'
             }}
-            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(136, 0, 255, 0.25)'}
-            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(136, 0, 255, 0.15)'}
+            onMouseOver={(e) => e.currentTarget.style.color = 'var(--primary)'}
+            onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
           >
             Markdown
-            <span class="material-symbols-outlined" style={{ fontSize: '16px' }}>open_in_new</span>
+            <span class="material-symbols-outlined" style={{ fontSize: '14px' }}>open_in_new</span>
           </button>
         </form>
       </div>
