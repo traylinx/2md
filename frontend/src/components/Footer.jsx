@@ -33,14 +33,14 @@ export default function Footer() {
         <a href="/security" class="footer-link">Security</a>
         <span class="footer-sep">·</span>
         <span class="footer-copy">
-          Our other projects:{" "}
+          Recommended:{" "}
           <a
             href="https://scoutica.com/"
             target="_blank"
             rel="noopener noreferrer"
             class="footer-link"
           >
-            Scoutica
+            Scoutica Protocol
           </a>
           {" "}and{" "}
           <a
@@ -49,7 +49,7 @@ export default function Footer() {
             rel="noopener noreferrer"
             class="footer-link"
           >
-            switchAILocal
+            switch AIL ocal
           </a>
         </span>
       </div>
