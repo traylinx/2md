@@ -1,3 +1,7 @@
+# Mintlify Documentation Proxy
+/docs/*     https://traylinx-2md-49.mintlify.dev/:splat      200!
+/docs       https://traylinx-2md-49.mintlify.dev/            200!
+
 # URL-prepend proxy
 /http*      https://api.2md.traylinx.com/http:splat      200!
 
