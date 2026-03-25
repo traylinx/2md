@@ -420,6 +420,104 @@ function renderAllPages(product, endpoint, recoveredJob) {
   );
 }
 
+const AgentInstallBlock = ({ copied, handleCopyPrompt }) => (
+  <div style={{ maxWidth: '800px', margin: '2rem auto 3rem', textAlign: 'left', padding: '0 1rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '2.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ background: '#e4e4e7', color: '#09090b', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 800, borderRadius: '4px', flexShrink: 0, lineHeight: 1 }}>1</div>
+        <p style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', lineHeight: 1 }}>Copy the setup prompt and paste it into <strong>any AI agent</strong></p>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ background: '#e4e4e7', color: '#09090b', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 800, borderRadius: '4px', flexShrink: 0, lineHeight: 1 }}>2</div>
+        <p style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', lineHeight: 1 }}>Your agent instantly knows how to extract data natively — zero setup</p>
+      </div>
+    </div>
+
+    <div style={{ display: 'flex', gap: '3rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+      <div style={{ flex: '1 1 300px' }}>
+        <div style={{ textTransform: 'uppercase', letterSpacing: '2px', fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '1rem', fontWeight: 700 }}>Try it now</div>
+        <button
+          onClick={handleCopyPrompt}
+          className="copy-prompt-btn"
+          style={{
+            background: copied ? 'rgba(34, 197, 94, 0.1)' : '#18181b',
+            color: copied ? '#22c55e' : '#e4e4e7',
+            border: copied ? '1px solid #22c55e' : '1px solid #27272a',
+            padding: '1rem 1.25rem',
+            fontSize: '0.95rem',
+            fontWeight: 500,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            width: '100%',
+            fontFamily: 'var(--font-mono)',
+            transition: 'all 0.15s ease',
+            boxShadow: copied ? 'none' : '4px 4px 0px #52525b',
+            borderRadius: '4px'
+          }}
+          onMouseEnter={(e) => {
+            if (!copied) {
+              e.currentTarget.style.transform = 'translate(2px, 2px)';
+              e.currentTarget.style.boxShadow = '2px 2px 0px #52525b';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!copied) {
+              e.currentTarget.style.transform = 'none';
+              e.currentTarget.style.boxShadow = '4px 4px 0px #52525b';
+            }
+          }}
+        >
+          {copied ? 'Copied to clipboard' : 'Copy instructions for my agent'}
+          <span className="material-symbols-outlined" style={{ fontSize: '1.2rem', opacity: 0.8 }}>{copied ? 'check' : 'content_copy'}</span>
+        </button>
+      </div>
+
+      <div style={{ flex: '1 1 300px' }}>
+        <div style={{ textTransform: 'uppercase', letterSpacing: '2px', fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '1rem', fontWeight: 700 }}>Works with every agent</div>
+        <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', height: '52px', flexWrap: 'wrap' }}>
+          <div className="custom-tooltip-container">
+            <img src="/agenticons/agenticon-openclaw.svg" alt="OpenClaw" style={{ height: '32px' }} />
+            <span className="custom-tooltip">OpenClaw</span>
+          </div>
+          <div className="custom-tooltip-container">
+            <img src="/agenticons/agenticon-antigravity.svg" alt="Antigravity" style={{ height: '36px' }} />
+            <span className="custom-tooltip">Antigravity</span>
+          </div>
+          <div className="custom-tooltip-container">
+            <img src="/agenticons/agenticon-claudecode.svg" alt="Claude Code" style={{ height: '32px' }} />
+            <span className="custom-tooltip">Claude Code</span>
+          </div>
+          <div className="custom-tooltip-container">
+            <img src="/agenticons/agenticon-cursor.svg" alt="Cursor" style={{ height: '24px' }} />
+            <span className="custom-tooltip">Cursor</span>
+          </div>
+          <div className="custom-tooltip-container">
+            <img src="/agenticons/agenticon-opencode.svg" alt="OpenCode" style={{ height: '24px' }} />
+            <span className="custom-tooltip">OpenCode</span>
+          </div>
+          <div className="custom-tooltip-container">
+            <img src="/agenticons/agenticon-codex.svg" alt="Codex" style={{ height: '24px' }} />
+            <span className="custom-tooltip">Codex</span>
+          </div>
+          <div className="custom-tooltip-container"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--text-dim)', opacity: 0.8
+            }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span className="custom-tooltip">Any other IDE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 export default function App() {
   const [state, setState] = useState(getInitialState);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -693,6 +791,10 @@ IMPORTANT:
         </section>
       </div>
 
+      {state.product === 'html2md' && (
+        <AgentInstallBlock copied={copied} handleCopyPrompt={handleCopyPrompt} />
+      )}
+
       <main class="main-content">
         <div class="mode-tabs">
           {currentProduct.endpoints.map(ep => (
@@ -717,103 +819,6 @@ IMPORTANT:
 
       {state.product === 'html2md' && (
         <>
-          {/* ═══ AGENT INSTALL BLOCK ═══ */}
-          <div style={{ maxWidth: '800px', margin: '4rem auto 2rem', textAlign: 'left', padding: '0 1rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '2.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ background: '#e4e4e7', color: '#09090b', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 800, borderRadius: '4px', flexShrink: 0, lineHeight: 1 }}>1</div>
-                <p style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', lineHeight: 1 }}>Copy the setup prompt and paste it into <strong>any AI agent</strong></p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ background: '#e4e4e7', color: '#09090b', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 800, borderRadius: '4px', flexShrink: 0, lineHeight: 1 }}>2</div>
-                <p style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', lineHeight: 1 }}>Your agent instantly knows how to extract data from any URL natively</p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '3rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              <div style={{ flex: '1 1 300px' }}>
-                <div style={{ textTransform: 'uppercase', letterSpacing: '2px', fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '1rem', fontWeight: 700 }}>Try it now</div>
-                <button
-                  onClick={handleCopyPrompt}
-                  className="copy-prompt-btn"
-                  style={{
-                    background: copied ? 'rgba(34, 197, 94, 0.1)' : '#18181b',
-                    color: copied ? '#22c55e' : '#e4e4e7',
-                    border: copied ? '1px solid #22c55e' : '1px solid #27272a',
-                    padding: '1rem 1.25rem',
-                    fontSize: '0.95rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    width: '100%',
-                    fontFamily: 'var(--font-mono)',
-                    transition: 'all 0.15s ease',
-                    boxShadow: copied ? 'none' : '4px 4px 0px #52525b',
-                    borderRadius: '4px'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!copied) {
-                      e.currentTarget.style.transform = 'translate(2px, 2px)';
-                      e.currentTarget.style.boxShadow = '2px 2px 0px #52525b';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!copied) {
-                      e.currentTarget.style.transform = 'none';
-                      e.currentTarget.style.boxShadow = '4px 4px 0px #52525b';
-                    }
-                  }}
-                >
-                  {copied ? 'Copied to clipboard' : 'Copy instructions for my agent'}
-                  <span className="material-symbols-outlined" style={{ fontSize: '1.2rem', opacity: 0.8 }}>{copied ? 'check' : 'content_copy'}</span>
-                </button>
-              </div>
-
-              <div style={{ flex: '1 1 300px' }}>
-                <div style={{ textTransform: 'uppercase', letterSpacing: '2px', fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '1rem', fontWeight: 700 }}>Works with every agent</div>
-                <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center', height: '52px', flexWrap: 'wrap' }}>
-                  <div className="custom-tooltip-container">
-                    <img src="/agenticons/agenticon-openclaw.svg" alt="OpenClaw" style={{ height: '32px' }} />
-                    <span className="custom-tooltip">OpenClaw</span>
-                  </div>
-                  <div className="custom-tooltip-container">
-                    <img src="/agenticons/agenticon-antigravity.svg" alt="Antigravity" style={{ height: '36px' }} />
-                    <span className="custom-tooltip">Antigravity</span>
-                  </div>
-                  <div className="custom-tooltip-container">
-                    <img src="/agenticons/agenticon-claudecode.svg" alt="Claude Code" style={{ height: '32px' }} />
-                    <span className="custom-tooltip">Claude Code</span>
-                  </div>
-                  <div className="custom-tooltip-container">
-                    <img src="/agenticons/agenticon-cursor.svg" alt="Cursor" style={{ height: '24px' }} />
-                    <span className="custom-tooltip">Cursor</span>
-                  </div>
-                  <div className="custom-tooltip-container">
-                    <img src="/agenticons/agenticon-opencode.svg" alt="OpenCode" style={{ height: '24px' }} />
-                    <span className="custom-tooltip">OpenCode</span>
-                  </div>
-                  <div className="custom-tooltip-container">
-                    <img src="/agenticons/agenticon-codex.svg" alt="Codex" style={{ height: '24px' }} />
-                    <span className="custom-tooltip">Codex</span>
-                  </div>
-                  <div className="custom-tooltip-container"
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: 'var(--text-dim)', opacity: 0.8
-                    }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" y1="5" x2="12" y2="19"></line>
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    <span className="custom-tooltip">Any other IDE</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
 
           <section class="features-grid">
             <div class="grid-header">
