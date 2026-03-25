@@ -424,6 +424,7 @@ export default function App() {
   const [state, setState] = useState(getInitialState);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [recoveredJob, setRecoveredJob] = useState(null);
+  const [docsLoading, setDocsLoading] = useState(false);
 
   const setProduct = useCallback((product) => {
 
@@ -536,9 +537,11 @@ export default function App() {
               <a
                 class="product-tab"
                 href="/docs"
-                style={{ textDecoration: 'none' }}
+                onClick={() => setDocsLoading(true)}
+                style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 Docs
+                {docsLoading && <span class="material-symbols-outlined" style={{ fontSize: '16px', animation: 'spin 1s linear infinite' }}>progress_activity</span>}
               </a>
               <button
                 class="job-history-btn"
@@ -589,9 +592,11 @@ export default function App() {
             <a
               class="product-tab"
               href="/docs"
-              style={{ textDecoration: 'none' }}
+              onClick={() => setDocsLoading(true)}
+              style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               Docs
+              {docsLoading && <span class="material-symbols-outlined" style={{ fontSize: '16px', animation: 'spin 1s linear infinite' }}>progress_activity</span>}
             </a>
             <button
               class="job-history-btn"
