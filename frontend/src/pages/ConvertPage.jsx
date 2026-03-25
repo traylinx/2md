@@ -116,9 +116,17 @@ export default function ConvertPage({ recoveredJob }) {
         <form 
           onSubmit={(e) => {
             e.preventDefault();
-            const targetUrl = e.target.elements.urlInput.value;
+            let targetUrl = e.target.elements.urlInput.value.trim();
             if (targetUrl) {
-              window.open(`https://2md.traylinx.com/${targetUrl}`, '_blank');
+              if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+                targetUrl = 'https://' + targetUrl;
+              }
+              try {
+                new URL(targetUrl);
+                window.open(`https://2md.traylinx.com/${targetUrl}`, '_blank');
+              } catch (err) {
+                alert('Please enter a valid URL (e.g., https://example.com/article)');
+              }
             }
           }}
           style={{ 
@@ -127,7 +135,7 @@ export default function ConvertPage({ recoveredJob }) {
             alignItems: 'center', 
             background: 'var(--flat-box-bg)', 
             borderRadius: '4px', 
-            border: '1px solid var(--primary)', 
+            border: '1px solid var(--border)', 
             padding: '.4rem 1rem',
             fontSize: '.85rem',
             fontWeight: '500',
