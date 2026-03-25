@@ -1,136 +1,81 @@
 ---
 title: "Convert"
-description: "Convert a single web page to clean Markdown using the Web UI. Supports live streaming output, quality stats, and instant cancellation."
+description: "Convert a single web page to clean Markdown using the Web UI. Extract raw text while removing up to 80% of HTML token bloat."
 ---
 
-The Convert page is the fastest way to turn a single URL into clean Markdown. Paste a URL, configure a few options, and watch the extraction happen in real time.
+The Convert page is the fastest way to turn a single URL into clean Markdown. It is designed to extract only the semantic content that matters to Large Language Models (LLMs), discarding navigation noise, tracking scripts, and heavy styling.
 
-## Accessing the Convert page
+## Accessing the Convert console
 
-<Steps>
-  <Step title="Start the API server">
-    ```bash
-    npm start
-    # or
-    node server.js
-    ```
-  </Step>
-  <Step title="Open the Web UI">
-    Navigate to `http://localhost:8222` in your browser. The Convert page is the default view.
-  </Step>
-</Steps>
+Navigate directly to **[https://2md.traylinx.com](https://2md.traylinx.com)** in your browser. The Convert dashboard is the primary workspace.
+
+<Note>
+Using the UI is completely free and requires no API keys or configuration for standard web content.
+</Note>
 
 ## Converting a page
 
 <Steps>
   <Step title="Paste a URL">
-    Enter any URL into the input box. The placeholder suggests the format: `https://docs.example.com/page`
+    Enter any target URL into the input field. The system automatically bypasses standard captchas and handles geographic blocks.
   </Step>
-  <Step title="Configure options">
-    Expand the options panel to adjust conversion behavior before running:
+  <Step title="Configure extraction">
+    Use the toggles below the input box to configure real-time extraction rules:
 
-    | Option | Default | Description |
-    |--------|---------|-------------|
-    | `downloadImages` | `true` | Download referenced images locally and rewrite URLs in the output |
-    | `frontMatter` | `true` | Add YAML front matter with title, author, date, and description |
-    | `waitMs` | `10000` | Milliseconds to wait for JS rendering (useful for SPAs) |
-    | `maxImageSizeMb` | `10` | Maximum size in MB for downloaded images — larger images are skipped |
+    | Option | Description |
+    |--------|-------------|
+    | `Images` | Downloads embedded images and rewrites their Markdown paths so they are preserved in context. |
+    | `Metadata` | Extracts title, author, and description metadata into YAML front matter for RAG routing. |
+    | `Screenshots` | Captures a high-resolution visual snapshot of the DOM at the exact moment of extraction. |
   </Step>
   <Step title="Click Convert">
-    The button starts a streaming request to `POST /api/convert`. Progress logs appear immediately.
+    The processing engine intelligently assigns the optimal extraction method (Native HTTP, Static Parsing, or full Headless Browser). Real-time progress logs stream to your client.
   </Step>
-  <Step title="Review the output">
-    When extraction completes, the Markdown result appears along with metadata and quality stats.
+  <Step title="Copy and Use">
+    The final Markdown is instantly rendered on screen. Copy the result directly into Claude, ChatGPT, or Cursor for immediate prompting context.
   </Step>
 </Steps>
 
-## Live streaming output
+## Live processing logs
 
-Conversion streams NDJSON log events to the browser in real time. You can see each pipeline stage as it runs:
+The dashboard utilizes NDJSON to stream server-side logs directly to your browser. You can monitor the exact pipeline latency:
 
 ```text
 ⏳ Fetch...
-✅ Fetch (7.96s)
+✅ Fetch (2.12s)
 ⏳ Extract...
-✅ Extract (2.54s)
+✅ Extract (0.84s)
 ⏳ Convert...
-✅ Convert (0.22s)
-⏳ Download images...
-✅ Download images (0.10s)
-⏳ Polish...
-✅ Polish (0.10s)
+✅ Convert (0.12s)
 ✨ Done!
 ```
 
-The final result is appended after a `__JSON__` marker in the stream.
+## Quality and Token Metrics
 
-## Quality stats
+After conversion, a metrics card displays the exact token efficiency of the extraction natively comparing raw DOM nodes against the polished output:
 
-After a successful conversion, the result card shows quality signals:
-
-| Stat | Description |
+| Metric | LLM Significance |
 |------|-------------|
-| Word count | Total words in the extracted Markdown |
-| Headings | Number of heading elements found |
-| Links | Number of links in the output |
-| File size | Size of the resulting Markdown |
+| HTML vs MD Tokens | Shows the percentage of context window saved (often exceeding 80%). |
+| Headings & Links | Validates that structural semantics survived the extraction. |
+| Cache Hit | Indicates if the edge network instantly served a pre-computed extraction. |
 
-These signals help you judge extraction quality quickly — a very low word count on a content-heavy page may indicate the page requires browser rendering.
+## Real-World SaaS Use Cases
 
-## Cancel Process
+- **Debugging Documentation**: Convert a multi-tabbed API reference page into raw Markdown to feed to an instance of `o1-preview` for debugging.
+- **Bypassing Paywalls**: Pass a URL through the headless browser queue to extract an article cleanly behind cookie walls without pasting raw text blocks.
+- **Retrieval Augmented Generation (RAG)**: Extract precise HTML shards into semantic Markdown to safely ingest into a Pinecone vector database.
 
-A **Cancel Process** button appears while the extraction is running. Clicking it disconnects the browser from the streaming response. The server detects the disconnect immediately and uses `tree-kill` to terminate any running headless browser process — no wasted resources on the server side.
+## URL-Prepend Shortcut
 
-## Keep-Alive architecture
-
-The Web UI uses a Keep-Alive architecture. Inactive tabs are hidden via CSS (`display: none`) rather than being unmounted from the DOM. This means:
-
-- A long-running conversion survives while you switch to the Crawl or Sitemap tab.
-- Active fetch connections are not interrupted by navigation.
-- Live logs and partial results are preserved when you return to the tab.
-
-<Note>
-  This behavior is intentional. If you start a conversion and switch tabs, the job continues and the result will be waiting for you when you return.
-</Note>
-
-## URL-prepend shortcut
-
-For instant conversions without opening the UI, prepend the server URL to any target URL directly in your browser address bar:
+For instantaneous conversion without leaving your workflow or opening the dashboard, append our proxy directly in front of your target URL:
 
 ```text
-http://localhost:8222/https://example.com
+https://2md.traylinx.com/https://example.com/article
 ```
 
-This bypasses the UI entirely and returns raw Markdown. On the hosted service:
-
-```text
-https://2md.traylinx.com/https://example.com
-```
-
-You can add query parameters to control the output:
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `format` | `markdown` | Set to `json` for a structured response with metadata and token counts |
-| `method` | `auto` | Extraction engine: `auto`, `native`, `static`, or `browser` |
-| `maxAge` | — | Only serve a cached result fresher than N seconds |
-| `force` | `false` | Set to `true` to bypass cache entirely |
+This bypasses the UI and natively writes the extracted Markdown directly back to your browser window.
 
 <Tip>
-  The URL-prepend shortcut works in any browser, curl command, or markdown badge. It is the fastest way to share a "view as Markdown" link to any webpage.
+Adding `?format=json` to the prepend URL (e.g., `https://2md.traylinx.com/https://example.com?format=json`) returns a fully structured payload containing metadata boundaries, token counts, and the native markdown string for programmatic parsing.
 </Tip>
-
-## Conversion methods
-
-The `method` parameter controls which extraction engine is used:
-
-| Method | Behavior |
-|--------|----------|
-| `auto` | Default. Tries `native` → `static` → `browser` in order |
-| `native` | Fastest. Fetches raw Markdown if the server supports content negotiation |
-| `static` | Lightweight extraction with cheerio and Readability, no JS rendering |
-| `browser` | Full Puppeteer rendering for JavaScript-heavy SPAs and React/Vue apps |
-
-<Info>
-  Use `method=browser` combined with a higher `waitMs` value for single-page apps that render content client-side.
-</Info>

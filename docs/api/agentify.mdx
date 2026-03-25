@@ -1,14 +1,16 @@
 ---
-title: "POST /api/agentify"
-description: "Convert a documentation site into an AI Skill Bundle — a SKILL.md, llms.txt, and ready-to-use Markdown pages optimized for AI agent consumption."
+title: "/api/agentify"
+description: "Programmatically generate LLM Skill Bundles (`SKILL.md` and `llms.txt`) by compiling live websites through SwitchAI."
 ---
 
 ## Overview
 
-The Agentify pipeline crawls a documentation site, processes each page, and produces an **AI Skill Bundle**: a structured package containing `SKILL.md` (agent instructions), `llms.txt` (a machine-readable index), and converted Markdown pages. The output is immediately usable by AI agents and tools that follow the [llmstxt.org](https://llmstxt.org) specification.
+The `POST /api/agentify` endpoint merges Markdown extraction with LLM cognition. It crawls a target path and automatically writes a routing index (`SKILL.md`) that explicitly teaches remote agents like Cursor and Windsurf how to synthesize the codebase correctly.
+
+**Base URL:** `https://api.2md.traylinx.com`
 
 <Note>
-  **Streaming:** This endpoint streams real-time NDJSON progress logs. The final result is delimited by `__JSON__` followed by the JSON result object on the same line. If the client disconnects mid-stream, the pipeline continues processing in the background and stores results in the job registry.
+**Authentication:** Generating custom topologies requires LLM inference on the backend. You must pass a valid SwitchAI token (`apiKey`) in the payload to invoke this orchestration securely.
 </Note>
 
 ## Request
@@ -20,148 +22,65 @@ The Agentify pipeline crawls a documentation site, processes each page, and prod
 ### Body Parameters
 
 <ParamField body="url" type="string" required>
-  The root URL of the documentation site to agentify.
+  The root target to compile.
 </ParamField>
 
-<ParamField body="maxPages" type="number" default={50}>
-  Maximum number of pages to crawl and include in the bundle. Overridable server-side with the `AGENTIFY_MAX_PAGES` environment variable.
-</ParamField>
-
-<ParamField body="includeApiSchema" type="boolean" default={false}>
-  When `true`, instructs the LLM to generate structured API schemas from any API reference pages discovered during crawling.
+<ParamField body="apiKey" type="string" required>
+  Your SwitchAI API Key (or OpenAI key for fallback modeling). Keys are scrubbed immediately post-response.
 </ParamField>
 
 <ParamField body="targetAgent" type="string" default="web">
-  Target agent profile to optimize the output for:
-  - `web` — Optimized for remote AI agents and web-based tools
-  - `local` — Optimized for locally-running agents and IDEs
-</ParamField>
-
-<ParamField body="apiKey" type="string">
-  LLM API key. Required when the server is configured with `AGENTIFY_BYOK=true`. When `AGENTIFY_BYOK` is disabled, the server uses its own configured key.
-</ParamField>
-
-<ParamField body="urls" type="string[]">
-  Optional pre-selected list of URLs to include in the bundle. When provided, the crawler skips automatic discovery and processes only these URLs.
+  Optimizes the markdown dialect and routing language output:
+  - `web` — For custom GPTs and remote Assistants.
+  - `local` — For IDEs like Cursor analyzing the bundle locally.
 </ParamField>
 
 <ParamField body="async" type="boolean" default={false}>
-  When `true`, returns `202 Accepted` immediately with a `job_id`. The pipeline runs in the background.
+  Returns a `job_id` instantly, permitting background synthesis. Required for targets generating over 20 endpoints.
 </ParamField>
 
-<ParamField body="webhook_url" type="string">
-  URL to receive an HTTP POST callback when the async job finishes. Signed with `X-Webhook-Signature` (HMAC-SHA256) when `WEBHOOK_SECRET` is configured.
-</ParamField>
-
-## Response
-
-### 200 — NDJSON stream (synchronous mode)
-
-The response body is a stream of plain-text log lines, terminated by a `__JSON__` delimiter followed by the final JSON result:
-
-```
-[Agentify] Starting crawl of https://docs.example.com...
-[Agentify] Discovered 12 pages
-[Agentify] Processing page 1/12: /introduction
-...
-__JSON__{"success":true,"hostname":"docs.example.com","maxPages":50,"selectedUrls":[]}
-```
-
-<ResponseField name="success" type="boolean">
-  `true` when the pipeline completed without fatal errors.
-</ResponseField>
-
-<ResponseField name="hostname" type="string">
-  Hostname of the target URL that was processed.
-</ResponseField>
-
-<ResponseField name="maxPages" type="number">
-  The `maxPages` value used for this run.
-</ResponseField>
-
-<ResponseField name="selectedUrls" type="string[]">
-  The pre-selected URLs used, if `urls` was provided in the request. Empty array when automatic discovery was used.
-</ResponseField>
-
-### 202 — Async mode accepted
+## Response 
 
 ```json
 {
   "success": true,
-  "job_id": "abc123",
-  "status": "running",
-  "status_url": "/api/jobs/abc123",
-  "result_url": "/api/jobs/abc123/result"
+  "files": {
+    "SKILL.md": "# Agent Routing Table\n\n## Capability: Authentication...",
+    "llms.txt": "# SDK Framework\n\n> AI-ready framework rules...",
+    "references/auth.md": "# Authentication API\n\n...",
+    "references/deploy.md": "# Deployment Pipelines\n\n..."
+  }
 }
 ```
 
-### Error Responses
+The output yields a fully normalized `files` dict mapping filenames to their literal text string blobs. A system script can iterate over this object and dump it natively to disk in milliseconds.
 
-**400 — Missing URL**
-```json
-{ "error": "Missing url in request body" }
-```
+## Production Examples
 
-**400 — Missing API key (BYOK mode)**
-```json
-{ "error": "AGENTIFY_BYOK is enabled. Missing apiKey in request body." }
-```
-
-## Skill Bundle Output
-
-After a successful run, the generated bundle is stored on the server and accessible via the agent discovery endpoints:
-
-<CardGroup cols={2}>
-  <Card title="SKILL.md" icon="book">
-    Human and agent-readable instructions describing the site's capabilities, API surface, and usage patterns.
-  </Card>
-  <Card title="llms.txt" icon="file-lines">
-    A machine-readable index of all converted pages, following the llmstxt.org specification.
-  </Card>
-  <Card title="Markdown pages" icon="file-text">
-    Individual `.md` files for each crawled page, downloadable as a ZIP via `GET /api/download/:site`.
-  </Card>
-  <Card title="GET /skills/:skillName.md" icon="link">
-    Retrieve a generated Skill Bundle directly by the site's hostname slug.
-  </Card>
-</CardGroup>
-
-## Examples
+Compile Stripe's native documentation into a local Skill package to assist your developers natively inside Cursor without them ever leaving the IDE.
 
 <CodeGroup>
 
-```bash Stream mode
-curl -X POST https://2md.traylinx.com/api/agentify \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://docs.example.com",
-    "maxPages": 20,
-    "apiKey": "sk-..."
-  }'
-```
+```python Terminal Download Script
+import requests
+import os
 
-```bash Pre-selected URLs
-curl -X POST https://2md.traylinx.com/api/agentify \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://docs.example.com",
-    "urls": [
-      "https://docs.example.com/introduction",
-      "https://docs.example.com/api-reference"
-    ],
-    "apiKey": "sk-..."
-  }'
-```
+res = requests.post(
+    "https://api.2md.traylinx.com/api/agentify",
+    json={
+        "url": "https://docs.stripe.com",
+        "apiKey": "sk-your-switchai-token",
+        "targetAgent": "local"
+    }
+)
+data = res.json()
 
-```bash Async with webhook
-curl -X POST https://2md.traylinx.com/api/agentify \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://docs.example.com",
-    "async": true,
-    "webhook_url": "https://myapp.example.com/webhooks/agentify",
-    "apiKey": "sk-..."
-  }'
+# Write the bundle natively to your local repository
+for filename, content in data['files'].items():
+    os.makedirs(os.path.dirname(filename) or '.', exist_ok=True)
+    with open(filename, 'w') as f:
+        f.write(content)
+print("Stripe SKILL.md agent compiled locally!")
 ```
 
 </CodeGroup>

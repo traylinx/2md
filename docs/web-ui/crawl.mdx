@@ -1,201 +1,54 @@
 ---
 title: "Crawl Site"
-description: "Discover a site's full URL structure, select individual pages, and batch-convert them to Markdown. Supports email notifications and ZIP download."
+description: "Map an entire domain and batch-convert hundreds of pages into structured Markdown archives ready for RAG pipelines."
 ---
 
-The Crawl Site page is built for multi-page extraction. It separates discovery from conversion so you can review what a site contains before committing to converting any of it.
+The **Crawl** tool is engineered to construct large-scale knowledge bases from public websites. Unlike a single-page conversion, Crawl separates discovery from execution, allowing you to explicitly curate the token budget of your LLM corpus before downloading it.
 
-## Accessing the Crawl page
+## Accessing Crawl
 
-Start the API server (`npm start`) and open `http://localhost:8222`. Select the **Crawl** tab from the top navigation.
+Navigate to **[https://2md.traylinx.com/crawl](https://2md.traylinx.com/crawl)** via the secondary tab on the main dashboard.
 
-## Full workflow
+## Multi-Page Ingestion Workflow
 
 <Steps>
-  <Step title="Enter the root URL and set parameters">
-    In the input box, paste the root URL of the site you want to crawl (e.g., `https://docs.example.com`).
+  <Step title="Map the Domain">
+    Paste the root URL of target documentation (e.g., `https://docs.stripe.com/api`). Set your discovery bounds:
 
-    Configure two parameters before discovering:
-
-    | Parameter | Default | Description |
+    | Parameter | Default | Purpose |
     |-----------|---------|-------------|
-    | `depth` | `3` | How many link levels to follow from the root. `0` = root page only, `1` = root plus all directly linked pages. |
-    | `maxPages` | `50` | Hard cap on discovered pages. Prevents runaway crawls on large sites. |
+    | `Depth` | `3` | How many recursive link layers to trace from the origin. |
+    | `Max Pages` | `50` | Failsafe limit to prevent runaway crawling on massive sites. |
   </Step>
-  <Step title="Click Discover">
-    Clicking **Discover** sends a `POST /api/crawl` request with `treeOnly: true`. No pages are converted at this stage — the server only maps the site structure.
-
-    A live streaming log appears showing discovery progress. When complete, two panels appear:
-
-    - **Site Structure** — a visual tree of the discovered pages:
-      ```text
-      docs.example.com/
-      ├── getting-started/
-      ├── api-reference/
-      │   ├── authentication/
-      │   └── endpoints/
-      └── changelog/
-      ```
-    - **Discovered Pages** — a list of all URLs with checkboxes
+  <Step title="Run Discovery">
+    Click **Discover**. The proxy spiders the target domain executing a `treeOnly` algorithm. It reconstructs the topological map of the site visually so you can perceive exactly how the knowledge base is structured.
   </Step>
-  <Step title="Select or deselect pages">
-    All discovered pages are selected by default. Use the checkboxes to deselect any pages you do not want to convert.
-
-    The **Select All** and **Deselect All** buttons let you quickly adjust the selection. The button label shows how many pages are currently selected: `Convert Selected (12 pages)`.
+  <Step title="Curate Your Corpus">
+    The dashboard presents a checklist of every discovered URL. Deselect irrelevant pages (Pricing, Author bios, Legacy API versions) to protect your vector database from poisoning and save execution tokens.
   </Step>
-  <Step title="Optionally enter an email address">
-    The **Notify me at** field next to the Convert button accepts an email address. If provided, you will receive a branded email from `noreply@traylinx.com` containing a secure download link to your ZIP archive when the job finishes.
-
-    The download link is cryptographically signed and expires after **72 hours**.
-
-    <Info>
-      For batches larger than 15 pages, the UI automatically switches to async mode — the request returns a `job_id` immediately and runs in the background. Email notification is the recommended way to retrieve results for large batches.
-    </Info>
+  <Step title="Execute Batch Conversion">
+    Provide an email address for asynchronous delivery. Click **Convert Selected**.
+    
+    The engine aggressively spins up massive parallel browser clusters to hit the selected endpoints concurrently.
   </Step>
-  <Step title="Click Convert Selected">
-    Sends the selected URLs to `POST /api/batch`. Each page is converted in parallel. A live streaming log shows per-page progress.
-
-    For small batches (up to 15 pages), results stream live. For larger batches, the job runs asynchronously and you can monitor it via the job card or wait for the email.
-  </Step>
-  <Step title="Review results and download">
-    When conversion completes, a results panel shows:
-
-    - **Total** pages attempted
-    - **Success** count
-    - **Failed** count
-    - **Token counts** — HTML input tokens → Markdown output tokens
-
-    Per-page results are listed individually, showing the URL and success or failure status.
-
-    Download options:
-    - **Download All MD** — Downloads a client-side generated ZIP of all successful Markdown files
-    - **Download All (.zip)** — Downloads the full server-side archive from `GET /api/download/:site`, including all assets
+  <Step title="Download Zip Archive">
+    The service completes the batch processing securely on the backend. You receive a cryptographic link to download a `.zip` archive containing fully sanitized Markdown shards ready for ingestion into Pinecone, Qdrant, or basic local storage.
   </Step>
 </Steps>
 
-## Cancel Process
+## Why separate discovery from conversion?
 
-A **Cancel Process** button is available during both the Discover and Convert phases. Clicking it disconnects the browser, and the server immediately kills the crawler and all running headless browser processes using `tree-kill`.
+Blindly crawling an entire domain severely dilutes vector search performance and wastes your model's context window with navigational noise. The 2-step methodology ensures you only ingest the exact technical boundaries you desire.
 
-## Sitemap tab
+## SaaS Implementation Examples
 
-The Sitemap tab (also called **Map** in the UI) is a discovery-only tool — it maps a site's structure without converting any content.
+### 1. Internal Agent Training
+You want your internal customer service AI to know the exact shipping procedures detailed on a third-party logistics provider's site.
+- **Workflow**: Point Crawl at the vendor's FAQ subdomain. Discover 30 pages. Deselect their marketing blocks. Extract to an archive and push directly to your internal OpenAI Assistant's file search storage.
 
-<Steps>
-  <Step title="Enter the root URL">
-    Paste the URL you want to map and set the `depth` and `maxPages` parameters.
-  </Step>
-  <Step title="Click Discover">
-    Runs `POST /api/crawl` with `treeOnly: true` and displays the visual site tree and URL list.
-  </Step>
-  <Step title="Export the sitemap">
-    The site tree can be exported in three formats:
+### 2. Large Scale Competitor Analysis
+You need to pass a competitor's entire feature catalog to Claude for benchmarking.
+- **Workflow**: Crawl their `/features` endpoint with depth `2`. Wait 3 minutes for the asynchronous cluster execution, download the zip archive, and drag-and-drop the entire unzipped directory directly into the Claude console.
 
-    | Format | Contents |
-    |--------|----------|
-    | `.txt` | The raw visual tree, exactly as displayed on screen |
-    | `.md` | A Markdown sitemap with the page list as links and the tree in a code block |
-    | `.json` | Structured JSON with hostname, page count, URL array, and tree string |
-
-    A **Copy URLs** button copies all discovered URLs to the clipboard as a newline-separated list.
-  </Step>
-</Steps>
-
-<Note>
-  Map does not convert pages. If you want to convert the discovered pages, use the Crawl tab and click **Convert Selected** after discovery.
-</Note>
-
-## Platform defaults and limits
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Max pages per crawl | `50` | Hard cap on discovered pages |
-| Crawl depth | `3` | Link levels from the root URL |
-| Concurrency | `3` | Pages fetched and rendered in parallel |
-| Download link TTL | `72 hours` | Signed ZIP download links expire after 3 days |
-| Async threshold (UI) | `15 pages` | The Web UI switches to async mode above this batch size |
-| Image download | `off` | Toggle on to include referenced images in the archive |
-| Front matter | `on` | YAML metadata at the top of each file |
-
-## API reference
-
-The Crawl workflow uses two endpoints in sequence.
-
-### Step 1: Discovery
-
-```bash
-curl -X POST http://localhost:8222/api/crawl \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://docs.example.com",
-    "depth": 2,
-    "maxPages": 50,
-    "treeOnly": true
-  }'
-```
-
-Response:
-
-```json
-{
-  "success": true,
-  "tree": "docs.example.com/\n├── getting-started/\n└── api-reference/",
-  "urls": [
-    "https://docs.example.com",
-    "https://docs.example.com/getting-started",
-    "https://docs.example.com/api-reference"
-  ],
-  "stats": { "depth": 2, "maxPages": 50 }
-}
-```
-
-### Step 2: Batch conversion
-
-```bash
-curl -X POST http://localhost:8222/api/batch \
-  -H "Content-Type: application/json" \
-  -d '{
-    "urls": [
-      "https://docs.example.com/getting-started",
-      "https://docs.example.com/api-reference"
-    ],
-    "downloadImages": true,
-    "frontMatter": true
-  }'
-```
-
-### Step 3: Download archive
-
-```bash
-curl -O http://localhost:8222/api/download/docs.example.com
-```
-
-Use `?slugs=page-slug1,page-slug2` to create a scoped ZIP containing only specific pages.
-
-### Async with email notification
-
-```bash
-curl -X POST http://localhost:8222/api/batch \
-  -H "Content-Type: application/json" \
-  -d '{
-    "urls": ["https://docs.example.com/page1", "https://docs.example.com/page2"],
-    "async": true,
-    "email": "you@example.com"
-  }'
-```
-
-The response returns immediately with a `job_id`:
-
-```json
-{
-  "success": true,
-  "job_id": "j_abc123",
-  "status": "running",
-  "status_url": "/api/jobs/j_abc123",
-  "result_url": "/api/jobs/j_abc123/result"
-}
-```
-
-<Warning>
-  Crawl discovery times out after 10 minutes. Batch conversion times out after 5 minutes. For large sites, use async mode with email or webhook notification.
-</Warning>
+## Asynchronous Architecture
+For enterprise crawls exceeding 15 target endpoints, the SaaS dashboard automatically routes your request directly into the backend background job queue. This guarantees your session won't timeout, allowing you to close your laptop and receive the archive asynchronously via email.

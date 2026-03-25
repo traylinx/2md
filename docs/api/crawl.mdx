@@ -1,17 +1,13 @@
 ---
-title: "POST /api/crawl"
-description: "Crawl an entire domain and convert all discovered pages to Markdown. Supports llms.txt-guided discovery, tree-only mode, async execution, webhooks, and email delivery."
+title: "/api/crawl"
+description: "Programmatically map an entire domain and batch-convert discovered endpoints asynchronously for RAG curation."
 ---
 
 ## Overview
 
-Crawls a domain starting from a root URL, discovers all linked pages up to the specified depth and page limit, then converts each page to Markdown. If the target site publishes an `llms.txt` file, the crawler automatically uses the URLs listed there instead of following links.
+The `POST /api/crawl` endpoint is engineered for massive corpus ingestion. It handles topology mapping, link crawling, and asynchronous batch worker assignment so you don't have to manage local connection timeouts.
 
-<Note>
-  **Streaming & Cancellation:** This endpoint streams real-time progress logs. If the client disconnects before completion, the crawler and all its headless browser instances are killed immediately via `tree-kill`.
-</Note>
-
-**Timeout:** 10 minutes (600 seconds) for synchronous mode.
+**Base URL:** `https://api.2md.traylinx.com`
 
 ## Request
 
@@ -22,177 +18,89 @@ Crawls a domain starting from a root URL, discovers all linked pages up to the s
 ### Body Parameters
 
 <ParamField body="url" type="string" required>
-  Root URL to begin crawling.
+  The origin URL to begin spidering.
 </ParamField>
 
 <ParamField body="depth" type="number" default={3}>
-  Maximum crawl depth. `1` means only the root page; `2` includes pages linked from the root, and so on.
+  The nested hop limit. `2` means trace all links on the root, and all links on *those* pages.
 </ParamField>
 
 <ParamField body="maxPages" type="number" default={50}>
-  Maximum number of pages to discover and convert.
+  Failsafe limit to prevent recursive crawling explosions.
 </ParamField>
 
 <ParamField body="treeOnly" type="boolean" default={false}>
-  When `true`, the crawler discovers and maps the site structure but does **not** convert any pages to Markdown. Returns an ASCII tree, the list of discovered URLs, and crawl stats.
+  Synchronous mode. The engine discovers the topology and returns the map, but stops before converting the pages.
 </ParamField>
 
 <ParamField body="async" type="boolean" default={false}>
-  When `true`, the server returns `202 Accepted` immediately with a `job_id` and processes the crawl in the background. Not available when `treeOnly: true`.
-</ParamField>
-
-<ParamField body="email" type="string">
-  Email address to notify when the async job completes. The email contains a secure, 72-hour ZIP download link. Only applies when `async: true`.
+  Enterprise mode. Forces the service to instantly return a `202 Accepted` and offload the crawl to background GPU workers.
 </ParamField>
 
 <ParamField body="webhook_url" type="string">
-  A URL to receive an HTTP POST callback when the async job finishes. Signed with `X-Webhook-Signature` (HMAC-SHA256) if `WEBHOOK_SECRET` is configured. Only applies when `async: true`.
+  Production integration. The 2md clusters will HTTP POST the final data to this webhook upon completion.
 </ParamField>
 
-<ParamField body="ignoreRobots" type="boolean" default={false}>
-  When `true`, the crawler ignores `robots.txt` directives. Use with caution and only where you have permission to crawl.
-</ParamField>
+## Response (Async Mode)
 
-## Response
+When hitting the API asynchronously, the system immediately drops the connection and hands you a job receipt.
 
-### 200 — Default (pages converted)
+### 202 — Accepted
 
 ```json
 {
   "success": true,
-  "message": "Crawl completed for https://docs.example.com"
-}
-```
-
-The converted Markdown files are stored on disk and can be downloaded as a ZIP archive via `GET /api/download/:site`.
-
-### 200 — With `treeOnly: true`
-
-```json
-{
-  "success": true,
-  "tree": "/  # My Site\n├── about\n└── contact",
-  "urls": [
-    "https://docs.example.com",
-    "https://docs.example.com/about",
-    "https://docs.example.com/contact"
-  ],
-  "stats": {
-    "depth": 3,
-    "maxPages": 50
-  },
-  "llmsGuided": false,
-  "llmsUrlCount": 0
-}
-```
-
-<ResponseField name="success" type="boolean">
-  `true` when the crawl completed without fatal errors.
-</ResponseField>
-
-<ResponseField name="tree" type="string">
-  ASCII representation of the discovered site structure. Only present when `treeOnly: true`.
-</ResponseField>
-
-<ResponseField name="urls" type="string[]">
-  Array of all discovered URLs. Only present when `treeOnly: true`.
-</ResponseField>
-
-<ResponseField name="stats" type="object">
-  <Expandable title="crawl stats">
-    <ResponseField name="depth" type="number">
-      The depth setting used for this crawl.
-    </ResponseField>
-    <ResponseField name="maxPages" type="number">
-      The maxPages setting used for this crawl.
-    </ResponseField>
-  </Expandable>
-</ResponseField>
-
-<ResponseField name="llmsGuided" type="boolean">
-  `true` if the crawl used URLs sourced from an `llms.txt` file instead of following links.
-</ResponseField>
-
-<ResponseField name="llmsUrlCount" type="number">
-  Number of URLs sourced from `llms.txt` when `llmsGuided` is `true`.
-</ResponseField>
-
-### 202 — Async mode accepted
-
-```json
-{
-  "success": true,
-  "job_id": "abc123",
+  "job_id": "j_98fbc12a",
   "status": "running",
-  "status_url": "/api/jobs/abc123",
-  "result_url": "/api/jobs/abc123/result"
+  "status_url": "/api/jobs/j_98fbc12a",
+  "result_url": "/api/jobs/j_98fbc12a/result"
 }
 ```
 
-### Error Responses
+## Production Examples
 
-**400 — Missing URL**
-```json
-{ "error": "Missing url in request body" }
-```
-
-## Crawl Shortcut (URL-Prepend)
-
-For zero-friction crawling without writing API code, use the `GET /crawl/:url` shortcut. It rewrites internally to `POST /api/crawl` with `async: true`.
-
-```
-GET /crawl/https://docs.example.com?depth=2&email=you@example.com
-```
-
-**Supported query parameters:**
-
-| Parameter | Default | Description |
-|---|---|---|
-| `depth` | `3` | Max crawl depth |
-| `maxPages` | `50` | Max pages to discover |
-| `email` | — | Email address for ZIP download notification |
-| `webhook_url` | — | Webhook callback URL |
-
-## Examples
+For building a continuous pipeline that ingests third-party documentation directly into Pinecone:
 
 <CodeGroup>
 
-```bash Discover site tree
-curl -X POST https://2md.traylinx.com/api/crawl \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://docs.example.com",
-    "depth": 2,
-    "treeOnly": true
-  }'
+```python Python (Webhook Driven)
+import requests
+
+# Kick off the massive crawl async
+requests.post(
+    "https://api.2md.traylinx.com/api/crawl",
+    json={
+        "url": "https://docs.anthropic.com",
+        "depth": 5,
+        "maxPages": 500,
+        "async": True,
+        "webhook_url": "https://api.yourstartup.com/webhooks/2md" # We call you back here
+    }
+)
+print("Pipeline initiated. Awaiting webhook callback...")
 ```
 
-```bash Crawl and convert all pages
-curl -X POST https://2md.traylinx.com/api/crawl \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://docs.example.com",
-    "depth": 3,
-    "maxPages": 100
-  }'
-```
+```javascript Node.js (Polling)
+const response = await fetch('https://api.2md.traylinx.com/api/crawl', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ 
+    url: 'https://docs.anthropic.com',
+    async: true
+  })
+});
 
-```bash Async crawl with email
-curl -X POST https://2md.traylinx.com/api/crawl \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://docs.example.com",
-    "async": true,
-    "email": "you@example.com"
-  }'
-```
+const { job_id } = await response.json();
 
-```bash URL-prepend shortcut
-curl "https://2md.traylinx.com/crawl/https://docs.example.com?depth=2"
+// Poll the status URL until completed
+const checkStatus = setInterval(async () => {
+    const status = await fetch(`https://api.2md.traylinx.com/api/jobs/${job_id}`);
+    const data = await status.json();
+    if(data.status === 'completed') {
+        console.log("Archive ready at:", data.download_url);
+        clearInterval(checkStatus);
+    }
+}, 5000);
 ```
 
 </CodeGroup>
-
-<Tip>
-  Run `treeOnly: true` first to preview the site structure and select specific pages, then call `POST /api/batch` with the URLs you want.
-</Tip>

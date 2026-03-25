@@ -81,26 +81,13 @@ You can also convert a local HTML file:
 ./bin/html2md ./my-page.html
 ```
 
-## Using the API Server
+## Using the SaaS API
 
-Start the server with `npm start`, then send conversions over HTTP:
-
-```bash
-npm start
-```
-
-The server starts on port `8222` by default and logs:
-
-```text
-HTML2MD API running on port 8222
-  Memory watchdog active (RSS: 142MB, ceiling: 768MB)
-```
-
-Send a conversion request with `curl`:
+Send a conversion request natively over HTTP with `curl`:
 
 <CodeGroup>
   ```bash curl
-  curl -X POST http://localhost:8222/api/convert \
+  curl -X POST https://api.2md.traylinx.com/api/convert \
     -H "Content-Type: application/json" \
     -d '{"url": "https://example.com", "format": "markdown"}'
   ```
@@ -126,24 +113,24 @@ Send a conversion request with `curl`:
 
 ## URL-Prepend Shortcut
 
-With the server running, you can convert any URL instantly by prepending the server address — no `curl`, no API call:
+You can instantly convert any URL by prepending the production proxy address directly in your browser — no `curl`, no API call:
 
 ```text
-http://localhost:8222/https://example.com
+https://2md.traylinx.com/https://example.com
 ```
 
 Navigate to that address in your browser or hit it with `curl` and 2md returns the raw Markdown (or JSON if `?format=json` is appended). The address bar stays clean because the rewrite is handled server-side.
 
 ```bash
-curl http://localhost:8222/https://example.com
+curl https://2md.traylinx.com/https://example.com
 ```
 
 ## Web UI
 
-The Web UI is bundled with the server. With the server running, open your browser to:
+The graphical dashboard for 2md is instantly accessible via your browser. Open your browser to:
 
 ```text
-http://localhost:8222
+https://2md.traylinx.com
 ```
 
 From the UI you can run single-page conversions, crawl entire sites, run the Agentify pipeline to produce AI skill bundles, and convert local files (PDFs, DOCX, images) via File2MD.
