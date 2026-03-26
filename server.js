@@ -277,7 +277,8 @@ app.use(async (req, res, next) => {
       apiKey: req.query.apiKey, 
       enhance: req.query.enhance, 
       model: req.query.model, 
-      format: req.query.format || 'markdown' 
+      format: req.query.format || 'markdown',
+      declaredExt: detectedExt
     };
     req.url = '/api/file2md';
     

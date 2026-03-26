@@ -26,9 +26,15 @@ module.exports = function registerFile2mdRoutes(app, { upload }) {
       let forceEnhanceFalse = false;
 
       if (!apiKey) {
-        const extSource = file ? file.originalname : url;
-        const extMatch = extSource ? extSource.match(/\.([^.]+)$/) : null;
-        const ext = extMatch ? extMatch[1].toLowerCase() : '';
+        let ext = '';
+        if (req.body.declaredExt) {
+          ext = req.body.declaredExt.toLowerCase();
+        } else {
+          const extSource = file ? file.originalname : url;
+          const extMatch = extSource ? extSource.match(/\.([^.]+)$/) : null;
+          ext = extMatch ? extMatch[1].toLowerCase() : '';
+        }
+        
         const { getFamily } = require('../lib/formatCapabilities');
         const family = getFamily(ext);
         const isPremium = ['image', 'image-partial', 'media'].includes(family);
