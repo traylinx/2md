@@ -624,6 +624,7 @@ body {
 .error {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid var(--error-color);
+  overflow: hidden;
 }
 .error h3 {
   color: #f87171;
@@ -631,6 +632,14 @@ body {
 }
 .error p {
   color: #dc2626;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  text-align: left;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 /* ═══ RESULT SCREEN (Convert) ═══ */

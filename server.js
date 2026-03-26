@@ -173,9 +173,36 @@ app.use((req, res, next) => {
   return app.handle(req, res);
 });
 
+// ── File2MD URL-Prepend Zero-Friction Route ──
+// e.g. GET /file2md/https://example.com/document.pdf
+app.use((req, res, next) => {
+  if (req.method !== 'GET') return next();
+  if (!req.path.startsWith('/file2md/')) return next();
+
+  const targetUrl = req.path.substring('/file2md/'.length);
+  if (!/^https?:\/\//i.test(targetUrl)) return next();
+
+  req.method = 'POST';
+  req.body = { 
+    url: targetUrl, 
+    apiKey: req.query.apiKey, 
+    enhance: req.query.enhance, 
+    model: req.query.model, 
+    format: req.query.format || 'markdown' 
+  };
+  req.url = '/api/file2md';
+  
+  if (app.file2mdHandler) {
+    return app.file2mdHandler(req, res);
+  }
+  return res.status(500).json({ error: 'File2md handler not initialized' });
+});
+
 // ── URL-Prepend Zero-Friction Route ──
 // e.g. GET /https://example.com -> routes to convert with format=markdown
-app.use((req, res, next) => {
+// For file URLs, routes to file2md. Supports extension-less file URLs
+// via Content-Type probing (like Firecrawl).
+app.use(async (req, res, next) => {
   if (req.method !== 'GET') return next();
   
   // Extract path without leading slash
@@ -187,23 +214,62 @@ app.use((req, res, next) => {
     return next();
   }
 
-  // It's a URL prepend request. We want to convert it.
-  // We forward it internally rather than doing a full HTTP redirect
-  // so the user's address bar stays clean and we can dictate the format.
   const { URL_ALLOWED, getFamily } = require('./lib/formatCapabilities');
   const allowedExts = URL_ALLOWED.map(f => f.ext).join('|');
   const fileMatch = targetUrl.match(new RegExp(`\\.(${allowedExts})(\\?.*)?$`, 'i'));
-  const isFileUrl = !!fileMatch;
+  let isFileUrl = !!fileMatch;
+  let detectedExt = fileMatch ? fileMatch[1].toLowerCase() : null;
+
+  // ── Content-Type probe for extension-less URLs ──
+  // URLs like https://arxiv.org/pdf/2406.19314 serve PDFs without a .pdf extension.
+  // We do a quick HEAD probe to detect the actual content type.
+  const FILE_CONTENT_TYPES = {
+    'application/pdf': 'pdf',
+    'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp',
+    'text/csv': 'csv',
+    'application/json': 'json',
+    'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/mp4': 'm4a',
+    'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+    'application/octet-stream': null, // needs further inspection — route to file2md
+  };
+
+  if (!isFileUrl) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+      const probe = await fetch(targetUrl, {
+        method: 'HEAD',
+        signal: controller.signal,
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' },
+        redirect: 'follow',
+      });
+      clearTimeout(timeout);
+
+      const ct = (probe.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+      
+      // If it's NOT text/html, check if it's a known file type
+      if (ct && !ct.startsWith('text/html') && ct in FILE_CONTENT_TYPES) {
+        detectedExt = FILE_CONTENT_TYPES[ct];
+        isFileUrl = true;
+        console.log(`[URL-Prepend] Content-Type probe: ${ct} → routing to file2md`);
+      }
+    } catch (e) {
+      // Probe failed or timed out — fall through to web converter
+    }
+  }
 
   req.method = 'POST';
 
   if (isFileUrl) {
-    const ext = fileMatch[1].toLowerCase();
-    const family = getFamily(ext);
-    const isPremium = ['image', 'image-partial', 'media'].includes(family);
+    const ext = detectedExt;
+    const family = ext ? getFamily(ext) : null;
+    const isPremium = family && ['image', 'image-partial', 'media'].includes(family);
 
     if (isPremium && !req.query.apiKey) {
-      return res.status(401).json({ success: false, error: `File conversion for ${ext.toUpperCase()} media requires an API key. Append ?apiKey=sk-... to your URL.` });
+      return res.status(401).json({ success: false, error: `File conversion for ${(ext || 'media').toUpperCase()} media requires an API key. Append ?apiKey=sk-... to your URL.` });
     }
 
     req.body = { 

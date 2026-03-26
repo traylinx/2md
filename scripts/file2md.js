@@ -70,8 +70,159 @@ async function run() {
     // -------------------------------------------------------------------------
     console.log('[file2md] ═══════════════════════════════════════════');
     console.log('[file2md] Phase 1: Upload');
-    const form = new FormData();
+
+    // ── Robust file-type detection for extension-less URLs ──
+    // Like Firecrawl and Jina Reader, we don't rely on URL extensions alone.
+    // Three-layer detection: (1) Content-Type header, (2) Content-Disposition
+    // filename, (3) magic bytes inspection of downloaded content.
+    const MIME_TO_EXT = {
+      'application/pdf': 'pdf',
+      'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp',
+      'image/tiff': 'tiff', 'image/bmp': 'bmp', 'image/svg+xml': 'svg',
+      'text/csv': 'csv', 'text/plain': 'txt', 'text/markdown': 'md',
+      'application/json': 'json',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+      'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/mp4': 'm4a',
+      'audio/x-m4a': 'm4a', 'audio/x-wav': 'wav',
+      'audio/flac': 'flac', 'audio/ogg': 'ogg', 'audio/aac': 'aac',
+      'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
+      'video/x-matroska': 'mkv', 'video/x-msvideo': 'avi',
+    };
+
+    // Magic bytes signatures for binary format detection as last resort
+    const MAGIC_BYTES = [
+      { sig: [0x25, 0x50, 0x44, 0x46], ext: 'pdf' },     // %PDF
+      { sig: [0x89, 0x50, 0x4E, 0x47], ext: 'png' },     // PNG
+      { sig: [0xFF, 0xD8, 0xFF],       ext: 'jpg' },     // JPEG
+      { sig: [0x47, 0x49, 0x46, 0x38], ext: 'gif' },     // GIF
+      { sig: [0x52, 0x49, 0x46, 0x46], ext: 'webp' },    // RIFF (WEBP/WAV/AVI)
+      { sig: [0x50, 0x4B, 0x03, 0x04], ext: 'docx' },    // ZIP (docx/pptx/xlsx)
+      { sig: [0x49, 0x44, 0x33],       ext: 'mp3' },     // ID3 (MP3)
+      { sig: [0xFF, 0xFB],             ext: 'mp3' },     // MP3 frame sync
+      { sig: [0x66, 0x4C, 0x61, 0x43], ext: 'flac' },    // fLaC
+      { sig: [0x4F, 0x67, 0x67, 0x53], ext: 'ogg' },     // OggS
+    ];
+
+    function detectByMagic(buffer) {
+      if (!buffer || buffer.length < 12) return null;
+      for (const { sig, ext } of MAGIC_BYTES) {
+        if (sig.every((byte, i) => buffer[i] === byte)) {
+          // RIFF header needs further check: WEBP vs WAV vs AVI
+          if (ext === 'webp') {
+            const sub = buffer.slice(8, 12).toString('ascii');
+            if (sub === 'WEBP') return 'webp';
+            if (sub === 'WAVE') return 'wav';
+            if (sub === 'AVI ') return 'avi';
+            return null;
+          }
+          return ext;
+        }
+      }
+      // MP4/MOV: check for ftyp box at offset 4
+      if (buffer.length >= 8 && buffer.slice(4, 8).toString('ascii') === 'ftyp') return 'mp4';
+      return null;
+    }
+
+    function parseDispositionFilename(header) {
+      if (!header) return null;
+      // RFC 6266: filename*=UTF-8''name.pdf takes priority
+      const starMatch = header.match(/filename\*\s*=\s*[^']*'[^']*'([^;\s]+)/i);
+      if (starMatch) return decodeURIComponent(starMatch[1]);
+      // Fallback: filename="name.pdf" or filename=name.pdf
+      const stdMatch = header.match(/filename\s*=\s*"?([^";\s]+)"?/i);
+      if (stdMatch) return stdMatch[1];
+      return null;
+    }
+
+    let useLocalUpload = false;
+    let localBuffer = null;
+    let localFilename = 'document';
+
     if (fileUrl) {
+      // Check if URL has a recognizable file extension
+      const urlPath = (() => { try { return new URL(fileUrl).pathname; } catch { return fileUrl; } })();
+      const extMatch = urlPath.match(/\.([a-zA-Z0-9]+)(\?.*)?$/);
+      const urlExt = extMatch ? extMatch[1].toLowerCase() : null;
+      const hasKnownExt = urlExt && getFamily(urlExt);
+
+      if (!hasKnownExt) {
+        console.log(`[file2md] URL has no recognizable extension. Running 3-layer detection...`);
+        try {
+          // Layer 1 + 2: Content-Type and Content-Disposition via HEAD
+          const probe = await fetch(fileUrl, {
+            method: 'HEAD',
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' },
+            redirect: 'follow',
+          });
+          const ct = (probe.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+          const cd = probe.headers.get('content-disposition') || '';
+          console.log(`[file2md] Content-Type: ${ct}`);
+          if (cd) console.log(`[file2md] Content-Disposition: ${cd}`);
+
+          // Layer 1: Content-Type header
+          let detectedExt = MIME_TO_EXT[ct];
+
+          // Layer 2: Content-Disposition filename (overrides Content-Type if present)
+          if (!detectedExt || ct === 'application/octet-stream') {
+            const cdFilename = parseDispositionFilename(cd);
+            if (cdFilename) {
+              const cdExtMatch = cdFilename.match(/\.([a-zA-Z0-9]+)$/);
+              const cdExt = cdExtMatch ? cdExtMatch[1].toLowerCase() : null;
+              if (cdExt && getFamily(cdExt)) {
+                console.log(`[file2md] Detected from Content-Disposition: ${cdFilename} → .${cdExt}`);
+                detectedExt = cdExt;
+                localFilename = cdFilename; // Use the server-suggested filename
+              }
+            }
+          }
+
+          // Download the file (we need to do this regardless for layers 2/3)
+          if (detectedExt || ct === 'application/octet-stream' || ct === 'binary/octet-stream') {
+            console.log(`[file2md] ${detectedExt ? `Detected .${detectedExt}` : 'Unknown type, trying magic bytes'} — downloading file...`);
+            const dlRes = await fetch(fileUrl, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' },
+              redirect: 'follow',
+            });
+            if (!dlRes.ok) throw new Error(`Download failed: ${dlRes.status}`);
+            const arrayBuf = await dlRes.arrayBuffer();
+            localBuffer = Buffer.from(arrayBuf);
+
+            // Layer 3: Magic bytes (if Content-Type was generic/octet-stream)
+            if (!detectedExt) {
+              detectedExt = detectByMagic(localBuffer);
+              if (detectedExt) {
+                console.log(`[file2md] Magic bytes detected: .${detectedExt}`);
+              }
+            }
+
+            if (detectedExt) {
+              const slug = urlPath.split('/').filter(Boolean).pop() || 'document';
+              if (!localFilename || localFilename === 'document') {
+                localFilename = `${slug}.${detectedExt}`;
+              }
+              useLocalUpload = true;
+              console.log(`[file2md] ✓ Downloaded ${localBuffer.length} bytes → ${localFilename}`);
+            } else {
+              console.log(`[file2md] All detection layers failed. Passing URL as-is to engine.`);
+              localBuffer = null; // Discard download
+            }
+          } else {
+            console.log(`[file2md] Content-Type "${ct}" is not a known file type. Passing URL as-is.`);
+          }
+        } catch (probeErr) {
+          console.log(`[file2md] Detection probe failed: ${probeErr.message}. Passing URL as-is.`);
+        }
+      }
+    }
+
+    const form = new FormData();
+    if (useLocalUpload && localBuffer) {
+      // Upload as a file blob with the correct extension
+      const blob = new Blob([localBuffer]);
+      form.append('uploaded_file', blob, localFilename);
+    } else if (fileUrl) {
       form.append('url', fileUrl);
     } else {
       const fileBuffer = fs.readFileSync(filePath);
