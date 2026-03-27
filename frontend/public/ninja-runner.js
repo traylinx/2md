@@ -2666,9 +2666,13 @@ class NinjaRunner {
     }
 }
 
+window.NinjaRunner = NinjaRunner;
+
 // --- AUTO-INITIALIZATION FOR html2md ---
 (function () {
     function setupNinjaRunner() {
+        if (window.__NINJA_STANDALONE) return;
+        
         const nav = document.querySelector('.top-nav');
         if (!nav || document.querySelector('#ninja-container')) return;
 
