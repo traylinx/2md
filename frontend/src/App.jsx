@@ -744,9 +744,7 @@ export default function App() {
         </section>
       </div>
 
-      {state.product === 'html2md' && (
-        <AgentInstallBlock copied={copied} handleCopyPrompt={handleCopyPrompt} />
-      )}
+      <AgentInstallBlock copied={copied} handleCopyPrompt={handleCopyPrompt} />
 
       <main class="main-content">
         <div class="mode-tabs">
