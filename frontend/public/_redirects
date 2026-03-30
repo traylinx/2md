@@ -2,11 +2,11 @@
 # URL-prepend proxy
 /http*      https://api.2md.traylinx.com/http:splat      200!
 
-# File2MD URL-prepend proxy
-/file2md/*  https://api.2md.traylinx.com/file2md/:splat   200!
+# File2MD URL-prepend proxy (only proxy actual URL paths, not SPA routes)
+/file2md/http*  https://api.2md.traylinx.com/file2md/http:splat   200!
 
-# Crawl URL-prepend proxy
-/crawl/*    https://api.2md.traylinx.com/crawl/:splat     200!
+# Crawl URL-prepend proxy (only proxy actual URL paths, not SPA routes)
+/crawl/http*    https://api.2md.traylinx.com/crawl/http:splat     200!
 
 # Discovery Proxy
 /skills/*   https://api.2md.traylinx.com/skills/:splat   200!
