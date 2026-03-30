@@ -12,15 +12,15 @@
 
 # File2MD URL-prepend proxy: GET /file2md/https://... → API server
 [[redirects]]
-  from = "/file2md/*"
-  to = "https://api.2md.traylinx.com/file2md/:splat"
+  from = "/file2md/http*"
+  to = "https://api.2md.traylinx.com/file2md/http:splat"
   status = 200
   force = true
 
 # Crawl URL-prepend proxy: GET /crawl/https://... → API server
 [[redirects]]
-  from = "/crawl/*"
-  to = "https://api.2md.traylinx.com/crawl/:splat"
+  from = "/crawl/http*"
+  to = "https://api.2md.traylinx.com/crawl/http:splat"
   status = 200
   force = true
 
