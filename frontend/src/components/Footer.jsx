@@ -26,11 +26,13 @@ export default function Footer() {
         <span class="footer-sep">·</span>
         <a href="/docs" class="footer-link">Docs</a>
         <span class="footer-sep">·</span>
-        <a href="/privacy" class="footer-link">Privacy</a>
+        <a href="https://traylinx.com/privacy" target="_blank" rel="noopener noreferrer" class="footer-link">Privacy</a>
         <span class="footer-sep">·</span>
-        <a href="/terms" class="footer-link">Terms</a>
+        <a href="https://traylinx.com/terms" target="_blank" rel="noopener noreferrer" class="footer-link">Terms</a>
         <span class="footer-sep">·</span>
-        <a href="/security" class="footer-link">Security</a>
+        <a href="https://traylinx.com/security" target="_blank" rel="noopener noreferrer" class="footer-link">Security</a>
+        <span class="footer-sep">·</span>
+        <a href="https://traylinx.com/subprocessors" target="_blank" rel="noopener noreferrer" class="footer-link">Subprocessors</a>
         <span class="footer-sep">·</span>
         <span class="footer-copy">
           Recommended:{" "}

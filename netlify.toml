@@ -31,6 +31,33 @@
   status = 200
   force = true
 
+# Legal pages centralized at traylinx.com (single source of truth, 2026-05-20).
+# The local PrivacyPage/TermsPage/SecurityPage components remain in the repo
+# as dead code but are never reached because these 301s win before SPA fallback.
+[[redirects]]
+  from = "/privacy"
+  to = "https://traylinx.com/privacy"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/terms"
+  to = "https://traylinx.com/terms"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/security"
+  to = "https://traylinx.com/security"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/subprocessors"
+  to = "https://traylinx.com/subprocessors"
+  status = 301
+  force = true
+
 # SPA fallback: everything else → index.html
 [[redirects]]
   from = "/*"
