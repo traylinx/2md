@@ -14,4 +14,11 @@
 
 # API proxy
 /api/*      https://api.2md.traylinx.com/api/:splat      200!
+
+# Legal pages centralized at traylinx.com (single source of truth, 2026-05-20)
+/privacy        https://traylinx.com/privacy        301!
+/terms          https://traylinx.com/terms          301!
+/security       https://traylinx.com/security       301!
+/subprocessors  https://traylinx.com/subprocessors  301!
+
 /*          /index.html                                  200
