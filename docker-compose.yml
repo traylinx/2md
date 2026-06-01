@@ -30,6 +30,12 @@ services:
     restart: unless-stopped
     mem_limit: 1g
     command: ["node", "--expose-gc", "--max-old-space-size=512", "worker.js"]
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'node .*worker\\.js' >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     environment:
       - NODE_ENV=production
       - JOBS_DIR=/app/jobs
@@ -42,4 +48,3 @@ volumes:
   html2md-data:
   caddy_data:
   caddy_config:
-
