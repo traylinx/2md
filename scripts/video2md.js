@@ -22,6 +22,17 @@ const YTDLP = process.env.YTDLP_BIN || 'yt-dlp';
 const META_TIMEOUT_MS = parseInt(process.env.VIDEO2MD_META_TIMEOUT_MS, 10) || 90000;
 const DL_TIMEOUT_MS = parseInt(process.env.VIDEO2MD_DL_TIMEOUT_MS, 10) || 120000;
 
+// SIGKILL bypasses `finally`, orphaning the temp dir. The route SIGTERMs first
+// (grace) before SIGKILL; this handler makes that grace actually clean up.
+let activeTmpDir = null;
+function cleanupTmp() {
+  if (activeTmpDir) {
+    try { fs.rmSync(activeTmpDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    activeTmpDir = null;
+  }
+}
+process.on('SIGTERM', () => { cleanupTmp(); process.exit(143); });
+
 function emit(obj) {
   // Leading newline so the marker can never collide with progress on the same line.
   console.log('\n__JSON__' + JSON.stringify(obj));
@@ -35,7 +46,12 @@ function runYtdlp(args, timeout) {
   });
 }
 
-/** Choose the best caption track. Prefer human subs over auto; preferred lang → en → first. */
+/**
+ * Choose the best caption track. Prefer the REQUESTED language across BOTH human
+ * and auto captions before falling back to another language (lope review: don't
+ * return manual-English when the user asked for Spanish and auto-Spanish exists).
+ * At the same language, human captions beat auto.
+ */
 function pickLang(subtitles, autoCaptions, preferred) {
   const subs = subtitles && typeof subtitles === 'object' ? subtitles : {};
   const autos = autoCaptions && typeof autoCaptions === 'object' ? autoCaptions : {};
@@ -43,15 +59,13 @@ function pickLang(subtitles, autoCaptions, preferred) {
     const lk = k.toLowerCase();
     return lk === l || lk.startsWith(l + '-');
   });
-  let lang = match(subs, preferred);
-  if (lang) return { lang, auto: false };
-  lang = match(subs, 'en');
-  if (lang) return { lang, auto: false };
+  for (const l of [preferred, 'en']) {
+    let lang = match(subs, l);
+    if (lang) return { lang, auto: false };
+    lang = match(autos, l);
+    if (lang) return { lang, auto: true };
+  }
   if (Object.keys(subs).length) return { lang: Object.keys(subs)[0], auto: false };
-  lang = match(autos, preferred);
-  if (lang) return { lang, auto: true };
-  lang = match(autos, 'en');
-  if (lang) return { lang, auto: true };
   if (Object.keys(autos).length) return { lang: Object.keys(autos)[0], auto: true };
   return null;
 }
@@ -92,28 +106,35 @@ async function run() {
     }
 
     // Phase 2: download just the chosen track, convert to SRT (ffmpeg via yt-dlp).
+    // Phase 1 already confirmed captions EXIST, so any failure here is a tool /
+    // transport failure (timeout, ffmpeg, blocking) — NOT "no captions". It must
+    // NOT be misrouted to the metered transcription fallback (lope review HIGH).
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'v2md-'));
+    activeTmpDir = tmpDir;
     const base = path.join(tmpDir, 'sub');
-    const dlArgs = [
+    const dl = await runYtdlp([
       '--skip-download', '--no-playlist', '--no-warnings',
       chosen.auto ? '--write-auto-subs' : '--write-subs',
       '--sub-langs', chosen.lang,
       '--convert-subs', 'srt',
       '-o', base, url,
-    ];
-    await runYtdlp(dlArgs, DL_TIMEOUT_MS);
+    ], DL_TIMEOUT_MS);
 
+    // Accept .srt OR .vtt — srtToText parses both, and if ffmpeg is absent yt-dlp
+    // still leaves the raw .vtt (don't discard it).
     const produced = fs.existsSync(tmpDir)
-      ? fs.readdirSync(tmpDir).filter((f) => f.endsWith('.srt'))
+      ? fs.readdirSync(tmpDir).filter((f) => f.endsWith('.srt') || f.endsWith('.vtt'))
       : [];
     if (!produced.length) {
-      emit({ success: false, error: 'no-captions', needsTranscription: true, title, durationSec });
+      emit({ success: false, error: dl.err ? 'caption-download-failed' : 'caption-empty', title, durationSec });
+      process.exitCode = 1;
       return;
     }
-    const srt = fs.readFileSync(path.join(tmpDir, produced[0]), 'utf8');
-    const text = srtToText(srt);
+    produced.sort((a) => (a.endsWith('.srt') ? -1 : 1)); // prefer .srt when both exist
+    const text = srtToText(fs.readFileSync(path.join(tmpDir, produced[0]), 'utf8'));
     if (!text) {
-      emit({ success: false, error: 'no-captions', needsTranscription: true, title, durationSec });
+      emit({ success: false, error: 'caption-empty', title, durationSec });
+      process.exitCode = 1;
       return;
     }
 
@@ -136,9 +157,7 @@ async function run() {
     emit({ success: false, error: (e && e.message) || 'video2md-failed' });
     process.exitCode = 1;
   } finally {
-    if (tmpDir) {
-      try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best effort */ }
-    }
+    cleanupTmp();
   }
 }
 

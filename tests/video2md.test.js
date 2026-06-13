@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import app from '../server.js';
 import { srtToText } from '../lib/video/srtDedup.js';
@@ -31,6 +31,22 @@ describe('video2md / srtToText', () => {
       '2', '00:00:02,000 --> 00:00:04,000', 'same line', '',
     ].join('\n');
     expect(srtToText(srt)).toBe('same line');
+  });
+
+  it('merges PARTIAL word overlap (rolling window), not just full containment', () => {
+    const srt = [
+      '1', '00:00:00,000 --> 00:00:02,000', 'the quick brown', '',
+      '2', '00:00:02,000 --> 00:00:04,000', 'brown fox jumps', '',
+    ].join('\n');
+    expect(srtToText(srt)).toBe('the quick brown fox jumps');
+  });
+
+  it('keeps a short distinct line that is a substring of the previous cue', () => {
+    const srt = [
+      '1', '00:00:00,000 --> 00:00:02,000', 'we are happy to help you', '',
+      '2', '00:00:02,000 --> 00:00:04,000', 'we', '',
+    ].join('\n');
+    expect(srtToText(srt)).toBe('we are happy to help you we');
   });
 
   it('handles WEBVTT headers and inline timing tags', () => {
@@ -72,6 +88,12 @@ describe('video2md / ssrfGuard', () => {
     expect(isPrivateIp('::1')).toBe(true);
     expect(isPrivateIp('fd00::1')).toBe(true);
     expect(isPrivateIp('::ffff:127.0.0.1')).toBe(true); // IPv4-mapped
+    expect(isPrivateIp('192.0.2.1')).toBe(true); // TEST-NET-1
+    expect(isPrivateIp('198.18.0.1')).toBe(true); // benchmark 198.18/15
+    expect(isPrivateIp('224.0.0.1')).toBe(true); // multicast
+    expect(isPrivateIp('255.255.255.255')).toBe(true); // broadcast/reserved
+    expect(isPrivateIp('febf::1')).toBe(true); // fe80::/10 upper bound
+    expect(isPrivateIp('ff02::1')).toBe(true); // IPv6 multicast
     expect(isPrivateIp('142.250.72.206')).toBe(false); // public (google)
     expect(isPrivateIp('not-an-ip')).toBe(true); // unparseable → unsafe
   });
@@ -148,9 +170,16 @@ describe('video2md / concurrency', () => {
 });
 
 // ── Route: offline rejections (never spawn yt-dlp, never hit DNS) ─────────────
+// A configured shared secret makes auth real (presence alone is not auth). The
+// local .env may carry SYSTEM_FILE_ENGINE_KEY (the fallback expected key), so we
+// pin VIDEO2MD_API_KEY to a known value and send it on the non-auth rejections.
+const V2MD_TEST_KEY = 'sk-v2md-test-key';
 describe('video2md route — offline rejections', () => {
+  beforeAll(() => { process.env.VIDEO2MD_API_KEY = V2MD_TEST_KEY; });
+  afterAll(() => { delete process.env.VIDEO2MD_API_KEY; });
+
   it('400 when url is missing', async () => {
-    const res = await request(app).post('/api/video2md').send({ apiKey: 'sk-test' });
+    const res = await request(app).post('/api/video2md').send({ apiKey: V2MD_TEST_KEY });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/missing url/i);
   });
@@ -161,28 +190,38 @@ describe('video2md route — offline rejections', () => {
     expect(res.body.code).toBe('UNAUTHORIZED');
   });
 
+  it('401 when apiKey does not match the configured secret', async () => {
+    const res = await request(app).post('/api/video2md').send({ url: 'https://youtu.be/abc', apiKey: 'wrong-key' });
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/invalid api key/i);
+  });
+
   it('400 when host is not allowlisted (no DNS, no spawn)', async () => {
-    const res = await request(app).post('/api/video2md').send({ url: 'https://evil.com/clip', apiKey: 'sk-test' });
+    const res = await request(app).post('/api/video2md').send({ url: 'https://evil.com/clip', apiKey: V2MD_TEST_KEY });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/host-not-allowed/);
   });
 
   it('400 on a non-http protocol', async () => {
-    const res = await request(app).post('/api/video2md').send({ url: 'file:///etc/passwd', apiKey: 'sk-test' });
+    const res = await request(app).post('/api/video2md').send({ url: 'file:///etc/passwd', apiKey: V2MD_TEST_KEY });
     expect(res.status).toBe(400);
   });
 });
 
-// ── E2E (gated on a key + yt-dlp + network), mirrors file2md.test.js ──────────
-const E2E_KEY = process.env.VIDEO2MD_TEST_API_KEY || process.env.SWITCHAI_API_KEY;
-const describeE2E = E2E_KEY ? describe : describe.skip;
+// ── E2E (gated on yt-dlp + network), mirrors file2md.test.js ─────────────────
+const RUN_E2E = process.env.VIDEO2MD_TEST_API_KEY || process.env.SWITCHAI_API_KEY;
+const describeE2E = RUN_E2E ? describe : describe.skip;
 
-describeE2E('video2md route — E2E (requires yt-dlp + network + key)', () => {
+describeE2E('video2md route — E2E (requires yt-dlp + network)', () => {
+  const KEY = 'sk-v2md-e2e';
+  beforeAll(() => { process.env.VIDEO2MD_API_KEY = KEY; });
+  afterAll(() => { delete process.env.VIDEO2MD_API_KEY; });
+
   it('extracts a transcript from a captioned YouTube video', async () => {
     const res = await request(app)
       .post('/api/video2md')
       .set('x-client-id', 'video2md-test')
-      .send({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', apiKey: E2E_KEY, format: 'json' });
+      .send({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', apiKey: KEY, format: 'json' });
     expect(res.status).toBe(200);
     // json route writes padding before the body — supertest gives us the buffered text
     const idx = res.text.indexOf('{');

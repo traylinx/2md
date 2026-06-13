@@ -1,7 +1,10 @@
 # Sprint spec — `/api/video2md`: video URL → transcript markdown (yt-dlp captions)
 
-**Status:** SPEC ONLY — not implemented. Drafted 2026-06-13, hardened per lope
-review (codex + antigravity) — see the consumer SPRINT.md §Lope review.
+**Status:** IMPLEMENTED 2026-06-13 (caption path: W0–W2). Route + worker + SSRF
+guard + concurrency cap shipped and locally proven (real YouTube transcript via
+the live route). Hardened per two lope reviews (plan + diff, codex + antigravity).
+NOT YET implemented: translation (`translateTo` is accepted but ignored) and the
+transcription fallback (W3, `needsTranscription` → File Engine), both gated/deferred.
 **Repo:** `github.com/traylinx/2md` (html2md backend).
 **Driver:** Tytus Chat video-comprehension. The bridge calls this route; full
 consumer plan in `tytus-chat/sprints/2026-06-13-video-comprehension/SPRINT.md`.
