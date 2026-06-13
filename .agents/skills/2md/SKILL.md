@@ -99,7 +99,7 @@ Returns a `job_id` for async polling (see Async Jobs below).
 
 ## 3. POST API Endpoints
 
-Base URL: `https://api.traylinx.com`
+Base URL: `https://2md.traylinx.com`
 
 All POST endpoints accept `Content-Type: application/json`.
 
@@ -167,10 +167,15 @@ POST /api/file2md
 Content-Type: multipart/form-data
 
 file=@document.pdf
+apiKey=sk-...
 format=json
 ```
 
-Requires `apiKey` for media/vision extraction (images, audio, video).
+Requires `apiKey` for media/vision extraction (images, audio, video) — as a
+**body field**, never a query parameter. With `format=json` the response body
+is prefixed by ~1 KB of whitespace padding (proxy keep-alive): trim before
+parsing. The `X-Job-Id` response header lets you recover a slow result from
+`GET /api/jobs/{id}/result` (send the same `x-client-id` you posted with).
 
 ### POST /api/agentify — Generate AI Skill Bundles
 
@@ -201,8 +206,8 @@ Generates `SKILL.md` + `llms.txt` + reference files for injecting documentation 
 Long-running requests (batch, crawl, agentify) return a `job_id`.
 
 ```
-Poll status:  GET https://api.traylinx.com/api/jobs/{job_id}
-Get result:   GET https://api.traylinx.com/api/jobs/{job_id}/result
+Poll status:  GET https://2md.traylinx.com/api/jobs/{job_id}
+Get result:   GET https://2md.traylinx.com/api/jobs/{job_id}/result
 ```
 
 Poll every 5-10 seconds. The status field will be `running`, `done`, or `failed`.
@@ -212,7 +217,7 @@ Poll every 5-10 seconds. The status field will be `running`, `done`, or `failed`
 ## Important
 
 - **Free tier:** Unlimited public page conversions, no API key required.
-- **Media/vision extraction:** Requires an API key. Append `?apiKey=sk-...` to the URL or include `apiKey` in the POST body.
+- **Media/vision extraction:** Requires an API key. Include `apiKey` as a field in the POST body (multipart or JSON) — a `?apiKey=...` query parameter is **ignored** and the request will 401.
 - **Rate limits:** The API uses tiered rate limiting. If you receive a 429 response, wait and retry.
 - **Full documentation:** [docs.traylinx.com](https://docs.traylinx.com)
 - **Agent discovery:** [2md.traylinx.com/llms.txt](https://2md.traylinx.com/llms.txt) and [2md.traylinx.com/agents.json](https://2md.traylinx.com/agents.json)
