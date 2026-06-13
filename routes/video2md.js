@@ -173,13 +173,18 @@ module.exports = function registerVideo2mdRoutes(app, deps = {}) {
         // disconnected recovers the typed payload via GET /api/jobs/{id}/result
         // (getJobResult only returns inlineResult). (lope HIGH)
         if (result) {
+          // needs-transcription is a COMPLETED verdict (no captions), not a
+          // failure — mark it 'done' so a json client that disconnected recovers
+          // the typed payload via GET /api/jobs/{id}/result (pollJobResult skips
+          // /result for 'failed' jobs). Genuine errors stay 'failed'. (lope V1 HIGH)
+          const terminalOk = result.success || result.needsTranscription;
           jobRegistry.updateJob(job.id, {
-            status: result.success ? 'done' : 'failed',
+            status: terminalOk ? 'done' : 'failed',
             completedAt: new Date().toISOString(),
             resultSummary: { source: verdict.url },
             inlineResult: result,
             inlineLog: allOutput.substring(0, 50000),
-            ...(result.success ? {} : { error: result.error || 'conversion failed' }),
+            ...(terminalOk ? {} : { error: result.error || 'conversion failed' }),
           });
         } else {
           jobRegistry.updateJob(job.id, {
