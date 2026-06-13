@@ -145,6 +145,7 @@ require('./routes/batch')(app, deps);
 require('./routes/crawl')(app, deps);
 require('./routes/agentify')(app, deps);
 require('./routes/file2md')(app, deps);
+require('./routes/video2md')(app, deps);
 require('./routes/download')(app);
 require('./routes/jobs')(app);
 
