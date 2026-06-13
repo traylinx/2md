@@ -78,6 +78,13 @@ module.exports = function registerFile2mdRoutes(app, { upload }) {
       let heartbeatInterval = null;
       if (format === 'json') {
         res.setHeader('Content-Type', 'application/json');
+        // X-Job-Id MUST be set BEFORE the padding write below: res.write()
+        // flushes headers, so the header set in the close handler never
+        // reached json clients — and a padding-only response (slow conversion,
+        // proxy cut) left them with no handle to recover the result from
+        // GET /api/jobs/{id}/result. (file-comprehension M0b, 2026-06-13)
+        res.setHeader('X-Job-Id', job.id);
+        if (req.id) res.setHeader('X-Request-Id', req.id);
         res.write(' '.repeat(1024)); // Send initial padding for Some proxies
         heartbeatInterval = setInterval(() => {
           if (!res.writableEnded) {
