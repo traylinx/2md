@@ -86,11 +86,19 @@ module.exports = function registerFile2mdRoutes(app, { upload }) {
         res.setHeader('X-Job-Id', job.id);
         if (req.id) res.setHeader('X-Request-Id', req.id);
         res.write(' '.repeat(1024)); // Send initial padding for Some proxies
+        // Heartbeat cadence must stay well under the shortest intermediary idle
+        // timeout. The Netlify proxy in front of 2md.traylinx.com idle-closes a
+        // held connection at ~15s, so a 15s interval fired exactly at the cut
+        // and lost the race — large-image OCR (>15s) never returned. 5s keeps
+        // the connection alive through the proxy's window. (2026-06-13)
         heartbeatInterval = setInterval(() => {
-          if (!res.writableEnded) {
+          // Guard res.destroyed too: on a proxy reset the socket can be
+          // destroyed before res.on('close') clears this interval, and a write
+          // to a destroyed response can surface as an unhandled stream error.
+          if (!res.writableEnded && !res.destroyed) {
             res.write(' ');
           }
-        }, 15000);
+        }, 5000);
       }
 
       const scriptPath = path.join(__dirname, '..', 'scripts', 'file2md.js');
@@ -117,13 +125,24 @@ module.exports = function registerFile2mdRoutes(app, { upload }) {
 
       res.on('close', () => {
         if (heartbeatInterval) clearInterval(heartbeatInterval);
-        if (!res.writableEnded && child.exitCode === null) {
-          console.log(`[API] Client disconnected early, killing process PID ${child.pid}`);
-          require('tree-kill')(child.pid, 'SIGKILL');
-          jobRegistry.updateJob(job.id, { status: 'failed', error: 'Client disconnected' });
-          if (file) {
-            try { fs.unlinkSync(file.path); } catch(e) {}
-          }
+        if (res.writableEnded || child.exitCode !== null) return;
+        // The held connection dropped before the conversion finished — usually
+        // an intermediary proxy idle-cut, not the real client giving up.
+        // For json (the file2md async path) the result is recoverable via the
+        // job registry + X-Job-Id poll, so the conversion MUST keep running:
+        // killing it here is exactly what made large-image OCR fail (the job
+        // died mid-OCR and the recovery poll found a corpse). Let the child
+        // finish and store its result; child.on('close') cleans up the upload.
+        if (format === 'json') {
+          console.log(`[API] Client disconnected (job ${job.id}) — letting conversion finish for job-poll recovery.`);
+          return;
+        }
+        // stream/markdown have no async recovery handle — abandon promptly.
+        console.log(`[API] Client disconnected early, killing process PID ${child.pid}`);
+        require('tree-kill')(child.pid, 'SIGKILL');
+        jobRegistry.updateJob(job.id, { status: 'failed', error: 'Client disconnected' });
+        if (file) {
+          try { fs.unlinkSync(file.path); } catch(e) {}
         }
       });
 
@@ -141,6 +160,11 @@ module.exports = function registerFile2mdRoutes(app, { upload }) {
 
       child.on('close', () => {
         if (heartbeatInterval) clearInterval(heartbeatInterval);
+        // The held connection may already be gone — a real client close, or an
+        // intermediary proxy idle-cut that we deliberately rode out for json.
+        // The result is still parked in the job registry below for X-Job-Id
+        // recovery; we just must not write to a dead socket.
+        const clientGone = res.writableEnded || res.destroyed;
         const jsonIdx = allOutput.indexOf('__JSON__');
         let result = null;
 
@@ -167,6 +191,18 @@ module.exports = function registerFile2mdRoutes(app, { upload }) {
             error: result?.error || 'No result returned'
           });
         }
+
+        // The child has consumed the upload — remove the temp file regardless
+        // of format/outcome. Previously only the disconnect path unlinked it,
+        // which leaked on the success path and would now leak further since
+        // json disconnects no longer unlink eagerly.
+        if (file) {
+          try { fs.unlinkSync(file.path); } catch (e) {}
+        }
+
+        // Connection already closed (e.g. a proxy idle-cut on a slow json job):
+        // the result is stored for the poll — don't write to the dead socket.
+        if (clientGone) return;
 
         if (format === 'json') {
           const responseData = result || { success: false, error: 'No result returned' };
