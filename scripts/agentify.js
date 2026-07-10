@@ -8,9 +8,105 @@ const targetUrl = process.env.AGENTIFY_TARGET_URL;
 const maxPages = process.env.AGENTIFY_MAX_PAGES || '50';
 const JOBS_DIR = process.env.JOBS_DIR || path.join(os.homedir(), '.2md', 'jobs');
 
-if (!targetUrl) {
+if (require.main === module && !targetUrl) {
   console.error('[Agentify] Error: AGENTIFY_TARGET_URL is required');
   process.exit(1);
+}
+
+async function synthesizeAgentManifests({ openai, model, systemPrompt, userPrompt, logger = console }) {
+  try {
+    const response = await openai.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'agent_manifests',
+          strict: true,
+          schema: {
+            type: 'object',
+            properties: {
+              skill_md: { type: 'string', description: 'The content of SKILL.md' },
+              llms_txt: { type: 'string', description: 'The content of llms.txt' }
+            },
+            required: ['skill_md', 'llms_txt'],
+            additionalProperties: false
+          }
+        }
+      }
+    });
+
+    const parsed = JSON.parse(response.choices[0].message.content);
+    const skillContent = (parsed.skill_md || '').replace(/\\n/g, '\n').trim();
+    const llmsTxtContent = (parsed.llms_txt || '').replace(/\\n/g, '\n').trim();
+    if (!skillContent || !llmsTxtContent) {
+      throw new Error('LLM response did not contain both required manifests');
+    }
+
+    logger.log('[Agentify] Successfully generated SKILL.md and llms.txt');
+    return { success: true, skillContent, llmsTxtContent, status: 'Success', error: null };
+  } catch (structuredError) {
+    logger.error(`[Agentify] Structured output failed (${structuredError.message}), retrying with json_object mode...`);
+    try {
+      const fallbackResponse = await openai.chat.completions.create({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt + '\n\nReturn a JSON object with keys "skill_md" (string) and "llms_txt" (string).' },
+          { role: 'user', content: userPrompt }
+        ],
+        response_format: { type: 'json_object' }
+      });
+      const fallbackParsed = JSON.parse(fallbackResponse.choices[0].message.content);
+      const skillContent = (fallbackParsed.skill_md || '').replace(/\\n/g, '\n').trim();
+      const llmsTxtContent = (fallbackParsed.llms_txt || '').replace(/\\n/g, '\n').trim();
+      if (!skillContent || !llmsTxtContent) {
+        throw new Error('LLM response did not contain both required manifests');
+      }
+
+      logger.log('[Agentify] Fallback succeeded — generated SKILL.md and llms.txt');
+      return { success: true, skillContent, llmsTxtContent, status: 'Success', error: null };
+    } catch (fallbackError) {
+      logger.error(`[Agentify] LLM Synthesis Failed: ${fallbackError.message}`);
+      return {
+        success: false,
+        skillContent: '',
+        llmsTxtContent: '',
+        status: 'Failed',
+        error: fallbackError.message,
+      };
+    }
+  }
+}
+
+function buildValidationReport({
+  targetUrl,
+  generatedAt = new Date().toISOString(),
+  discoveredPages,
+  extractedReferences,
+  totalTokenEstimate,
+  llmStatus,
+  cleanupStats,
+  metricsTable,
+}) {
+  return `# Validation Report
+
+- **Website**: ${targetUrl}
+- **Generated**: ${generatedAt}
+- **Discovered Pages**: ${discoveredPages}
+- **Extracted References**: ${extractedReferences}
+- **Estimated Total Tokens**: ~${totalTokenEstimate.toLocaleString()}
+- **LLM Status**: ${llmStatus}
+- **Post-Processing**: ${cleanupStats.cookieBanners} cookie banners removed, ${cleanupStats.mergedButtons} text fixes
+
+## Reference File Metrics
+
+| File | Size | Est. Tokens |
+|---|---|---|
+${metricsTable}
+`;
 }
 
 async function runPipeline() {
@@ -67,7 +163,8 @@ urls = [...new Set(urls)].slice(0, parseInt(maxPages, 10) || 50);
 if (urls.length === 0) {
   console.error('[Agentify] Phase 1 Failed: No URLs discovered');
   console.log('\n__JSON__' + JSON.stringify({ success: false, error: 'No URLs discovered during Terrain Mapping' }));
-  return; // Do NOT process.exit — let stdout flush naturally
+  process.exitCode = 1;
+  return;
 }
 
 console.log(`[Agentify] Discovered ${urls.length} pages. Tree visualization available in memory.`);
@@ -217,11 +314,10 @@ console.log(`\n[Agentify] Phase 3: Synthesizing Agent Manifests via LLM...`);
 const { OpenAI } = require('openai');
 
 const apiKey = process.env.AGENTIFY_ACTIVE_API_KEY || process.env.AGENTIFY_LLM_API_KEY;
-const baseURL = process.env.AGENTIFY_LLM_BASE_URL || 'https://api.traylinx.com/v1';
+const baseURL = process.env.AGENTIFY_LLM_BASE_URL || 'https://api.traylinx.com/ma-llm-proxy-ms/v1/api/v1';
 const model = process.env.AGENTIFY_LLM_MODEL || 'openai/gpt-oss-20b';
 
-let skillContent = '';
-let llmsTxtContent = '';
+let llmSynthesis;
 
 if (apiKey) {
   const openai = new OpenAI({ apiKey, baseURL });
@@ -233,69 +329,19 @@ if (apiKey) {
 Do not attempt to summarize the entire content of the site. Your job is purely classification and routing. Give the agents a structured table of contents.`;
 
   const userPrompt = `Here is the page index:\n\n${JSON.stringify(pageIndex, null, 2)}`;
-
-  try {
-    const response = await openai.chat.completions.create({
-      model: model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "agent_manifests",
-          strict: true,
-          schema: {
-            type: "object",
-            properties: {
-              skill_md: { type: "string", description: "The content of SKILL.md" },
-              llms_txt: { type: "string", description: "The content of llms.txt" }
-            },
-            required: ["skill_md", "llms_txt"],
-            additionalProperties: false
-          }
-        }
-      }
-    });
-    
-    const parsed = JSON.parse(response.choices[0].message.content);
-    // Normalize escaped newlines — some models double-escape \n inside JSON strings
-    skillContent = (parsed.skill_md || '').replace(/\\n/g, '\n');
-    llmsTxtContent = (parsed.llms_txt || '').replace(/\\n/g, '\n');
-    console.log(`[Agentify] Successfully generated SKILL.md and llms.txt`);
-  } catch (err) {
-    // Fallback: retry with simpler json_object mode if json_schema is unsupported
-    console.error(`[Agentify] Structured output failed (${err.message}), retrying with json_object mode...`);
-    try {
-      const fallbackResponse = await openai.chat.completions.create({
-        model: model,
-        messages: [
-          { role: 'system', content: systemPrompt + '\n\nReturn a JSON object with keys "skill_md" (string) and "llms_txt" (string).' },
-          { role: 'user', content: userPrompt }
-        ],
-        response_format: { type: "json_object" }
-      });
-      const fallbackParsed = JSON.parse(fallbackResponse.choices[0].message.content);
-      // Normalize escaped newlines for fallback path too
-      skillContent = (fallbackParsed.skill_md || '').replace(/\\n/g, '\n');
-      llmsTxtContent = (fallbackParsed.llms_txt || '').replace(/\\n/g, '\n');
-      console.log(`[Agentify] Fallback succeeded — generated SKILL.md and llms.txt`);
-    } catch (fallbackErr) {
-      console.error(`[Agentify] LLM Synthesis Failed: ${fallbackErr.message}`);
-      skillContent = `# ${hostname} Skill\n\nLLM Generation Failed: ${fallbackErr.message}`;
-      llmsTxtContent = `# ${hostname}\n\nLLM Generation Failed: ${fallbackErr.message}`;
-    }
-  }
+  llmSynthesis = await synthesizeAgentManifests({ openai, model, systemPrompt, userPrompt });
 } else {
-  console.log(`[Agentify] Skipping LLM Phase: No API Key provided.`);
-  skillContent = `# ${hostname} Agent Skill
-
-(No API key provided to build index)`;
-  llmsTxtContent = `# ${hostname}
-
-(No API key provided to build index)`;
+  console.error('[Agentify] LLM Synthesis Failed: No API key configured.');
+  llmSynthesis = {
+    success: false,
+    skillContent: '',
+    llmsTxtContent: '',
+    status: 'Failed (No API key configured)',
+    error: 'No API key configured',
+  };
 }
+
+const { skillContent, llmsTxtContent } = llmSynthesis;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase 4: Template Generation & VFS Payload
@@ -401,22 +447,15 @@ if (fs.existsSync(refsDir)) {
 }
 const metricsTable = fileMetrics.map(f => `| ${f.file} | ${f.size.toLocaleString()} bytes | ~${f.tokens.toLocaleString()} tokens |`).join('\n');
 
-const validationReport = `# Validation Report
-
-- **Website**: ${targetUrl}
-- **Generated**: ${new Date().toISOString()}
-- **Discovered Pages**: ${urls.length}
-- **Extracted References**: ${pageIndex.length}
-- **Estimated Total Tokens**: ~${totalTokenEstimate.toLocaleString()}
-- **LLM Status**: ${apiKey ? 'Success' : 'Skipped (No Key)'}
-- **Post-Processing**: ${cleanupStats.cookieBanners} cookie banners removed, ${cleanupStats.mergedButtons} text fixes
-
-## Reference File Metrics
-
-| File | Size | Est. Tokens |
-|---|---|---|
-${metricsTable}
-`;
+const validationReport = buildValidationReport({
+  targetUrl,
+  discoveredPages: urls.length,
+  extractedReferences: pageIndex.length,
+  totalTokenEstimate,
+  llmStatus: llmSynthesis.status,
+  cleanupStats,
+  metricsTable,
+});
 
 const installScript = `#!/usr/bin/env bash
 # ============================================================
@@ -535,12 +574,15 @@ echo ""
 `;
 
 const vfs = {
-  'SKILL.md': skillContent,
-  'llms.txt': llmsTxtContent,
   'integration-guide.md': integrationGuide,
   'validation-report.md': validationReport,
   'install.sh': installScript
 };
+
+if (llmSynthesis.success) {
+  vfs['SKILL.md'] = skillContent;
+  vfs['llms.txt'] = llmsTxtContent;
+}
 
 if (fs.existsSync(refsDir)) {
   const files = fs.readdirSync(refsDir);
@@ -551,22 +593,34 @@ if (fs.existsSync(refsDir)) {
   }
 }
 
-// Also write files to disk locally in jobs directory
-fs.writeFileSync(path.join(siteDir, 'SKILL.md'), skillContent);
-fs.writeFileSync(path.join(siteDir, 'llms.txt'), llmsTxtContent);
+// Also write files to disk locally in jobs directory. Never leave failed
+// synthesis placeholders that can be mistaken for valid manifests.
+if (llmSynthesis.success) {
+  fs.writeFileSync(path.join(siteDir, 'SKILL.md'), skillContent);
+  fs.writeFileSync(path.join(siteDir, 'llms.txt'), llmsTxtContent);
+} else {
+  try { fs.rmSync(path.join(siteDir, 'SKILL.md'), { force: true }); } catch (_) {}
+  try { fs.rmSync(path.join(siteDir, 'llms.txt'), { force: true }); } catch (_) {}
+}
 fs.writeFileSync(path.join(siteDir, 'integration-guide.md'), integrationGuide);
 fs.writeFileSync(path.join(siteDir, 'validation-report.md'), validationReport);
 fs.writeFileSync(path.join(siteDir, 'install.sh'), installScript);
 // Make it executable on disk
 try { fs.chmodSync(path.join(siteDir, 'install.sh'), 0o755); } catch (_) {}
 
-console.log('\n__JSON__' + JSON.stringify({
-  success: true,
-  files: vfs
-}));
+const pipelineResult = llmSynthesis.success
+  ? { success: true, files: vfs }
+  : { success: false, error: `LLM synthesis failed: ${llmSynthesis.error}`, files: vfs };
+
+console.log('\n__JSON__' + JSON.stringify(pipelineResult));
+if (!llmSynthesis.success) process.exitCode = 1;
 } // End async wrapper
 
-runPipeline().catch(err => {
-  console.error('[Agentify] Fatal Pipeline Error:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  runPipeline().catch(err => {
+    console.error('[Agentify] Fatal Pipeline Error:', err);
+    process.exit(1);
+  });
+}
+
+module.exports = { runPipeline, synthesizeAgentManifests, buildValidationReport };

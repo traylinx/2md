@@ -4,8 +4,14 @@ const { spawn } = require('child_process');
 const jobRegistry = require('../lib/jobRegistry');
 const { JOBS_DIR } = require('../lib/config');
 const { sendError, ERROR_CODES } = require('../lib/http/errorResponse');
+const { runAsyncJob: defaultRunAsyncJob } = require('../lib/jobs/asyncJobRunner');
 
-module.exports = function registerAgentifyRoutes(app, { apiLimiter }) {
+module.exports = function registerAgentifyRoutes(app, {
+  apiLimiter,
+  spawnProcess = spawn,
+  runAsyncJob = defaultRunAsyncJob,
+  registry = jobRegistry,
+} = {}) {
   app.post('/api/agentify', apiLimiter, (req, res) => {
     const defaultMaxPages = process.env.AGENTIFY_MAX_PAGES ? parseInt(process.env.AGENTIFY_MAX_PAGES, 10) : 50;
     const { url, urls, maxPages = defaultMaxPages, includeApiSchema = false, targetAgent = 'web', apiKey } = req.body;
@@ -23,7 +29,7 @@ module.exports = function registerAgentifyRoutes(app, { apiLimiter }) {
 
     let hostname = '';
     try { hostname = new URL(url).hostname; } catch(e) {}
-    const job = jobRegistry.createJob('agentify', url, `${hostname || url} (agentify)`, req.headers['x-client-id'], { webhookUrl: req.body.webhook_url || null });
+    const job = registry.createJob('agentify', url, `${hostname || url} (agentify)`, req.headers['x-client-id'], { webhookUrl: req.body.webhook_url || null });
 
     const redactedKey = effectiveApiKey ? `${effectiveApiKey.substring(0, 4)}...${effectiveApiKey.substring(Math.max(4, effectiveApiKey.length - 4))}` : 'none';
     console.log(`[API] Agentify: ${url} (maxPages: ${maxPages}, urls: ${urls ? urls.length : 'auto'}, apiKey: ${redactedKey}, job: ${job.id}) async=${!!req.body.async}`);
@@ -54,19 +60,21 @@ module.exports = function registerAgentifyRoutes(app, { apiLimiter }) {
         env.AGENTIFY_URLS_FILE = urlsTmpFile;
       }
 
-      const { runAsyncJob } = require('../lib/jobs/asyncJobRunner');
       runAsyncJob({
         jobId: job.id,
         spawnArgs: [scriptPath],
         cwd: path.join(__dirname, '..'),
+        env,
         webhookUrl: req.body.webhook_url,
         buildResult: (code, logBuffer) => {
           const siteDir = hostname ? path.join(JOBS_DIR, hostname) : null;
+          const succeeded = code === 0;
           return {
-            success: code === 0,
+            success: succeeded,
+            error: succeeded ? null : `Agentify process exited with code ${code}`,
             jobPatch: {
               resultSummary: { hostname, maxPages, selectedUrls: urls || [] },
-              resultPath: siteDir,
+              resultPath: succeeded ? siteDir : null,
             },
             webhookData: { hostname, url },
           };
@@ -97,9 +105,10 @@ module.exports = function registerAgentifyRoutes(app, { apiLimiter }) {
       env.AGENTIFY_URLS_FILE = urlsTmpFile;
     }
 
-    const child = spawn('node', [scriptPath], { cwd: path.join(__dirname, '..'), env });
+    const child = spawnProcess('node', [scriptPath], { cwd: path.join(__dirname, '..'), env });
     let clientDisconnected = false;
     let agentifyLogBuffer = '';
+    let finalized = false;
 
     res.on('close', () => {
       if (!res.writableEnded && child.exitCode === null) {
@@ -120,16 +129,23 @@ module.exports = function registerAgentifyRoutes(app, { apiLimiter }) {
       if (!clientDisconnected) res.write(text);
     });
 
-    child.on('close', () => {
+    const finalizeJob = (code, spawnError = null) => {
+      if (finalized) return;
+      finalized = true;
+      const succeeded = code === 0 && !spawnError;
       const siteDir = hostname ? path.join(JOBS_DIR, hostname) : null;
-      jobRegistry.updateJob(job.id, {
-        status: 'done',
+      registry.updateJob(job.id, {
+        status: succeeded ? 'done' : 'failed',
         completedAt: new Date().toISOString(),
         resultSummary: { hostname, maxPages, selectedUrls: urls || [] },
-        resultPath: siteDir,
-        inlineLog: agentifyLogBuffer.substring(0, 50000)
+        resultPath: succeeded ? siteDir : null,
+        inlineLog: agentifyLogBuffer.substring(0, 50000),
+        error: succeeded ? null : (spawnError?.message || `Agentify process exited with code ${code}`),
       });
       if (!clientDisconnected) res.end();
-    });
+    };
+
+    child.on('close', (code) => finalizeJob(code));
+    child.on('error', (err) => finalizeJob(null, err));
   });
 };

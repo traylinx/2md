@@ -60,7 +60,7 @@ jobs:
             cat > .env << ENVEOF
             # Agentify Settings
             AGENTIFY_BYOK=false
-            AGENTIFY_LLM_BASE_URL=https://api.traylinx.com/v1
+            AGENTIFY_LLM_BASE_URL=https://api.traylinx.com/ma-llm-proxy-ms/v1/api/v1
             AGENTIFY_LLM_API_KEY=${{ secrets.AGENTIFY_LLM_API_KEY }}
             AGENTIFY_LLM_MODEL=openai/gpt-oss-20b
             AGENTIFY_MAX_PAGES=10
@@ -99,4 +99,3 @@ jobs:
             
             docker compose down --remove-orphans || true
             docker compose up -d --build
-
