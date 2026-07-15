@@ -1,0 +1,49 @@
+name: Build image to GHCR
+
+# Build the html2md (2md) image on GitHub's fast runners and push it to GHCR,
+# so hosts pull a ready image instead of running the heavy chromium/ffmpeg apt
+# build locally. Needed for the Strato apps box (traylinx-sidecars), whose slow
+# disk saturates on an on-box `docker compose build`.
+#
+# The image carries NO secrets (.env is a runtime env_file, not baked in), and
+# this repo is already public, so the resulting package can be public and pulled
+# without credentials.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude-backup/ghcr-build
+
+jobs:
+  build:
+    name: build + push ghcr.io/traylinx/2md
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push (linux/amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/traylinx/2md:latest
+            ghcr.io/traylinx/2md:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
