@@ -1650,6 +1650,51 @@ body {
 }
 
 @media (max-width: 640px) {
+  .main-content {
+    overflow-wrap: anywhere;
+  }
+
+  .prepend-hero-banner form {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .prepend-hero-banner form > div {
+    flex-basis: 100%;
+  }
+
+  .doc-code {
+    overflow-x: auto;
+  }
+
+  .small-switch {
+    transform: none;
+  }
+
+  [data-tooltip]::after,
+  [data-tooltip]:hover::after {
+    position: fixed;
+    left: 1.5rem;
+    right: 1.5rem;
+    bottom: 5rem;
+    top: auto;
+    width: auto;
+    transform: none;
+  }
+
+  .footer-inner {
+    flex-wrap: wrap;
+    text-align: center;
+  }
+
+  .input-toggles {
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 100%;
+    border-left: 0;
+    padding-left: 0;
+  }
+
   .mode-description {
     font-size: 0.9rem;
     margin-bottom: 1.5rem;
