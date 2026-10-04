@@ -26,6 +26,8 @@ export default function Footer() {
         <span class="footer-sep">·</span>
         <a href="/docs" class="footer-link">Docs</a>
         <span class="footer-sep">·</span>
+        <a href="/#agent-relay-contact" class="footer-link">Contact with your AI assistant</a>
+        <span class="footer-sep">·</span>
         <a href="https://traylinx.com/privacy" target="_blank" rel="noopener noreferrer" class="footer-link">Privacy</a>
         <span class="footer-sep">·</span>
         <a href="https://traylinx.com/terms" target="_blank" rel="noopener noreferrer" class="footer-link">Terms</a>

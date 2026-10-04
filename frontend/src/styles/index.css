@@ -1730,6 +1730,25 @@ body {
   margin: 0;
 }
 
+.relay-contact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.relay-contact details summary {
+  cursor: pointer;
+  color: var(--text-dim);
+}
+.relay-contact-prompt {
+  overflow-wrap: anywhere;
+  margin-top: 0.75rem;
+}
+.relay-contact {
+  scroll-margin-top: 1rem;
+}
+
 /* API Reference Card */
 .api-ref-card {
   background: transparent;

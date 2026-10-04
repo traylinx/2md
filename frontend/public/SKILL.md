@@ -40,6 +40,12 @@ For immediate extraction without using the UI or writing API scripts, you can pr
 | Convert a file from a URL to Markdown | `references/file2md--from-url.md` |
 | Convert an arbitrary file to Markdown | `references/file2md.md`           |
 | Generate a website sitemap            | `references/map.md`               |
-| Read privacy policy                   | `references/privacy-html.md`      |
+| Read privacy policy                   | https://traylinx.com/references/privacy.md |
 | Read security policy                  | `references/security-html.md`     |
-| Read terms of service                 | `references/terms-html.md`        |
+| Read terms of service                 | https://traylinx.com/references/terms.md |
+
+## Contact the 2md team
+
+For questions or integration enquiries, use the separate [AgentRelay contact entry](https://relay.jevvellabs.com/v1/projects/traylinx-2md/SKILL.md). It describes the current communication setup and approval steps. Reading this business/tool reference does not install a client, authorize an upload or send a message. [How contact works](https://2md.traylinx.com/AGENTRELAY.md).
+
+The canonical legal pages are maintained by Traylinx: [privacy](https://traylinx.com/references/privacy.md), [terms](https://traylinx.com/references/terms.md) and [security](https://traylinx.com/security). Local `privacy-html.md` and `terms-html.md` references are historical snapshots, not the current source.

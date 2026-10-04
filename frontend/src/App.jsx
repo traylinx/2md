@@ -7,6 +7,7 @@ import AgentifyPage from './pages/AgentifyPage';
 import FileUploadPage from './pages/FileUploadPage';
 import FileFromUrlPage from './pages/FileFromUrlPage';
 import Footer from './components/Footer';
+import AgentRelayContact from './components/AgentRelayContact';
 import CookieBanner from './components/CookieBanner';
 import JobHistoryPanel from './components/JobHistoryPanel';
 
@@ -917,6 +918,8 @@ export default function App() {
 
       {/* ═══ GLOBAL AGENT INSTALL BLOCK (BOTTOM) ═══ */}
       <AgentInstallBlock copied={copied} handleCopyPrompt={handleCopyPrompt} isBottomMode={true} />
+
+      <AgentRelayContact />
 
       <MobileBottomNav
         product={state.product}
