@@ -147,3 +147,52 @@ No production key, ACL, Redis configuration or database migration was applied.
 Focused checks used socket-only temporary PostgreSQL and Redis instances with
 synthetic data; both were stopped and removed. Redis test persistence was disabled.
 HTTP composition used synthetic SDK/identity/database ports, not live credentials.
+
+## Runtime composition and HTTP surface (S02E)
+
+`runtime.js` composes the existing admission repository, worker, dispatch client,
+grant handler, encrypted results and run reader. `application.js` provides a
+separate Express application factory. Disabled by default, it returns 404 without
+constructing clients or starting a dispatcher. Enabling without real human,
+confirmation, background-owner and SEARCH-service authorities fails construction.
+There is no import-time listener, connection, migration or worker startup.
+The legacy `server.js` and its wildcard CORS middleware are unchanged.
+
+The dedicated app exposes these routes under `/web/v1` when explicitly enabled:
+
+- `POST /plans`: exact public URL/deadline/response-limit specification; creates a
+  server-generated plan bound to the verified caller/project and current policy.
+- `POST /plans/:id/confirmations`: explicit confirmation ID, bearer authentication,
+  allowlisted Origin and separately supplied confirmation authority.
+- `POST /runs`: plan/confirmation references and scoped `Idempotency-Key`; returns
+  202 for new admission or 200 for replay. Never executes capture synchronously.
+- `GET /runs/:id` and `GET /runs/:id/result`: creator/current-project guarded reads.
+- `POST /internal/dispatch-grants`: service-only fenced grant consumption; no
+  browser Origin or customer bearer authentication is accepted.
+
+Human routes use `organizationId` and `projectId` query selectors, not identity
+assertions. Cookie-only or mixed human/agent authentication is refused. JSON bodies
+are limited to 16 KiB; duplicate credential/idempotency/origin headers are rejected.
+CORS allows only configured exact HTTPS origins, never `*`. Responses are no-store.
+Do not mount this router behind the legacy wildcard CORS/body-parser stack.
+
+`dispatcher.js` has no overlapping ticks, default concurrency two (maximum four),
+1-second polling and a bounded 100-row lease sweep. It fetches reference-only outbox
+entries; SQL claim ownership still decides who may execute. An unavailable
+unclaimed admission may be polled later; claimed/uncertain executions are not
+requeued. `start()` is explicit; `stop()` aborts active workers and waits for the
+current bounded tick. Diagnostic counters contain no raw dependency exceptions.
+
+`runtimeClients.js` configures a maximum four-connection PostgreSQL pool, 2-second
+connection timeout, 5-second server statement timeout and 6-second client query
+timeout. Redis uses 2-second connect/5-second command deadlines, no offline queue,
+no automatic command resend and no reconnect retry. Connections require explicit
+`open()` and are shut down by `close()`. PostgreSQL `pg` is pinned to 8.23.1 in the
+manifest/lockfile; lock-only update did not reinstall local dependencies.
+
+**Activation still pending:** bind real authority adapters (including fresh
+background-owner membership checks), choose and wire the deployment entrypoint,
+configure protected client/Redis result-key/namespace ACLs and scoped database
+roles, apply separately approved migrations, and verify Workspace with its pinned
+Rails/database runtime. The new app has been exercised through real local HTTP
+with synthetic backend/identity ports, not against production services.
