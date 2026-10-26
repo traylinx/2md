@@ -41,7 +41,7 @@ and the temporary migration pod was removed. No Secret or Sentinel grant changed
 
 The obsolete SSH/Compose workflow was replaced by a pinned image build; future
 production pushes **build, but do not automatically deploy** to Kubernetes. Follow
-[the release runbook](../../../../deploy/legacy/README.md). Both branches are aligned;
+[the release runbook](../../../deploy/legacy/README.md). Both branches are aligned;
 merged feature branches are removed. Later documentation-only commits do not
 change the deployed runtime source.
 
