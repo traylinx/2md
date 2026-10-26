@@ -1,0 +1,5 @@
+{
+  "status": 1,
+  "stdout": "",
+  "stderr": "Usage: bin/html2md [options] <url|file>\nUse --help for options.\n"
+}

@@ -1,0 +1,17 @@
+{
+  "search-service.ts": {
+    "source": "/Users/sebastian/Projects/makakoo/agents/agentic-search-engines-ts/src/services/html2md-service.ts",
+    "sha256": "f12777753223aba5f3c796843349bebc375b676c131f8cd1ac1ab6d9328702a8",
+    "scope": "Exact unchanged consumer snapshot; test dependencies injected only"
+  },
+  "frontend-hook.js": {
+    "source": "/Users/sebastian/Projects/web-intelligence-automation/html2md/frontend/src/hooks/useStreamFetch.js",
+    "sha256": "6b0ae9853df111132451f44bf05b055ae44bdd00f0baf4e3bbbfe91ed64c0e0a",
+    "scope": "Exact unchanged consumer snapshot; test dependencies injected only"
+  },
+  "scrap-agent.ts": {
+    "source": "/Users/sebastian/Projects/makakoo/agents/agentic-search-engines-ts/src/agents/scrap-agent.ts",
+    "sha256": "c14955859f803bf6d8efcb9ff987abf2c4a3e43debc06745a534129446f58be9",
+    "scope": "Exact unchanged consumer snapshot; test dependencies injected only"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "baseline_head": "24b24bc36aa0b875297217a17dd8440be5b171eb",
+  "provenance": "Frozen against unchanged local baseline before any production code changes; not production image evidence. No automatic update command.",
+  "sha256": {
+    "article.html": "e6c49ac9578c5bff2c8c999124b240ea588770f5037b4e324bb2c3df9600f3bb",
+    "cli-help.json": "320442511107ef1080a6cfbc9de2091012d8453535020be9496ed48590eba099",
+    "cli-missing.json": "721806cea3b6eb0592bcf81ff3032e2f28c9141acfd239142407f457ded47f7a",
+    "consumers.json": "5521e61abfd60f0336fecb92dcae8c94b3b88942e8e99c03caec2173f7d8d718",
+    "frontend-hook.js": "6b0ae9853df111132451f44bf05b055ae44bdd00f0baf4e3bbbfe91ed64c0e0a",
+    "native.md": "616c058dbd734e959cfb06ba2d8e44b900ed251b05f55cef764a56f16b4ff00a",
+    "scrap-agent.ts": "c14955859f803bf6d8efcb9ff987abf2c4a3e43debc06745a534129446f58be9",
+    "search-service.ts": "f12777753223aba5f3c796843349bebc375b676c131f8cd1ac1ab6d9328702a8",
+    "static-golden.json": "664b96a4ee533ae9de004ba3dd49f94cb68582030b48e49597c8725f0fe4ba93"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "legacy_image": "ghcr.io/traylinx/2md@sha256:acdbc7229c7f427bcb705527ad446cde7365af5e7e4eb459f9ea7d285a78ccba",
+  "capture_image": "ghcr.io/traylinx/2md@sha256:241e8eaf6f0e6ceaf31ac9202c59fea252c106999cd0626d40d729a5bfc76607",
+  "live_source_evidence": "../../../../../docs/evidence/html2md-implementation-2026-10-22/LIVE_SOURCE_HASHES.json",
+  "legacy_pod_restarted": false
+}

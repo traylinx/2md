@@ -1,0 +1,21 @@
+{
+  "markdown": "## Compatibility article\n\nThis owned synthetic article tests stable extraction. It contains ordinary prose, structured data, a link and code. No customer content or real credentials appear in this fixture.\n\n## Inventory\n\n| Item | Count |\n| --- | --- |\n| Alpha | 2 |\n| Beta | 3 |\n\n-   First entry\n-   Second entry\n\nRead the [guide](https://owned.invalid/guide).\n\n```\nconst count = 5;\n```",
+  "metadata": {
+    "title": null,
+    "byline": null,
+    "excerpt": "This owned synthetic article tests stable extraction. It contains ordinary prose, structured data, a link and code. No customer content or real credentials appear in this fixture."
+  },
+  "tokens": {
+    "html": 199,
+    "md": 105
+  },
+  "quality": {
+    "headings": 2,
+    "tables": 1,
+    "images": 0,
+    "lists": 1,
+    "codeBlocks": 2,
+    "links": 1,
+    "wordCount": 67
+  }
+}

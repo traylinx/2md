@@ -1,0 +1,488 @@
+{
+  "units": [
+    {
+      "id": "U01",
+      "candidate_only": true,
+      "port_authority": "blocked_pending_rights_and_dependency_review",
+      "boundary": "Bound waits at API boundary; preserve existing html2md native/static/browser selection",
+      "literal_closure": {
+        "lib/hoca/auth/captureSettle.js": {
+          "sha256": "37d1f9d560f4dc6db2d93d0b4d2c5d08b3571655bcd402530cae6387e023d72a",
+          "literal_dependencies": []
+        }
+      },
+      "limitations": "Static literal require traversal only; dynamic imports and behavior need review. No source copied."
+    },
+    {
+      "id": "U02",
+      "candidate_only": true,
+      "port_authority": "blocked_pending_rights_and_dependency_review",
+      "boundary": "Preserve Readability/Trafilatura and GFM quality; expose degraded text fallback rather than claiming equivalent structured output",
+      "literal_closure": {
+        "lib/hoca/markdownCleaner.js": {
+          "sha256": "7050ddfe18f8378b3b207642e54daa33f3c9d1bf32bb321e77d97660ac82d3b0",
+          "literal_dependencies": [
+            {
+              "import": "jsdom",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "turndown",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "turndown-plugin-gfm",
+              "kind": "external_or_builtin"
+            }
+          ]
+        }
+      },
+      "limitations": "Static literal require traversal only; dynamic imports and behavior need review. No source copied."
+    },
+    {
+      "id": "U03",
+      "candidate_only": true,
+      "port_authority": "blocked_pending_rights_and_dependency_review",
+      "boundary": "Cover every network path, not just navigations; remove hardcoded client exceptions; server-controlled policy and synthetic DNS/redirect tests",
+      "literal_closure": {
+        "lib/hoca/agentic/subrequestPolicy.js": {
+          "sha256": "79cc78c77008c087ef420d70a9e29b6d7f1ef6bab68d699ce30d11f75d625a20",
+          "literal_dependencies": [
+            {
+              "import": "../ssrfGuard",
+              "resolved": "lib/hoca/ssrfGuard.js"
+            }
+          ]
+        },
+        "lib/hoca/ssrfGuard.js": {
+          "sha256": "f6c8e2d78576b4f8cc25661f96a3302ee72749ab9de013a0a1c612a8e658329c",
+          "literal_dependencies": [
+            {
+              "import": "net",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "dns",
+              "kind": "external_or_builtin"
+            }
+          ]
+        },
+        "lib/hoca/auth/browserCompatibility.js": {
+          "sha256": "e2d2e78699bef79d84c374d179d1d1e74822bba972ef6913e6f3f166fb940e94",
+          "literal_dependencies": [
+            {
+              "import": "../../adBlockList",
+              "resolved": "lib/adBlockList.js"
+            },
+            {
+              "import": "../ssrfGuard",
+              "resolved": "lib/hoca/ssrfGuard.js"
+            }
+          ]
+        },
+        "lib/adBlockList.js": {
+          "sha256": "838d74b9691f0764e864c802f116c47a13681eb92214a429e2fed1a1cc5f76c3",
+          "literal_dependencies": []
+        }
+      },
+      "limitations": "Static literal require traversal only; dynamic imports and behavior need review. No source copied."
+    },
+    {
+      "id": "U04",
+      "candidate_only": true,
+      "port_authority": "blocked_pending_rights_and_dependency_review",
+      "boundary": "Separate content evidence from telemetry; audit screenshot/DOM masking and private artifact access",
+      "literal_closure": {
+        "lib/hoca/auth/stageArtifacts.js": {
+          "sha256": "892098b73230b9a412b12d5f819d7d5e2f4ff7c132bc43b5d5230879b2862b1e",
+          "literal_dependencies": [
+            {
+              "import": "fs",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "path",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "./credentialResolver",
+              "resolved": "lib/hoca/auth/credentialResolver.js"
+            }
+          ]
+        },
+        "lib/hoca/auth/credentialResolver.js": {
+          "sha256": "dd00812cefcff7bd776c311eb70d2a23cc1641f2074833a6040b568ba76e1d5c",
+          "literal_dependencies": [
+            {
+              "import": "./credentialSchema",
+              "resolved": "lib/hoca/auth/credentialSchema.js"
+            },
+            {
+              "import": "../redact",
+              "resolved": "lib/hoca/redact.js"
+            }
+          ]
+        },
+        "lib/hoca/redact.js": {
+          "sha256": "7dd91a037980d9d2afdb9c995c26e99957fcde493bdd7e0f5cac583c49fd60f5",
+          "literal_dependencies": []
+        },
+        "lib/hoca/auth/credentialSchema.js": {
+          "sha256": "cf5328368491392530dc228c65c5a2bf593dae3d565f6b054a9a50bfd8002742",
+          "literal_dependencies": []
+        },
+        "lib/hoca/agentic/actionTrace.js": {
+          "sha256": "2db76856033aa20e122fa77a1c8806b00f3488a97e77dc1ab6387df5e073bb15",
+          "literal_dependencies": [
+            {
+              "import": "../redact",
+              "resolved": "lib/hoca/redact.js"
+            },
+            {
+              "import": "./stateFingerprint",
+              "resolved": "lib/hoca/agentic/stateFingerprint.js"
+            },
+            {
+              "import": "./actionPolicy",
+              "resolved": "lib/hoca/agentic/actionPolicy.js"
+            }
+          ]
+        },
+        "lib/hoca/agentic/actionPolicy.js": {
+          "sha256": "16448d946880150663b7eae578cc650d71b15adfeee86cfc60d3eaf92513384c",
+          "literal_dependencies": [
+            {
+              "import": "./mutationKindPolicy",
+              "resolved": "lib/hoca/agentic/mutationKindPolicy.js"
+            },
+            {
+              "import": "./actionVocabulary",
+              "resolved": "lib/hoca/agentic/actionVocabulary.js"
+            },
+            {
+              "import": "./actionCheckSequence",
+              "resolved": "lib/hoca/agentic/actionCheckSequence.js"
+            }
+          ]
+        },
+        "lib/hoca/agentic/actionCheckSequence.js": {
+          "sha256": "9fd88894a8439a0081e4c088b495cd247504b595f977b4e5355c87cd8f7abb4d",
+          "literal_dependencies": [
+            {
+              "import": "./actionReadChecks",
+              "resolved": "lib/hoca/agentic/actionReadChecks.js"
+            },
+            {
+              "import": "./actionMutationChecks",
+              "resolved": "lib/hoca/agentic/actionMutationChecks.js"
+            }
+          ]
+        },
+        "lib/hoca/agentic/actionMutationChecks.js": {
+          "sha256": "7da49363cac9d0eaa621cc96d5e5b064a1f7c0b2c4d5d4359781d8e664bf36e4",
+          "literal_dependencies": [
+            {
+              "import": "./mutationKindPolicy",
+              "resolved": "lib/hoca/agentic/mutationKindPolicy.js"
+            },
+            {
+              "import": "../auth/herstellungPayloadContract",
+              "resolved": "lib/hoca/auth/herstellungPayloadContract.js"
+            },
+            {
+              "import": "./mutationKindPolicy",
+              "resolved": "lib/hoca/agentic/mutationKindPolicy.js"
+            }
+          ]
+        },
+        "lib/hoca/agentic/mutationKindPolicy.js": {
+          "sha256": "ab107bf31f98001f176e0c294e364aa18bc46d1f77f52b2b55114bde25365a07",
+          "literal_dependencies": []
+        },
+        "lib/hoca/auth/herstellungPayloadContract.js": {
+          "sha256": "5726b0c06110ff93a7d810050d2374f71730c86c1e7fe355e1a41a15ccc22ad0",
+          "literal_dependencies": []
+        },
+        "lib/hoca/agentic/actionReadChecks.js": {
+          "sha256": "0ba4a41054bebbcd955f481a06338c3d76ca019cfd3e086678baaea514d4cda2",
+          "literal_dependencies": [
+            {
+              "import": "./manufacturerGuard",
+              "resolved": "lib/hoca/agentic/manufacturerGuard.js"
+            },
+            {
+              "import": "./actionVocabulary",
+              "resolved": "lib/hoca/agentic/actionVocabulary.js"
+            }
+          ]
+        },
+        "lib/hoca/agentic/actionVocabulary.js": {
+          "sha256": "143e0ca4ec63b9f2637fdd06e2056463985bf33684c98e0efb021a9eab34a399",
+          "literal_dependencies": []
+        },
+        "lib/hoca/agentic/manufacturerGuard.js": {
+          "sha256": "c5d87639fe9cb10c671743821b1de926318bece4c4148db8208c9850184b605f",
+          "literal_dependencies": [
+            {
+              "import": "../auth/eksiProtectedEvidence",
+              "resolved": "lib/hoca/auth/eksiProtectedEvidence.js"
+            },
+            {
+              "import": "../auth/manufacturerForm",
+              "resolved": "lib/hoca/auth/manufacturerForm.js"
+            }
+          ]
+        },
+        "lib/hoca/auth/manufacturerForm.js": {
+          "sha256": "b2c96ceeab247ae01cf815f7ec748d852c55c66aa5a351ec7fb42b13b249aaa6",
+          "literal_dependencies": [
+            {
+              "import": "jsdom",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "./eksiProtectedEvidence",
+              "resolved": "lib/hoca/auth/eksiProtectedEvidence.js"
+            }
+          ]
+        },
+        "lib/hoca/auth/eksiProtectedEvidence.js": {
+          "sha256": "90271b66f5d1015256ed7582ceb15d497ce8ed06c637531fe43b48f77178f4ab",
+          "literal_dependencies": [
+            {
+              "import": "./eksiHerstellungForm",
+              "resolved": "lib/hoca/auth/eksiHerstellungForm.js"
+            }
+          ]
+        },
+        "lib/hoca/auth/eksiHerstellungForm.js": {
+          "sha256": "ebc767e310e05714bfa2f32df5cdb2801b9be40ad9d9209cf4971a3df778532a",
+          "literal_dependencies": []
+        },
+        "lib/hoca/agentic/stateFingerprint.js": {
+          "sha256": "9bc6b9c37b51fdb8ef2dc34bdf1885d07e9e3d0ae7cbb18d3610b655d39c6680",
+          "literal_dependencies": [
+            {
+              "import": "crypto",
+              "kind": "external_or_builtin"
+            }
+          ]
+        }
+      },
+      "limitations": "Static literal require traversal only; dynamic imports and behavior need review. No source copied."
+    },
+    {
+      "id": "U10",
+      "candidate_only": true,
+      "port_authority": "blocked_pending_rights_and_dependency_review",
+      "boundary": "Retain existing 2md API/job/download formats; separate private retention and ownership; raw.html is rendered DOM alias not raw response",
+      "literal_closure": {
+        "lib/hoca/jobs.js": {
+          "sha256": "729686e5a94b6d7429af796a9d6f6a8febd66e716004afa5a62ca1fe23f5034f",
+          "literal_dependencies": [
+            {
+              "import": "fs",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "path",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "crypto",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "../config",
+              "resolved": "lib/config.js"
+            },
+            {
+              "import": "./artifacts",
+              "resolved": "lib/hoca/artifacts.js"
+            }
+          ]
+        },
+        "lib/hoca/artifacts.js": {
+          "sha256": "e799cb2662292756b8cf55d2b5508cc969400a232c5e8e4b98625eb47ca49542",
+          "literal_dependencies": [
+            {
+              "import": "fs",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "path",
+              "kind": "external_or_builtin"
+            }
+          ]
+        },
+        "lib/config.js": {
+          "sha256": "f91cba60e7e735cba70d22a70aecf1a6889b8409b6e44c0898b2289c249cf5c2",
+          "literal_dependencies": [
+            {
+              "import": "path",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "fs",
+              "kind": "external_or_builtin"
+            }
+          ]
+        },
+        "lib/hoca/captureService.js": {
+          "sha256": "84742b0413534bff8d80bbafdee205eb28bd7fea548ca0903db71c3d377ade70",
+          "literal_dependencies": [
+            {
+              "import": "fs",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "path",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "crypto",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "../config",
+              "resolved": "lib/config.js"
+            },
+            {
+              "import": "./jobs",
+              "resolved": "lib/hoca/jobs.js"
+            },
+            {
+              "import": "./artifacts",
+              "resolved": "lib/hoca/artifacts.js"
+            },
+            {
+              "import": "./markdownCleaner",
+              "resolved": "lib/hoca/markdownCleaner.js"
+            },
+            {
+              "import": "./auth/legacyBrowser",
+              "resolved": "lib/hoca/auth/legacyBrowser.js"
+            },
+            {
+              "import": "./auth/captureSettle",
+              "resolved": "lib/hoca/auth/captureSettle.js"
+            },
+            {
+              "import": "./ssrfGuard",
+              "resolved": "lib/hoca/ssrfGuard.js"
+            },
+            {
+              "import": "./capabilityToken",
+              "resolved": "lib/hoca/capabilityToken.js"
+            }
+          ]
+        },
+        "lib/hoca/capabilityToken.js": {
+          "sha256": "4dd8178471c7c697fb615c5a8c431f980fec1e5f96c4ecb5403a856e1817e729",
+          "literal_dependencies": [
+            {
+              "import": "crypto",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "tldts",
+              "kind": "external_or_builtin"
+            }
+          ]
+        },
+        "lib/hoca/ssrfGuard.js": {
+          "sha256": "f6c8e2d78576b4f8cc25661f96a3302ee72749ab9de013a0a1c612a8e658329c",
+          "literal_dependencies": [
+            {
+              "import": "net",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "dns",
+              "kind": "external_or_builtin"
+            }
+          ]
+        },
+        "lib/hoca/auth/captureSettle.js": {
+          "sha256": "37d1f9d560f4dc6db2d93d0b4d2c5d08b3571655bcd402530cae6387e023d72a",
+          "literal_dependencies": []
+        },
+        "lib/hoca/auth/legacyBrowser.js": {
+          "sha256": "e125c0f2454962f8cb3238f9134d09737e53684d8534bc182543b7bc05178f19",
+          "literal_dependencies": [
+            {
+              "import": "puppeteer-extra",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "puppeteer-extra-plugin-stealth",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "./browserCompatibility",
+              "resolved": "lib/hoca/auth/browserCompatibility.js"
+            },
+            {
+              "import": "../../config",
+              "resolved": "lib/config.js"
+            }
+          ]
+        },
+        "lib/hoca/auth/browserCompatibility.js": {
+          "sha256": "e2d2e78699bef79d84c374d179d1d1e74822bba972ef6913e6f3f166fb940e94",
+          "literal_dependencies": [
+            {
+              "import": "../../adBlockList",
+              "resolved": "lib/adBlockList.js"
+            },
+            {
+              "import": "../ssrfGuard",
+              "resolved": "lib/hoca/ssrfGuard.js"
+            }
+          ]
+        },
+        "lib/adBlockList.js": {
+          "sha256": "838d74b9691f0764e864c802f116c47a13681eb92214a429e2fed1a1cc5f76c3",
+          "literal_dependencies": []
+        },
+        "lib/hoca/markdownCleaner.js": {
+          "sha256": "7050ddfe18f8378b3b207642e54daa33f3c9d1bf32bb321e77d97660ac82d3b0",
+          "literal_dependencies": [
+            {
+              "import": "jsdom",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "turndown",
+              "kind": "external_or_builtin"
+            },
+            {
+              "import": "turndown-plugin-gfm",
+              "kind": "external_or_builtin"
+            }
+          ]
+        }
+      },
+      "limitations": "Static literal require traversal only; dynamic imports and behavior need review. No source copied."
+    }
+  ],
+  "rights_status": "unresolved",
+  "notices": [
+    {
+      "path": "LICENSE",
+      "sha256": "e172ff615c621235c4d9e53c00152a5bf5dbdb99a14e2eb904f95488cfd110fb",
+      "observed": "Apache-2.0 text"
+    },
+    {
+      "path": "README.md",
+      "sha256": "c773eec89c8eb94ecfd6dae9a14d8b2e120e39f1cbb2fcd23415d64e40591ea2",
+      "observed": "MIT claim conflicts with LICENSE"
+    },
+    {
+      "path": "/Users/sebastian/Projects/ai-impact/hoca/apps/hoca-scraper/LICENSE.md",
+      "sha256": "de62295d275b4969a707a2ef9788c97eb48adc675c55b950a4c66f9420659dd4",
+      "observed": "Proprietary; scope subject to separate agreements"
+    }
+  ],
+  "disposition": "Do not change notices or copy HoCa modules without resolved authority."
+}

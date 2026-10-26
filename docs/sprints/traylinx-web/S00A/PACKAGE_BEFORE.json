@@ -1,0 +1,54 @@
+{
+  "name": "html2md",
+  "version": "2.0.0",
+  "description": "High-fidelity HTML-to-Markdown converter with batch and crawl modes",
+  "private": true,
+  "bin": {
+    "html2md": "./bin/html2md"
+  },
+  "scripts": {
+    "build": "npm run build --prefix frontend",
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "vitest run",
+    "convert": "node bin/html2md",
+    "cache:cleanup": "node scripts/cache-cleanup.js",
+    "fetch": "node scripts/fetch.js",
+    "extract": "node scripts/extract.js",
+    "crawl": "node scripts/crawl.js",
+    "interactive": "node bin/interactive.js",
+    "worker": "node worker.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1003.0",
+    "@aws-sdk/client-sns": "^3.1005.0",
+    "@aws-sdk/s3-request-presigner": "^3.1003.0",
+    "@mozilla/readability": "^0.5.0",
+    "archiver": "^7.0.1",
+    "axios": "^1.13.6",
+    "bullmq": "^5.70.4",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.0",
+    "form-data": "^4.0.5",
+    "ioredis": "^5.10.0",
+    "jsdom": "^26.0.0",
+    "multer": "^2.1.1",
+    "openai": "^6.25.0",
+    "p-queue": "^9.1.0",
+    "puppeteer": "^24.38.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "tree-kill": "^1.2.2",
+    "turndown": "^7.2.0",
+    "turndown-plugin-gfm": "^1.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "supertest": "^7.2.2",
+    "vitest": "^4.0.18"
+  }
+}

@@ -11,6 +11,7 @@
     "start": "node server.js",
     "dev": "node server.js",
     "test": "vitest run",
+    "test:compat": "node scripts/test-compat.cjs",
     "convert": "node bin/html2md",
     "cache:cleanup": "node scripts/cache-cleanup.js",
     "fetch": "node scripts/fetch.js",

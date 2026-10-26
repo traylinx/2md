@@ -1,0 +1,11 @@
+{
+  "name": "html2md-capture-sentinel",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "traylinx-auth-client": "file:traylinx-auth-client-1.1.0-rc.1.tgz"
+  }
+}

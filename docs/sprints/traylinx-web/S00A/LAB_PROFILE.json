@@ -1,0 +1,67 @@
+{
+  "scope": "Local H01/H02 characterization; no real browser/provider execution",
+  "network": "OS external deny; Node only own loopback listeners; synthetic DNS only",
+  "filesystem": "allowlisted temporary HOME/APP_DIR/JOBS_DIR/UPLOADS_DIR; repository writes and .env reads denied in child",
+  "provider_boundaries": "Browser/media/model child processes, Redis and remote storage are doubles",
+  "limits": {
+    "workers": 1,
+    "v8_heap_mib_per_node": 768,
+    "wall_timeout_seconds": 120,
+    "process_group_kill_on_timeout_or_signal": true,
+    "hard_aggregate_cpu_rss": "not qualified; blocker before browser integration"
+  },
+  "browser_execution": false,
+  "future_browser_gate": {
+    "max_active": 2,
+    "max_queued": 4,
+    "html_bytes": 5242880,
+    "markdown_bytes": 2097152,
+    "subrequest_count_target": 100,
+    "subresource_total_bytes_target": 10485760,
+    "cpu_cores_target": 1,
+    "aggregate_rss_mib_target": 1024,
+    "enforcement_status": "NOT_IMPLEMENTED; no browser integration permitted until measured and enforced"
+  },
+  "fixtures_manifest_sha256": "2ea31a34f4aa68610479d8f51b5dd158103fa152eaa4c0405daf5031f3932eea",
+  "node_version": "v22.22.3",
+  "node_binary_sha256": "edc0e47adde954e891939bb509a62accdad5f6b15f32ec56ed78f9d6b7dd7308",
+  "installed_dependencies": {
+    "vitest": {
+      "version": "4.0.18",
+      "manifest_sha256": "d83c63a3391f403a6dce4793c90e9d9d02faf113c7ed8d77b424e59f48ef8328"
+    },
+    "puppeteer": {
+      "version": "24.38.0",
+      "manifest_sha256": "4d6a6406695d9eda74d9d9e9aaa540e27a4ca6f3fe27a944e1ee37e3dd04f64e"
+    },
+    "express": {
+      "version": "5.2.1",
+      "manifest_sha256": "2980b885bad92f757a2d44674e905cf875867d5685111d8ab8f285635b11367d"
+    },
+    "jsdom": {
+      "version": "26.1.0",
+      "manifest_sha256": "9670cfae0de2c46a3276fa20815328e3903275b04cc8969a6f6be01f2c580043"
+    },
+    "@mozilla/readability": {
+      "version": "0.5.0",
+      "manifest_sha256": "e13e7dedc05a3d79d2606b3b573859dc4454828b770ae11fe2ec8e0289e10d12"
+    },
+    "turndown": {
+      "version": "7.2.2",
+      "manifest_sha256": "48f0ba8c39182064db1da644086928864b459dfb2203b0aa4731962eec015a7f"
+    },
+    "turndown-plugin-gfm": {
+      "version": "1.0.2",
+      "manifest_sha256": "f09037fb0ca31e3c83ce301a836d9dfa70081c8de7bde70eaf8f5d22d3606a53"
+    },
+    "supertest": {
+      "version": "7.2.2",
+      "manifest_sha256": "b619641c2b4810756117658b7604f8210291b2833cf0509e659f772403cfe96d"
+    },
+    "esbuild": {
+      "version": "0.27.3",
+      "manifest_sha256": "24655ca1d9c91fe7517a99ec27bf1125b46efae71b54a55125d2a930b6ad61f9"
+    }
+  },
+  "production_configuration_read": false
+}

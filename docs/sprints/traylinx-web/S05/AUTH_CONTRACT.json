@@ -1,0 +1,19 @@
+{
+  "version": "capture/v1",
+  "method": "POST",
+  "path": "/api/capture/v1/authenticated",
+  "reference": "../../../capture-api.md",
+  "credential_mode": "inlineOnce",
+  "website_catalogue": false,
+  "request_scoped_login_instructions": true,
+  "same_origin_https_only": true,
+  "full_page_form_only": true,
+  "maximum_body_bytes": 32768,
+  "default_budget_ms": 30000,
+  "maximum_budget_ms": 60000,
+  "platform_principals": [
+    "verified user with grant",
+    "verified active agent with grant"
+  ],
+  "activation": "verified existing Traylinx user; live production accepted"
+}
