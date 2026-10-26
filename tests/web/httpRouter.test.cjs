@@ -16,7 +16,8 @@ test('confirmation requires allowed Origin plus bearer; hostile origin and extra
  await call().send({confirmationId:'c1'}).expect(403);
  await call().set('Origin','https://evil.example').send({confirmationId:'c1'}).expect(403);
  await call().set('Origin','https://app.example').send({confirmationId:'c1',confirmed:true}).expect(422);
- await call().set('Origin','https://app.example').send({confirmationId:'c1'}).expect(200);assert.equal(f.calls.length,1);
+ await call().set('Origin','https://app.example').send({confirmationId:'c1'}).expect(403);
+ await call().set('Origin','https://app.example').set('X-Web-Confirmation','header.payload.signature').send({confirmationId:'c1'}).expect(200);assert.equal(f.calls.length,1);
 });
 test('cookie-only and mixed-agent human calls denied; body bounded',async()=>{
  const f=fixture();await request(f.app).get('/web/v1/runs/r1').set('Cookie','session=synthetic').expect(401);

@@ -233,3 +233,28 @@ service**. Trusted confirmation-channel composition, environment/secret binding,
 signal handling in the eventual executable, and pinned Rails/database integration
 verification remain required before activation. Existing bearer plus Origin is
 not by itself proof of the separate human confirmation authority.
+
+### Signed human confirmation assertions
+
+The confirmation route now requires `X-Web-Confirmation` in addition to current
+human authorization and an allowed Origin. The runtime can configure
+`confirmationAuthority: { publicKey, issuer, keyId }`. READ holds only the pinned
+Ed25519 verification key. No request-provided key, key URL or algorithm is used.
+
+The compact signed assertion uses header `alg=EdDSA`,
+`typ=web-confirm+jwt`, and the configured `kid`. Exact payload fields are:
+`iss`, `aud=web-read-confirmation`, `scope=web:confirm`, `sub`,
+`workspaceUserId`, `organizationId`, `projectId`, `planId`, `planDigest`,
+`confirmationId`, `iat`, `exp`. Timestamps use integer Unix seconds; lifetime is
+at most 120 seconds, with no future issuance or expired acceptance. Every identity
+and plan field must match the current verified principal and stored immutable
+plan. Unknown claims, algorithms and keys fail closed. The assertion is transient,
+not persisted in SQL or returned in results. Identical valid proof retries use
+the existing durable confirmation/idempotency rules.
+
+**Issuer integration remains pending.** Only the separate user-controlled,
+CSRF-protected confirmation service may sign after displaying the exact plan and
+receiving explicit user approval. Never provide its signing key, session or
+assertions to the proposer/model. Signature verification does not itself prove a
+human clicked: that guarantee depends on the protected issuer and UI integration.
+No production key was generated, configured or deployed in this implementation.
