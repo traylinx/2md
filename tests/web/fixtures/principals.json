@@ -1,0 +1,10 @@
+{
+  "alice": {
+    "version": 1, "kind": "human", "authSubject": "auth-alice", "workspaceUserId": "user-alice",
+    "organizationId": "org-a", "projectId": "project-a", "effectiveRole": "MEMBER", "stopped": false
+  },
+  "bob": {
+    "version": 1, "kind": "human", "authSubject": "auth-bob", "workspaceUserId": "user-bob",
+    "organizationId": "org-b", "projectId": "project-b", "effectiveRole": "OWNER", "stopped": false
+  }
+}
