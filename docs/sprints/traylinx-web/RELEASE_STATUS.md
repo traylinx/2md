@@ -1,3 +1,27 @@
+# Automatic backend delivery — 26 October 2026
+
+**Production-branch automatic deployment is enabled and live verified.**
+A real push of runtime commit `cb79008a8875b9383184b00e215361eea7eff7eb`
+built and deployed both legacy containers, with no manual operator image patch.
+[GitHub run 40352503116](https://github.com/traylinx/2md/actions/runs/40352503116)
+passed its build and live-deployment verification jobs.
+
+Current legacy image:
+`ghcr.io/traylinx/2md@sha256:a6cbe4b2b713049a3aae028b6e1fd8e6d23f72df97c79f589af1409cdeb739fd`.
+The API reports the matching baked revision and controller-verified release proof.
+API/worker are ready with zero restarts; capture/egress specifications unchanged.
+Fifteen focused checks, 31 legacy compatibility checks and six RBAC checks passed.
+The rollback path is implemented, not deliberately fault-triggered in production.
+
+A restricted in-cluster controller polls production every two minutes, promotes
+only a matching successful build by verified immutable digest, and preserves the
+existing job PVC and runtime settings. GitHub receives no Kubernetes credentials
+or tailnet access. No new server, Tailscale policy/credential change, Sentinel
+change or load/soak cycle. See [automatic delivery runbook](../../../deploy/legacy/README.md).
+Evidence: workspace `docs/evidence/html2md-autodeploy-implementation-2026-10-26/`.
+This supersedes the earlier same-day manual-promotion note below. Documentation-only
+commits do not rebuild or redeploy the unchanged runtime.
+
 # Current capture release — 26 October 2026
 
 Sentinel-enabled capture deployed from private immutable image
@@ -19,7 +43,7 @@ this bounded consumer release. Performance, long-running soak and scaling remain
 follow-up, not passed. npm RC publication and public docs-site publication remain
 separate. See [the current setup guide](../../sentinel-integration.md).
 
-## Legacy web UI follow-up — 26 October 2026
+## First legacy web UI fix release — 26 October 2026 (historical image)
 
 The browser-header/cache repair is **published, deployed and live verified**.
 Source runtime commit: `ceb68d37abfda8a6b0e09282d15a2e73f90c3a34`.
@@ -27,7 +51,7 @@ GitHub build [40344231426](https://github.com/traylinx/2md/actions/runs/40344231
 passed, including the six focused regressions. The earlier 31 compatibility checks
 and candidate pipeline evidence remain valid; no new performance cycle was run.
 
-Both legacy API and worker run
+Both legacy API and worker were initially promoted to
 `ghcr.io/traylinx/2md@sha256:b2e69195cd2ed3612071643888f3c6544e0ceb9002015a763b50138cae506bda`.
 Fresh MiniMax conversion returned HTTP 200 and 15,093 bytes including plan tiers
 and FAQs (8.772 seconds). The next cache hit returned identical content in 176 ms.
@@ -39,9 +63,9 @@ node-local PVC. This preserves data across pod replacements, not node loss or
 backups; local-path storage is not a hard quota. Admission and queues were restored,
 and the temporary migration pod was removed. No Secret or Sentinel grant changed.
 
-The obsolete SSH/Compose workflow was replaced by a pinned image build; future
-production pushes **build, but do not automatically deploy** to Kubernetes. Follow
-[the release runbook](../../../deploy/legacy/README.md). Both branches are aligned;
+The first repair retired the obsolete SSH/Compose workflow and initially kept
+manual promotion. The automatic delivery release above supersedes that temporary
+state. Follow [the release runbook](../../../deploy/legacy/README.md). Both branches are aligned;
 merged feature branches are removed. Later documentation-only commits do not
 change the deployed runtime source.
 

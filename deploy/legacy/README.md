@@ -65,3 +65,13 @@ job to finish, and preserve the PVC. Inspect logs and these deployment annotatio
 Initial rollout evidence is recorded separately in the workspace under
 `docs/evidence/html2md-autodeploy-implementation-2026-10-26/`. This runbook describes
 behavior; it is not itself proof that every failure path was exercised live.
+
+## Verified activation
+
+A production push of `cb79008a8875b9383184b00e215361eea7eff7eb` completed
+[workflow 40352503116](https://github.com/traylinx/2md/actions/runs/40352503116):
+build plus live-deployment verification both succeeded. The controller promoted
+API and worker without a manual image update; both became ready with zero restarts.
+The current source hash matches the immutable controller ConfigMap. Fifteen focused
+checks, 31 compatibility checks and six RBAC checks passed. Automatic rollback is
+implemented but was not deliberately exercised against production.

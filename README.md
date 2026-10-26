@@ -91,3 +91,10 @@ The opt-in Sentinel SDK adapter is deployed for explicitly granted agents;
 other agents and origins remain denied by default.
 See [installation, grants and controlled testing](docs/sentinel-integration.md).
 Existing user-token capture and legacy conversion remain separate.
+
+## Production delivery
+
+Runtime changes pushed to `production` are built and automatically deployed to
+Kubernetes, followed by live release verification. See the
+[deployment runbook](deploy/legacy/README.md). Documentation-only changes do not
+restart the service. Existing Sentinel capture is a separate deployment.
