@@ -69,15 +69,11 @@ async function fetchWithPuppeteer() {
     const ua = getRandomUA();
     await page.setUserAgent(ua);
 
-    // Extra headers to look exactly like a real user
+    // Let Chromium generate destination-specific headers for each resource.
+    // Forcing navigation headers onto scripts/XHR breaks cross-origin loading
+    // (Chromium reports ERR_INVALID_ARGUMENT), leaving only an app shell.
     await page.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
-      'Sec-Fetch-User': '?1',
-      'Upgrade-Insecure-Requests': '1'
+      'Accept-Language': 'en-US,en;q=0.9'
     });
 
     // Mask webdriver

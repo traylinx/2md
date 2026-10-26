@@ -19,6 +19,15 @@ this bounded consumer release. Performance, long-running soak and scaling remain
 follow-up, not passed. npm RC publication and public docs-site publication remain
 separate. See [the current setup guide](../../sentinel-integration.md).
 
+## Legacy web UI follow-up — 26 October 2026
+
+The reported MiniMax incomplete conversion affects the legacy `/api/convert`
+path, not Sentinel authentication. A targeted browser-header/cache fix is locally
+implemented with six new regressions, 31 selected compatibility checks and one
+candidate real-page pipeline check passed. **Not deployed or published.**
+See [the repair and release boundary](S00A/INCOMPLETE_CAPTURE_FIX_2026-10-26.md).
+The Sentinel-enabled capture deployment described above remains unchanged.
+
 ## Historical October22/23 release record
 
 The following is retained history, not the current deployment or source state.
