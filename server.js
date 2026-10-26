@@ -8,7 +8,7 @@ const rateLimit = require('express-rate-limit');
 const { UPLOADS_DIR } = require('./lib/config');
 const { isUploadAllowed, UPLOAD_ALLOWED, BROWSER_ACCEPT_STRING } = require('./lib/formatCapabilities');
 
-const { readReleaseRevision, readVerifiedRelease } = require('./lib/releaseRevision');
+const { readReleaseRevision, readVerifiedRelease, readCaptureRevision } = require('./lib/releaseRevision');
 const releaseRevision = readReleaseRevision();
 const app = express();
 
@@ -55,6 +55,8 @@ const PORT = process.env.PORT || 8222;
 app.get('/api/health', (req, res) => {
   if (releaseRevision) res.set('X-2md-Revision', releaseRevision);
   if (readVerifiedRelease(releaseRevision)) res.set('X-2md-Deployment', 'verified');
+    const captureRevision = readCaptureRevision();
+    if (captureRevision) res.set('X-2md-Capture-Revision', captureRevision);
   res.json({
     status: 'ok',
     api: 'html2md',

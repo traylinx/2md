@@ -79,12 +79,13 @@ function checkedDigest(r, expected) {
   if (r.headers['docker-content-digest'] && r.headers['docker-content-digest'] !== actual) throw new Error('registry_header_mismatch');
   return actual;
 }
-async function candidate(revision) {
+async function candidate(revision, { repository = 'traylinx/2md', tagPrefix = 'legacy-', authorization } = {}) {
   if (!shaPattern.test(revision)) throw new Error('invalid_revision');
-  const token = json(await request('https://ghcr.io/token?scope=repository:traylinx/2md:pull&service=ghcr.io')).token;
+  if (!['traylinx/2md', 'traylinx/2md-capture'].includes(repository)) throw new Error('unsupported_image_repository');
+  const token = json(await request('https://ghcr.io/token?scope=repository:' + repository + ':pull&service=ghcr.io', { headers: authorization ? { Authorization: authorization } : {} })).token;
   const headers = { Authorization: `Bearer ${token}`, Accept: 'application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json' };
-  const base = 'https://ghcr.io/v2/traylinx/2md/';
-  let r = await request(base + 'manifests/legacy-' + revision, { headers });
+  const base = 'https://ghcr.io/v2/' + repository + '/';
+  let r = await request(base + 'manifests/' + tagPrefix + revision, { headers });
   if (r.status === 404) return null;
   const digest = checkedDigest(r);
   let manifest = json(r);
@@ -106,16 +107,16 @@ async function candidate(revision) {
   checkedDigest(r, manifest.config.digest);
   const config = json(r);
   if (config.config?.Labels?.['org.opencontainers.image.revision'] !== revision || config.config?.Labels?.['org.opencontainers.image.source'] !== 'https://github.com/' + REPO) throw new Error('image_source_mismatch');
-  return IMAGE + '@' + digest;
+  return 'ghcr.io/' + repository + '@' + digest;
 }
-async function successfulBuild(revision) {
+async function successfulBuild(revision, jobName = 'Build immutable Kubernetes candidate') {
   const headers = { 'User-Agent': 'html2md-production-controller', Accept: 'application/vnd.github+json' };
   const base = `https://api.github.com/repos/${REPO}/actions`;
   const runs = json(await request(`${base}/workflows/deploy-production.yml/runs?branch=production&head_sha=${revision}&per_page=10`, { headers })).workflow_runs;
   for (const run of runs) {
     if (run.head_sha !== revision || run.head_branch !== 'production' || !['push', 'workflow_dispatch'].includes(run.event) || run.run_attempt !== 1) continue;
     const jobs = json(await request(`${base}/runs/${run.id}/jobs?per_page=100`, { headers })).jobs;
-    if (jobs.some(j => j.name === 'Build immutable Kubernetes candidate' && j.status === 'completed' && j.conclusion === 'success')) return run.id;
+    if (jobs.some(j => j.name === jobName && j.status === 'completed' && j.conclusion === 'success')) return run.id;
   }
   return null;
 }
@@ -200,7 +201,7 @@ async function main() {
     throw error;
   }
 }
-module.exports = { revisionFromRefs, validateDeployment, patchFor, ready, checkedDigest, candidate, successfulBuild, main };
+module.exports = { request, json, productionRevision, sleep, revisionFromRefs, validateDeployment, patchFor, ready, checkedDigest, candidate, successfulBuild, main };
 if (require.main === module) main().catch(error => {
   // Never serialize kubeconfigs, tokens, API bodies or request options.
   console.error(JSON.stringify({ status: 'error', reason: String(error.message).slice(0,180) }));

@@ -58,11 +58,50 @@ jobs:
           echo "Candidate: ghcr.io/traylinx/2md@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
           echo "Source: $GITHUB_SHA. In-cluster controller promotes successful production builds; the next job verifies the live revision." >> "$GITHUB_STEP_SUMMARY"
 
+  capture-build:
+    name: Build private capture candidate
+    if: github.repository == 'traylinx/2md' && github.ref == 'refs/heads/production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Focused capture delivery tests
+        run: node --max-old-space-size=128 --test --test-concurrency=1 tests/capture-deploy.test.cjs
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - name: Build and publish private immutable capture image
+        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/capture/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/traylinx/2md-capture:capture-${{ github.sha }}
+          build-args: SOURCE_REVISION=${{ github.sha }}
+      - name: Require private package before controller promotion
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          test "$(gh api /orgs/traylinx/packages/container/2md-capture --jq .visibility)" = private
+          echo "Private candidate: ghcr.io/traylinx/2md-capture@$IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+
   verify-deployment:
     name: Verify automatic Kubernetes deployment
-    needs: build
+    needs: [build, capture-build]
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     if: github.repository == 'traylinx/2md' && github.ref == 'refs/heads/production'
     steps:
       - name: Wait for exact deployed revision and healthy API
@@ -74,7 +113,7 @@ jobs:
           python3 - <<'PYVERIFY'
           import json, os, time, urllib.request
           expected = os.environ['EXPECTED_REVISION']
-          for _ in range(84):
+          for _ in range(120):
               try:
                   request = urllib.request.Request(
                       'https://api.2md.traylinx.com/api/health?release-check=' + str(time.time_ns()),
@@ -83,6 +122,7 @@ jobs:
                       if (response.status == 200
                               and response.headers.get('X-2md-Revision') == expected
                               and response.headers.get('X-2md-Deployment') == 'verified'
+                              and response.headers.get('X-2md-Capture-Revision') == expected
                               and json.load(response).get('status') == 'ok'):
                           print('Production API reports expected healthy revision: ' + expected)
                           break

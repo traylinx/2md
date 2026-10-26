@@ -7,6 +7,9 @@ COPY deploy/capture/sentinel-sdk/package.json deploy/capture/sentinel-sdk/packag
 RUN echo '2713a86810f13e5badfd6710f39e17065bad004120ee1c450d55c3d91fba026e  traylinx-auth-client-1.1.0-rc.1.tgz' | sha256sum -c - \
     && npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 FROM ${BASE_IMAGE}
+ARG SOURCE_REVISION
+LABEL org.opencontainers.image.source="https://github.com/traylinx/2md" \
+      org.opencontainers.image.revision="${SOURCE_REVISION}"
 COPY --from=sentinel-dependencies /opt/capture-sentinel /app/deploy/capture/sentinel-sdk
 COPY lib/capture /app/lib/capture
 COPY routes/capture.js /app/routes/capture.js

@@ -91,3 +91,36 @@ only `html2md-capture` to zero, allow up to 70 seconds for drain, verify lease
 closure, then remove only new resources if appropriate. Removing the ingress
 restores legacy not-found bytes. Do not restart the old `html2md` Deployment:
 its job storage is ephemeral. Restore using the retained exact image manifest.
+
+## Automatic production image delivery
+
+Production pushes build a separate **private** `ghcr.io/traylinx/2md-capture`
+image. This does not put the capture runtime into the public legacy image.
+The build job checks package visibility before becoming eligible for promotion.
+Existing `registry-ghcr` read access must cover the private package.
+
+`render-release-controller.py` renders a small in-cluster pull controller with
+get/patch access only to `html2md-capture` and `html2md-capture-egress`. It reads
+public GitHub build results and authenticates private registry metadata reads
+using the existing mounted pull Secret. GitHub receives no cluster or tailnet
+credentials. The reviewed controller is an immutable ConfigMap, not fetched
+executable source. Controller changes require an explicit operator apply.
+
+The controller checks exact production source labels/digests and a successful
+capture build, then patches only images and owned release annotations. Egress
+updates first; capture follows. Existing Recreate strategy means brief capture
+unavailability during these image changes. Runtime configuration, credentials,
+permissions, network policies and stored jobs are preserved. On failure it
+attempts guarded rollback and holds that failed revision rather than repeatedly
+redeploying it. Drift or interrupted finalization may require operator recovery.
+
+Both deployments must be ready before the group writes
+`.deployment/capture-verified.json`. Legacy `/api/health` exposes its source SHA
+as `X-2md-Capture-Revision` without changing its response body. This is a release
+checkpoint, not continuous capture health monitoring. The GitHub verification job
+requires both the legacy and capture revision to match the pushed commit.
+
+Initial installation also adds `registry-ghcr` to egress imagePullSecrets (if
+absent). Dependencies/schema/runtime policy changes remain deliberate review
+work, not an instruction to change infrastructure. No load tests, paid provider
+calls or new Sentinel grants are part of this release process.
