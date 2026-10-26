@@ -17,7 +17,9 @@ function validate(d) {
 function patchFor(d,image,values) {
  validate(d);
  if(!PREVIOUS.test(image)) throw new Error('invalid_image');
- const ops=[{op:'test',path:'/metadata/resourceVersion',value:d.metadata.resourceVersion},{op:'test',path:'/spec',value:d.spec}];
+ // Status updates change resourceVersion without changing the desired release.
+ const ops=[{op:'test',path:'/metadata/generation',value:d.metadata.generation},{op:'test',path:'/spec',value:d.spec}];
+ if(d.metadata.annotations)ops.push({op:'test',path:'/metadata/annotations',value:d.metadata.annotations});
  if(!d.metadata.annotations)ops.push({op:'add',path:'/metadata/annotations',value:{}});
  for(const [key,value] of Object.entries(values))ops.push({op:'add',path:'/metadata/annotations/'+(PREFIX+key).replaceAll('/','~1'),value});
  d.spec.template.spec.containers.forEach((_,i)=>ops.push({op:'replace',path:`/spec/template/spec/containers/${i}/image`,value:image}));
@@ -66,8 +68,9 @@ async function promote(kube,original,revision,image,run,{wait=waitReady,proof=wr
    const recovering=annotations[PREFIX+'pending-revision']===revision && d.spec.template.spec.containers[0].image===image;
    const previous=recovering?annotations[PREFIX+'rollback-image']:d.spec.template.spec.containers[0].image;
    if(!PREVIOUS.test(previous))throw new Error('invalid_rollback_image');
-   touched.push({name,before,previous});
+   if(!recovering && JSON.stringify(d.spec)!==JSON.stringify(before.spec))throw new Error('image_drift');
    if(!recovering)await kube.patch(name,patchFor(d,image,{'pending-revision':revision,'rollback-image':previous,'build-run':String(run)}));
+   touched.push({name,before,previous});
    await wait(kube,name,image);
   }
   for(const name of Object.keys(TARGETS)) {
