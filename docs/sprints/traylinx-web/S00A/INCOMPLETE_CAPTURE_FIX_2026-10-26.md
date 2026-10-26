@@ -5,7 +5,7 @@ description: MiniMax reproduction, targeted browser-header and cache corrections
 
 # Legacy conversion completeness repair
 
-**26 October 2026: implemented and tested locally; not deployed or published.**
+**26 October 2026: implemented, published, deployed and live verified.**
 This is a follow-up to the legacy web UI converter, not a Sentinel defect or a
 change to the separate `/api/capture/v1` deployment.
 
@@ -59,10 +59,27 @@ this change is not a query-key migration or a multi-tenant cache redesign.
 Workspace evidence: `docs/evidence/html2md-minimax-incomplete-2026-10-26/`.
 These checks do not certify every page, browser exploit isolation or throughput.
 
-## Release next step
+## Original release next step (completed below)
 
 Package the exact legacy converter fix through the approved release path, then
 deploy and refresh only the reported URL with the existing `force=true` option.
 Verify both the fresh response and its next cache hit contain the plan sections.
 Do not redeploy Sentinel, expand capture grants, purge other sites, publish the
 public source/image implicitly or restart the separate capture service.
+
+## Published release and live verification
+
+Owner explicitly approved source publication, branch consolidation, deployment
+and merged-branch cleanup. Runtime source `ceb68d3` was published to both main
+and production and built by GitHub Actions run `40344231426`. Both legacy
+containers now use the immutable image recorded in the current release status.
+
+The live force-refresh returned 15,093 bytes with the expected plan sections and
+FAQs. The subsequent cache hit returned the same content hash in 176 ms. No other
+site was purged. Before pod replacement, 368 job/cache filesystem entries were
+copied and verified onto a node-local PVC. Sentinel capture was not changed.
+
+Future production pushes publish a candidate image, not an automatic Kubernetes
+deployment; the old Docker-host workflow was retired. Source manuals are now in
+Git; separate documentation-website publication is not claimed. Evidence:
+workspace `docs/evidence/html2md-merge-deploy-2026-10-26/`.

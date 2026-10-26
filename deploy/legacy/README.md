@@ -28,3 +28,10 @@ not bypass the guard. The mutable `latest` tag is not updated.
 
 October 26 source/runtime verification is tracked in
 `docs/sprints/traylinx-web/RELEASE_STATUS.md`. Capture/Sentinel release is separate.
+
+## Current job storage
+
+Since the October 26 release, legacy jobs/cache use the `html2md-jobs` PVC
+(`local-path`, 1 GiB requested) instead of pod-lifetime `emptyDir`. Preserve that
+claim during promotions and rollbacks. It is node-local, not replicated storage
+or a backup, and local-path does not enforce a hard 1 GiB filesystem quota.

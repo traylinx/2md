@@ -21,11 +21,32 @@ separate. See [the current setup guide](../../sentinel-integration.md).
 
 ## Legacy web UI follow-up — 26 October 2026
 
-The reported MiniMax incomplete conversion affects the legacy `/api/convert`
-path, not Sentinel authentication. A targeted browser-header/cache fix is locally
-implemented with six new regressions, 31 selected compatibility checks and one
-candidate real-page pipeline check passed. **Not deployed or published.**
-See [the repair and release boundary](S00A/INCOMPLETE_CAPTURE_FIX_2026-10-26.md).
+The browser-header/cache repair is **published, deployed and live verified**.
+Source runtime commit: `ceb68d37abfda8a6b0e09282d15a2e73f90c3a34`.
+GitHub build [40344231426](https://github.com/traylinx/2md/actions/runs/40344231426)
+passed, including the six focused regressions. The earlier 31 compatibility checks
+and candidate pipeline evidence remain valid; no new performance cycle was run.
+
+Both legacy API and worker run
+`ghcr.io/traylinx/2md@sha256:b2e69195cd2ed3612071643888f3c6544e0ceb9002015a763b50138cae506bda`.
+Fresh MiniMax conversion returned HTTP 200 and 15,093 bytes including plan tiers
+and FAQs (8.772 seconds). The next cache hit returned identical content in 176 ms.
+These are single observations, not a latency guarantee.
+
+Before replacement, all four queues were idle. Existing job/cache data (368
+entries) was copied and hash-verified into `html2md-jobs`, a 1 GiB requested
+node-local PVC. This preserves data across pod replacements, not node loss or
+backups; local-path storage is not a hard quota. Admission and queues were restored,
+and the temporary migration pod was removed. No Secret or Sentinel grant changed.
+
+The obsolete SSH/Compose workflow was replaced by a pinned image build; future
+production pushes **build, but do not automatically deploy** to Kubernetes. Follow
+[the release runbook](../../../../deploy/legacy/README.md). Both branches are aligned;
+merged feature branches are removed. Later documentation-only commits do not
+change the deployed runtime source.
+
+See [the repair record](S00A/INCOMPLETE_CAPTURE_FIX_2026-10-26.md).
+Evidence: workspace `docs/evidence/html2md-merge-deploy-2026-10-26/`.
 The Sentinel-enabled capture deployment described above remains unchanged.
 
 ## Historical October22/23 release record
