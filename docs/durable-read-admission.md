@@ -282,3 +282,22 @@ The router and issuer are implemented and tested with synthetic session/backend
 adapters. **Production session authentication and backend transport wiring remain
 pending.** No login/session is provisioned by this module; no production signing
 key exists from this work. Do not mount it with a proposer bearer fallback.
+
+### Control backend composition
+
+`createControlApplication` mounts only `/confirm` on a dedicated Express app.
+With the feature disabled it requires no database, signing key or session
+configuration. Enabled mode connects the control page to the existing PostgreSQL
+plan/confirmation repository and pinned signature verifier. Both display and
+submission enforce the stored plan's owner scope; submission repeats live
+Workspace owner authorization immediately before durable confirmation. Role
+revocation and cross-tenant sessions fail closed. The control listener exposes
+no proposal, admission, execution or result endpoints.
+
+This composition uses the same policy version and database as READ. Its database
+role needs only the reviewed plan-read/confirmation permissions, not run/outbox
+mutation. `authorizeOwner` must be the service-authenticated current Workspace
+resolver; `resolveSession` must come from independent human authentication.
+The current Traylinx frontend's bearer storage is not that independent session.
+Production session login, scoped-role provisioning and listener configuration
+remain pending; synthetic database/session checks do not certify production.
