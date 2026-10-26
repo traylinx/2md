@@ -196,3 +196,22 @@ configure protected client/Redis result-key/namespace ACLs and scoped database
 roles, apply separately approved migrations, and verify Workspace with its pinned
 Rails/database runtime. The new app has been exercised through real local HTTP
 with synthetic backend/identity ports, not against production services.
+
+## Live background-owner authority (S02F)
+
+`ownerPrincipal.js` authenticates READ to WORKSPACE's new
+`/web/background-project-access` endpoint using the READ SDK's service proof. It
+sends only the stored plan's creator/workspace/org/project selectors, never a human
+bearer, claimed role or arbitrary HTTP headers. WORKSPACE verifies the pinned READ
+identity via Sentinel and evaluates its existing current project policy. READ
+checks the returned principal against every stored selector and rejects VIEWER.
+There is no membership cache, snapshot fallback or permission inference from the
+service pass itself. Errors, redirects, unexpected bodies and deadline overruns
+fail closed before capture.
+
+`createWebRuntime` can build this real resolver from `ownerAccessEndpoint`, the
+existing READ SDK and configured READ agent ID. Tests may still inject a resolver;
+missing both the endpoint and an explicit resolver remains a construction failure.
+The endpoint and new WORKSPACE feature flag are not configured or activated by
+this code change. Human confirmation integration, production entrypoint wiring,
+scoped runtime configuration and pinned Rails/database verification remain pending.
