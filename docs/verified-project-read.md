@@ -70,3 +70,10 @@ packaging remains pinned; do not require an unpublished npm RC.
 
 Rollback: keep the new product route unregistered/disabled and the Workspace
 lookup feature disabled. Preserve existing APIs, grants and unrelated work.
+
+## Durable storage follow-up
+
+The internal [durable admission repository](durable-read-admission.md) now stores
+plan/confirmation/run/outbox metadata transactionally. It is not wired into the
+synchronous controller and grants no execution authority. Fenced dispatch and
+authenticated transport remain required before activation.
