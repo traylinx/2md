@@ -10,6 +10,14 @@ on:
       - 'frontend/**'
       - 'docs/**'
       - '**/*.md'
+      # Release-controller/config-only changes are applied explicitly, not rebuilt into app images.
+      - '.github/workflows/**'
+      - 'deploy/legacy/controller.cjs'
+      - 'deploy/legacy/render-controller.py'
+      - 'deploy/capture/release-controller.cjs'
+      - 'deploy/capture/render-release-controller.py'
+      - 'deploy/capture/legacy-controller.cjs'
+      - 'tests/**'
 
 concurrency:
   group: html2md-production-image

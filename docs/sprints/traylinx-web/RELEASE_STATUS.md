@@ -1,3 +1,20 @@
+## Automatic backend delivery — verified 26 October 2026
+
+Production pushes now build and automatically deploy the legacy backend and the
+separate capture/egress runtime. Capture image visibility is checked as private
+before and after publication. GitHub has no Kubernetes credentials: the scoped
+in-cluster controllers perform promotion and preserve existing runtime settings.
+
+- Runtime source: `2904d336bbf1262ab347fdf861d3d628b7fc2ad9`.
+- [Successful build and deployment verification](https://github.com/traylinx/2md/actions/runs/40371305787).
+- Fresh Sentinel proof, owned-origin Markdown capture and invalid-proof HTTP 401 passed.
+- No endpoint, authentication contract, schema, grant or outbound-delivery change.
+- Controller/configuration changes still require explicit operator application;
+  controller/workflow/test/documentation-only commits do not rebuild app images.
+- Operator instructions: `deploy/capture/README.md` and `deploy/legacy/README.md`.
+
+---
+
 # Automatic backend delivery — 26 October 2026
 
 **Production-branch automatic deployment is enabled and live verified.**

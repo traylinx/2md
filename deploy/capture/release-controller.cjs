@@ -18,11 +18,13 @@ function patchFor(d,image,values) {
  validate(d);
  if(!PREVIOUS.test(image)) throw new Error('invalid_image');
  // Status updates change resourceVersion without changing the desired release.
- const ops=[{op:'test',path:'/metadata/generation',value:d.metadata.generation},{op:'test',path:'/spec',value:d.spec}];
+ // Deployment generation changes on every desired-spec mutation. UID prevents replacement.
+ // Whole-spec JSON equality is not stable through API defaulting/serialization.
+ const ops=[{op:'test',path:'/metadata/generation',value:d.metadata.generation},{op:'test',path:'/metadata/uid',value:d.metadata.uid}];
  if(d.metadata.annotations)ops.push({op:'test',path:'/metadata/annotations',value:d.metadata.annotations});
  if(!d.metadata.annotations)ops.push({op:'add',path:'/metadata/annotations',value:{}});
  for(const [key,value] of Object.entries(values))ops.push({op:'add',path:'/metadata/annotations/'+(PREFIX+key).replaceAll('/','~1'),value});
- d.spec.template.spec.containers.forEach((_,i)=>ops.push({op:'replace',path:`/spec/template/spec/containers/${i}/image`,value:image}));
+ d.spec.template.spec.containers.forEach((c,i)=>ops.push({op:'test',path:`/spec/template/spec/containers/${i}/image`,value:c.image},{op:'replace',path:`/spec/template/spec/containers/${i}/image`,value:image}));
  return ops;
 }
 function normalized(d) {

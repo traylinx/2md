@@ -124,3 +124,14 @@ Initial installation also adds `registry-ghcr` to egress imagePullSecrets (if
 absent). Dependencies/schema/runtime policy changes remain deliberate review
 work, not an instruction to change infrastructure. No load tests, paid provider
 calls or new Sentinel grants are part of this release process.
+
+Controller concurrency guards use deployment UID/generation, exact previous images
+and owned annotation state. Desired-spec changes increment generation; status-only
+updates do not. Whole-spec JSON `test` was rejected for capture by the Kubernetes
+API during bootstrap, while generation/annotation tests and image writes separately
+passed server dry-run. The guard does not replace or reapply the runtime spec.
+Controller/workflow/test-only changes do not rebuild application images; apply the
+reviewed rendered controller explicitly, and dispatch a release when changing a
+workflow requires verification.
+
+Verified 26 October 2026: [production workflow 40371305787](https://github.com/traylinx/2md/actions/runs/40371305787) succeeded. Legacy, capture and egress report runtime source `2904d336bbf1262ab347fdf861d3d628b7fc2ad9`; capture/egress use the same pinned private image. A bounded owned-origin Sentinel smoke obtained a fresh proof, returned Markdown, and rejected an invalid proof with HTTP 401. This is not a performance or external-login qualification. Subsequent delivery-controller and documentation commits do not rebuild application images.
