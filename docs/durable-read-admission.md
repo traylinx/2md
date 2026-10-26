@@ -27,10 +27,10 @@ or captured content. Current principal authorization is still required.
 
 This repository is intentionally **not** the existing synchronous controller's
 `admit` port: that port expects an execution grant. Do not adapt a metadata result
-into a grant. Next implement durable admission/result orchestration, fenced worker
-claim and authenticated SEARCH execution transport. Only the worker may consume
+into a grant. Next wire durable admission/result orchestration and authenticated SEARCH
+execution transport to the fenced worker described below. Only the worker may consume
 a dispatch claim, and uncertain execution must become `needs_reconciliation`
-rather than be automatically retried. No worker currently consumes this outbox.
+rather than be automatically retried. The worker implementation below is not activated; no runtime consumes this outbox.
 Captured content, bearer tokens, browser sessions and provider credentials are not
 stored. Plan metadata retains validated public target URLs; a retention/purge
 policy remains required before activation. This is not the full quote/billing or
@@ -48,3 +48,30 @@ socket-only cluster, 16 MiB shared buffers and ten connections. It checks replay
 conflicts, ownership, revoked confirmation, transactional outbox failure and four
 concurrent same-key admissions. It stops/removes only its own cluster. It does not
 connect to production, install PostgreSQL or run a capacity benchmark.
+
+## Fenced worker lifecycle (S02B)
+
+`002_worker.sql` adds atomic reference claims, worker ownership, a monotonic fence,
+a bounded lease and terminal outcome metadata. Claiming removes the outbox row in
+the same transaction. Only admitted runs can be claimed. A duplicate worker cannot
+claim an already-running run; revoked confirmations and expired plans are closed
+without dispatch. A terminal write requires the exact worker/fence and a live
+lease. Partial captures retain `result_state=partial`, even though their lifecycle
+state is `completed`; completion does not certify extraction quality.
+
+`reconcile_expired(limit)` locks at most 1,000 expired runs with `SKIP LOCKED` and
+marks them `needs_reconciliation`. It never requeues them. A lost claim response,
+worker crash or lost completion write therefore cannot trigger blind replay.
+
+`postgresWorker.js` provides the internal SQL port. `readWorker.js` processes one
+reference, rechecks current creator/project authority, bounds execution to the
+plan deadline/lease, and passes only execution ID/digest/worker/fence to transport.
+It stores no capture content and returns no captured pages. Exceptions after
+transport invocation are ambiguous and require reconciliation. No service loop,
+public route, database credentials, worker activation or deployment is added.
+
+Remaining integration: authenticate the READ-to-SEARCH transport, atomically
+consume its fenced dispatch reference at the receiving boundary, wire durable
+controller/run retrieval and transient result delivery, configure the real pool
+and scoped roles, and verify Workspace with its pinned Rails/database runtime.
+The injected execution port alone is not a production authenticated transport.
