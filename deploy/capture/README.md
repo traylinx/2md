@@ -96,7 +96,7 @@ its job storage is ephemeral. Restore using the retained exact image manifest.
 
 Production pushes build a separate **private** `ghcr.io/traylinx/2md-capture`
 image. This does not put the capture runtime into the public legacy image.
-The build job checks package visibility before becoming eligible for promotion.
+The build job requires an existing private package before uploading and checks visibility again before becoming eligible for promotion. A missing or public package blocks publication; do not rely on registry defaults.
 Existing `registry-ghcr` read access must cover the private package.
 
 `render-release-controller.py` renders a small in-cluster pull controller with

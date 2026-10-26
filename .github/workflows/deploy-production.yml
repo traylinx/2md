@@ -78,6 +78,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-buildx-action@v3
+      - name: Require existing private package before uploading any image
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: test "$(gh api /orgs/traylinx/packages/container/2md-capture --jq .visibility)" = private
       - name: Build and publish private immutable capture image
         id: image
         uses: docker/build-push-action@v6
