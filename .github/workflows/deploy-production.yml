@@ -1,7 +1,7 @@
-name: Build production backend image
+name: Build and deploy production backend
 
-# The old SSH/Compose host is retired. Kubernetes promotion remains explicit;
-# never send cluster credentials to a runner for this public repository.
+# The restricted in-cluster controller pulls successful production builds.
+# GitHub never receives cluster credentials or private tailnet access.
 on:
   workflow_dispatch:
   push:
@@ -21,17 +21,20 @@ permissions:
 jobs:
   build:
     name: Build immutable Kubernetes candidate
+    if: github.repository == 'traylinx/2md' && github.ref == 'refs/heads/production'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Verify qualified dependency lock
         run: echo '83fa6a8e56d0d10c39ca314eb0c7a47f97e86d28e17bb989690069954fec27df  package-lock.json' | sha256sum --check
       - name: Focused legacy regression tests
-        run: node --max-old-space-size=128 --test --test-concurrency=1 tests/legacy-capture-repair.test.cjs
+        run: node --max-old-space-size=128 --test --test-concurrency=1 tests/legacy-capture-repair.test.cjs tests/legacy-deploy.test.cjs
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -48,9 +51,44 @@ jobs:
           push: true
           tags: ghcr.io/traylinx/2md:legacy-${{ github.sha }}
           build-args: SOURCE_REVISION=${{ github.sha }}
-      - name: Record candidate (not deployment)
+      - name: Record immutable candidate
         env:
           DIGEST: ${{ steps.image.outputs.digest }}
         run: |
           echo "Candidate: ghcr.io/traylinx/2md@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
-          echo "Source: $GITHUB_SHA. NOT automatically deployed; follow deploy/legacy/README.md." >> "$GITHUB_STEP_SUMMARY"
+          echo "Source: $GITHUB_SHA. In-cluster controller promotes successful production builds; the next job verifies the live revision." >> "$GITHUB_STEP_SUMMARY"
+
+  verify-deployment:
+    name: Verify automatic Kubernetes deployment
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    if: github.repository == 'traylinx/2md' && github.ref == 'refs/heads/production'
+    steps:
+      - name: Wait for exact deployed revision and healthy API
+        env:
+          EXPECTED_REVISION: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PYVERIFY'
+          import json, os, time, urllib.request
+          expected = os.environ['EXPECTED_REVISION']
+          for _ in range(84):
+              try:
+                  request = urllib.request.Request(
+                      'https://api.2md.traylinx.com/api/health?release-check=' + str(time.time_ns()),
+                      headers={'Cache-Control': 'no-cache'})
+                  with urllib.request.urlopen(request, timeout=10) as response:
+                      if (response.status == 200
+                              and response.headers.get('X-2md-Revision') == expected
+                              and response.headers.get('X-2md-Deployment') == 'verified'
+                              and json.load(response).get('status') == 'ok'):
+                          print('Production API reports expected healthy revision: ' + expected)
+                          break
+              except Exception:
+                  pass
+              time.sleep(5)
+          else:
+              raise SystemExit('Automatic deployment did not become healthy; inspect html2md-auto-deploy jobs. No credentials or manual deployment used by this workflow.')
+          PYVERIFY

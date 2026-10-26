@@ -8,6 +8,8 @@ const rateLimit = require('express-rate-limit');
 const { UPLOADS_DIR } = require('./lib/config');
 const { isUploadAllowed, UPLOAD_ALLOWED, BROWSER_ACCEPT_STRING } = require('./lib/formatCapabilities');
 
+const { readReleaseRevision, readVerifiedRelease } = require('./lib/releaseRevision');
+const releaseRevision = readReleaseRevision();
 const app = express();
 
 app.use(express.json());
@@ -51,6 +53,8 @@ const upload = multer({
 const PORT = process.env.PORT || 8222;
 
 app.get('/api/health', (req, res) => {
+  if (releaseRevision) res.set('X-2md-Revision', releaseRevision);
+  if (readVerifiedRelease(releaseRevision)) res.set('X-2md-Deployment', 'verified');
   res.json({
     status: 'ok',
     api: 'html2md',

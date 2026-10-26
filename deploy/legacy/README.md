@@ -1,37 +1,67 @@
-# Legacy Kubernetes release
+# Automatic legacy Kubernetes release
 
-Production pushes build an immutable AMD64 candidate on GitHub-hosted runners.
-They **do not deploy automatically**. The former DigitalOcean SSH/Compose
-workflow targeted a retired host and must not be restored. This public repository
-must never use a private self-hosted runner or receive cluster credentials.
+A runtime change pushed to `production` builds an immutable AMD64 image, then
+**automatically deploys API and worker to Kubernetes**. Documentation-only commits
+are excluded. Normal releases require no manual kubectl step.
 
-The candidate extends the exact qualified legacy image. The dependency-lock
-check intentionally fails if dependencies change: qualify a new base explicitly,
-not bypass the guard. The mutable `latest` tag is not updated.
+## Release path
 
-## Promotion
+1. GitHub-hosted runner validates the dependency lock and focused tests, then
+   publishes `ghcr.io/traylinx/2md:legacy-<full-commit>` with its source label.
+2. The fixed-purpose `production/html2md-auto-deploy` CronJob checks production
+   every two minutes. It reads only public GitHub/registry metadata, requires a
+   successful matching build job, resolves and verifies the immutable manifest
+   and source labels, and rechecks that the branch has not advanced.
+3. Its dedicated Kubernetes identity can only get/patch the named `html2md`
+   deployment. It cannot read Secrets, exec into pods or change other services.
+   The controller code changes only both container images and its annotations,
+   with resourceVersion/full-spec drift guards. PVC, commands, Secrets and limits
+   are preserved. CronJob concurrency is forbidden.
+4. After exact-image rollout readiness and versioned HTTP health succeed, it
+   writes a tiny non-secret release proof to the dedicated PVC subdirectory.
+   GitHub waits for both the baked source revision and that controller proof.
+   A green **whole workflow** therefore means live deployment was verified, not
+   merely that an image was built.
+5. On rollout/health failure, it restores the previous immutable image only if
+   the candidate is still current. The failed revision is held against automatic
+   replay; fix forward with a new commit, or investigate before clearing the hold.
 
-1. Verify the image build succeeded for the intended production commit and record
-   its immutable digest. Retain the previous deployment/image for rollback.
-2. Confirm context `strato-prod`, namespace `production`, deployment `html2md`.
-   Verify queues are idle and protect job/cache data before pod replacement.
-   Never replace an `emptyDir` pod without preserving its contents first.
-3. Promote the digest for both `api` and `worker` in one guarded deployment
-   update. Keep current Secrets, resource limits and commands. Do not touch
-   `html2md-capture` or `html2md-capture-egress`.
-4. Wait for rollout readiness. Verify both image IDs, source hashes, API health
-   and worker startup. A green build is not a deployment.
-5. Force-refresh only the reported URL once, then request it normally and verify
-   complete content on a cache hit. No cache-wide purge or load test.
-6. On failure restore the previous digest for both containers, preserving the
-   job volume. Keep private infrastructure/user data outside Git.
+No private self-hosted GitHub runner, Tailscale policy change, registry write
+credential, personal kubeconfig or production Secret is needed in GitHub. The
+controller uses a short-lived projected Kubernetes service-account token.
+Existing tailnet policy was found to allow all connections; this pull design
+avoids granting that access to a public-repository CI runner.
 
-October 26 source/runtime verification is tracked in
-`docs/sprints/traylinx-web/RELEASE_STATUS.md`. Capture/Sentinel release is separate.
+## Runtime and storage boundaries
 
-## Current job storage
+- The candidate extends the exact qualified legacy runtime. Dependency-lock
+  changes deliberately fail until a new base is qualified. No browser upgrade
+  is hidden inside an application release. The mutable `latest` tag is unused.
+- The existing Recreate strategy remains: releases briefly interrupt service.
+  This is not zero-downtime deployment or an in-flight-request loss guarantee.
+- Existing jobs/cache remain on `html2md-jobs`, node-local `local-path` storage
+  with 1 GiB requested. This is not replication, backup or a hard filesystem quota.
+- The controller mounts only `.deployment`, not user job directories. Its public
+  release proof contains a commit and image digest, never job content or secrets.
+- `/api/health` retains its response body; additive `X-2md-Revision` and
+  `X-2md-Deployment: verified` headers identify and confirm the release.
+- Sentinel capture/egress, AUTH, USERS, grants and credentials are untouched.
 
-Since the October 26 release, legacy jobs/cache use the `html2md-jobs` PVC
-(`local-path`, 1 GiB requested) instead of pod-lifetime `emptyDir`. Preserve that
-claim during promotions and rollbacks. It is node-local, not replicated storage
-or a backup, and local-path does not enforce a hard 1 GiB filesystem quota.
+## Initial installation and controller maintenance
+
+Render with `python3 deploy/legacy/render-controller.py`. Inspect/dry-run the
+manifest, then apply through the authorized operator context `strato-prod`.
+The existing job PVC must already contain the `.deployment` directory, owned by
+UID/GID 1000 and mode 0755. Do not overwrite a pre-existing nonempty directory.
+No new disk/server is provisioned by this controller manifest.
+
+Controller code is an immutable, content-named ConfigMap. Changing its policy or
+RBAC requires a reviewed operator apply; it never executes code fetched from Git.
+Suspend `cronjob/html2md-auto-deploy` before manual recovery, wait for its active
+job to finish, and preserve the PVC. Inspect logs and these deployment annotations:
+`html2md.traylinx.com/deployed-revision`, `pending-revision`, `failed-revision`,
+`rollback-image`, and `build-run`. Do not clear a failed hold without diagnosis.
+
+Initial rollout evidence is recorded separately in the workspace under
+`docs/evidence/html2md-autodeploy-implementation-2026-10-26/`. This runbook describes
+behavior; it is not itself proof that every failure path was exercised live.
