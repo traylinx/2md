@@ -77,4 +77,17 @@ npm start
 
 ## License
 
-MIT
+See [LICENSE](LICENSE) for the repository's license terms.
+
+## Additive rendered capture
+
+See [capture API and activation status](docs/capture-api.md). Existing conversion
+endpoints remain unchanged. Deployment and security evidence is tracked in
+[the current release projection](docs/sprints/traylinx-web/RELEASE_STATUS.md).
+
+## Sentinel Pass capture integration
+
+The opt-in Sentinel SDK adapter is deployed for explicitly granted agents;
+other agents and origins remain denied by default.
+See [installation, grants and controlled testing](docs/sentinel-integration.md).
+Existing user-token capture and legacy conversion remain separate.

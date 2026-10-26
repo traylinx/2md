@@ -1,101 +1,56 @@
-name: Deploy Production Backend
+name: Build production backend image
 
+# The old SSH/Compose host is retired. Kubernetes promotion remains explicit;
+# never send cluster credentials to a runner for this public repository.
 on:
   workflow_dispatch:
   push:
-    branches:
-      - production
+    branches: [production]
     paths-ignore:
       - 'frontend/**'
-      - '.github/workflows/deploy-frontend.yml'
-      - 'README.md'
+      - 'docs/**'
+      - '**/*.md'
+
+concurrency:
+  group: html2md-production-image
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  deploy:
-    name: Deploy to DigitalOcean
+  build:
+    name: Build immutable Kubernetes candidate
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Package Application
+      - uses: actions/checkout@v4
+      - name: Verify qualified dependency lock
+        run: echo '83fa6a8e56d0d10c39ca314eb0c7a47f97e86d28e17bb989690069954fec27df  package-lock.json' | sha256sum --check
+      - name: Focused legacy regression tests
+        run: node --max-old-space-size=128 --test --test-concurrency=1 tests/legacy-capture-repair.test.cjs
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - name: Build and publish
+        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/legacy/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/traylinx/2md:legacy-${{ github.sha }}
+          build-args: SOURCE_REVISION=${{ github.sha }}
+      - name: Record candidate (not deployment)
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
         run: |
-          tar -czf /tmp/deploy.tar.gz \
-            --exclude=node_modules \
-            --exclude=.git \
-            --exclude=frontend \
-            --exclude=logs \
-            --exclude=venv \
-            --exclude=.claude \
-            --exclude=.gemini \
-            --exclude=.ruby-lsp \
-            --exclude=.env \
-            .
-          mv /tmp/deploy.tar.gz ./deploy.tar.gz
-
-      - name: Copy files via SSH
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DO_BACKEND_HOST }}
-          username: ${{ secrets.DO_BACKEND_USER }}
-          key: ${{ secrets.DO_BACKEND_SSH_KEY }}
-          source: "deploy.tar.gz"
-          target: "/opt/html2md"
-          rm: false
-
-      - name: Rebuild and Restart Docker Containers
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DO_BACKEND_HOST }}
-          username: ${{ secrets.DO_BACKEND_USER }}
-          key: ${{ secrets.DO_BACKEND_SSH_KEY }}
-          script: |
-            cd /opt/html2md
-            
-            # Extract application code
-            tar -xzf deploy.tar.gz
-            rm deploy.tar.gz
-            
-            # Build a complete .env from scratch using GitHub Secrets (atomic write)
-            cat > .env << ENVEOF
-            # Agentify Settings
-            AGENTIFY_BYOK=false
-            AGENTIFY_LLM_BASE_URL=https://api.traylinx.com/ma-llm-proxy-ms/v1/api/v1
-            AGENTIFY_LLM_API_KEY=${{ secrets.AGENTIFY_LLM_API_KEY }}
-            AGENTIFY_LLM_MODEL=openai/gpt-oss-20b
-            AGENTIFY_MAX_PAGES=10
-
-            # File2MD
-            AGENTIC_UPLOAD_ENGINES_URL=https://api.makakoo.com/agentic-upload-engines/v1/api
-            FILE2MD_ENHANCE_MODEL=openai/gpt-oss-20b
-
-            # AWS S3 Storage
-            STORAGE_PROVIDER=s3
-            S3_BUCKET=${{ secrets.S3_BUCKET }}
-            S3_REGION=eu-west-1
-            S3_ACCESS_KEY_ID=${{ secrets.S3_ACCESS_KEY_ID }}
-            S3_SECRET_ACCESS_KEY=${{ secrets.S3_SECRET_ACCESS_KEY }}
-
-            # Freemium Document Pipeline
-            SYSTEM_FILE_ENGINE_KEY=${{ secrets.SYSTEM_FILE_ENGINE_KEY }}
-
-            # Production API URL
-            PRODUCTION_API_URL=https://2md.traylinx.com
-
-            # SwitchAI Key
-            SWITCHAI_API_KEY=${{ secrets.SWITCHAI_API_KEY }}
-
-            # Job Download Settings
-            JOB_TTL_HOURS=72
-            JOB_DOWNLOAD_SECRET=${{ secrets.JOB_DOWNLOAD_SECRET }}
-            SNS_TOPIC_PREFIX=notifications-production
-
-            # Redis
-            REDIS_URL=${{ secrets.REDIS_URL }}
-            ENVEOF
-
-            # Strip leading whitespace from heredoc indentation
-            sed -i 's/^            //' .env
-            
-            docker compose down --remove-orphans || true
-            docker compose up -d --build
+          echo "Candidate: ghcr.io/traylinx/2md@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source: $GITHUB_SHA. NOT automatically deployed; follow deploy/legacy/README.md." >> "$GITHUB_STEP_SUMMARY"
