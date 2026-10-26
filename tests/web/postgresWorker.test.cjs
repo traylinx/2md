@@ -10,7 +10,7 @@ test('worker storage fails closed without pool and rejects invalid claim bounds'
 test('terminal updates carry exact fence and preserve partial outcome',async()=>{
  const calls=[];const store=createPostgresWorker({pool:{query:async(sql,args)=>{calls.push(args);return {rows:[{accepted:true}]};}}});
  assert.equal(await store.finish({executionId:'r1',workerId:'w1',fence:'8',state:'completed',resultState:'partial'}),true);
- assert.deepEqual(calls[0],['r1','w1','8','completed','partial']);
+ assert.deepEqual(calls[0],['r1','w1','8','completed','partial',null]);
  await assert.rejects(store.finish({executionId:'r1',workerId:'w1',fence:'0',state:'completed'}));
 });
 test('bounded sweeper and DB error sanitization',async()=>{

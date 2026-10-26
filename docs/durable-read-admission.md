@@ -66,7 +66,7 @@ worker crash or lost completion write therefore cannot trigger blind replay.
 `postgresWorker.js` provides the internal SQL port. `readWorker.js` processes one
 reference, rechecks current creator/project authority, bounds execution to the
 plan deadline/lease, and passes only execution ID/digest/worker/fence to transport.
-It stores no capture content and returns no captured pages. Exceptions after
+It stores no capture content in PostgreSQL and returns no captured pages to the dispatcher caller. Validated content is staged in the encrypted transient store below. Exceptions after
 transport invocation are ambiguous and require reconciliation. No service loop,
 public route, database credentials, worker activation or deployment is added.
 
@@ -102,7 +102,48 @@ operation grants are not created by these modules or these commits.
 Focused evidence uses synthetic SDK/identity/database adapters for the cross-repo
 HTTP composition, plus real isolated PostgreSQL for single-use/fence checks. No
 live credentialed communication or production deployment was performed. The
-transport currently returns status metadata only; creator-authorized transient
-result delivery and durable controller/run retrieval remain to implement. Status
+service transport now returns bounded captured results to READ, which validates
+and stages them as described below. It is not an end-user/public result endpoint. Status
 `complete` is transport completion, not an assertion that extraction quality is
 complete. Existing per-page capture quality remains on the consumer result.
+
+
+## Creator-authorized result delivery (S02D)
+
+`runAdmissionController.js` submits durable admission only; request retries cannot
+start capture synchronously. An expired plan does not prevent retrieval of a
+previous admission through the same idempotency key. SQL still rejects an expired
+plan when admission is new. `runReader.js` scopes run lookup by creator, organization
+and project, and rechecks current project rights immediately before disclosure.
+Pending/unpublished content returns `RESULT_NOT_READY`; absent or expired content
+returns `ARTIFACT_EXPIRED`. Metadata does not require a result-cache read.
+
+The private SEARCH response now includes captured pages. READ validates the
+manifest, target order, Markdown digests, final URLs, failure codes, partial state
+and aggregate two-MiB size before publication. Page quality `degraded`/`unknown`
+remains explicit. Treat Markdown as untrusted text; never render active HTML.
+
+`transientResults.js` requires an explicitly configured Redis-compatible client and
+32-byte encryption key. It uses AES-256-GCM with creator/project/run/digest/fence
+as authenticated data. The separate `web-read:{transient-results}:` namespace is
+never the legacy anonymous cache. Default content TTL is five minutes (configurable
+one second to five minutes), with 128 entries and 32 MiB encrypted-payload budget
+at most (configurable up to 64 MiB). Atomic admission refuses capacity rather than
+evicting active results; existing entries cannot be overwritten. Expired capacity
+metadata is pruned on writes using Redis server time. Metadata indexes contain
+only hashes/sizes/expiry; expired entries can remain there until the next write.
+This short transient delivery window does not activate the proposed seven-day
+artifact-retention product or certify backup deletion.
+
+The worker stages encrypted content, then publishes its expiry in PostgreSQL via
+`004_result_publication.sql` with the current worker/fence/live lease. A stale
+worker's staged content is inaccessible through run retrieval and expires normally.
+Unknown cache or completion-write outcomes require reconciliation, not recapture.
+Redis loss/key rotation can make content unavailable: report expiry/unavailability;
+never silently regenerate it. Configure the same protected key across READ replicas,
+namespace-scoped ACLs and bounded connection/command timeouts before activation.
+No production key, ACL, Redis configuration or database migration was applied.
+
+Focused checks used socket-only temporary PostgreSQL and Redis instances with
+synthetic data; both were stopped and removed. Redis test persistence was disabled.
+HTTP composition used synthetic SDK/identity/database ports, not live credentials.
