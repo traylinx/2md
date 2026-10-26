@@ -215,3 +215,21 @@ missing both the endpoint and an explicit resolver remains a construction failur
 The endpoint and new WORKSPACE feature flag are not configured or activated by
 this code change. Human confirmation integration, production entrypoint wiring,
 scoped runtime configuration and pinned Rails/database verification remain pending.
+
+### Dedicated process lifecycle (local implementation)
+
+`lib/web/process.js` owns the dedicated HTTP listener and infrastructure lifecycle.
+It validates composition before connecting, opens clients before listening, and
+starts dispatch only after the listener succeeds. `/health/live` reports process
+liveness; `/health/ready` stays unavailable when disabled or draining. Connection
+and listen failures return sanitized errors and clean owned resources. Shutdown
+closes admissions, aborts/drains dispatch, then closes clients; HTTP connections
+have a bounded drain window. Start/stop are idempotent, with no restart after stop.
+The default listener is loopback, port 8081. The disabled default does not connect
+to infrastructure. No schema migration or legacy server modification occurs.
+
+This is a callable lifecycle module, **not yet a production executable or deployed
+service**. Trusted confirmation-channel composition, environment/secret binding,
+signal handling in the eventual executable, and pinned Rails/database integration
+verification remain required before activation. Existing bearer plus Origin is
+not by itself proof of the separate human confirmation authority.
