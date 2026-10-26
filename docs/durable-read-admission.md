@@ -258,3 +258,27 @@ receiving explicit user approval. Never provide its signing key, session or
 assertions to the proposer/model. Signature verification does not itself prove a
 human clicked: that guarantee depends on the protected issuer and UI integration.
 No production key was generated, configured or deployed in this implementation.
+
+### Human control page and issuer
+
+`createConfirmationControl` supplies a separate server-rendered confirmation
+router. It displays the stored plan, exact targets, bounds and digest. Viewing
+never signs or executes. A form submission requires the exact control Origin,
+a session-bound CSRF token and the displayed digest. A changed or expired plan
+cannot be substituted beneath the approval. The confirmation ID comes from the
+server session, not the form. The issuer sends the signed assertion directly to
+the configured confirmation backend; it never returns it to the browser.
+
+The control application rejects bearer and agent credentials, disables caching,
+and prohibits framing, scripts and external resources. It must be hosted outside
+the proposer application. It requires a real `resolveSession` adapter backed by
+an independently authenticated human session, returning the current principal,
+CSRF token and stable per-plan confirmation ID. Its host-only Secure/HttpOnly
+session cookie and authentication flow must not be exposed to model tools.
+`loadPlan` must read the owner-scoped immutable plan; `confirm` must perform the
+normal verified backend confirmation, not admission or execution.
+
+The router and issuer are implemented and tested with synthetic session/backend
+adapters. **Production session authentication and backend transport wiring remain
+pending.** No login/session is provisioned by this module; no production signing
+key exists from this work. Do not mount it with a proposer bearer fallback.
