@@ -75,3 +75,34 @@ consume its fenced dispatch reference at the receiving boundary, wire durable
 controller/run retrieval and transient result delivery, configure the real pool
 and scoped roles, and verify Workspace with its pinned Rails/database runtime.
 The injected execution port alone is not a production authenticated transport.
+
+## Single-use dispatch transport (S02C)
+
+`003_dispatch.sql` adds a consumed timestamp and atomic `consume_dispatch`.
+The exact execution ID, worker ID, fence and plan digest must match a running,
+unexpired claim with a non-revoked confirmation. Consumption returns authoritative
+plan data once. A lost response after consumption is uncertain; never request a
+new claim or replay capture automatically.
+
+`dispatch.js` sends reference-only JSON to a fixed HTTPS SEARCH endpoint using
+service SDK proof. It rejects redirects, unexpected response shapes and oversized
+status bodies, and does not forward customer bearer credentials. `dispatchGrant.js`
+implements the reciprocal READ grant endpoint: verify the pinned SEARCH identity
+and narrow operation, recheck live creator/project rights, then consume the claim.
+`dispatchServiceVerifier.js` reuses the existing Sentinel receiver verifier and
+its credential lifecycle; it grants only `web:consume-dispatch`, no target origins.
+
+SEARCH's `read-dispatch-http.ts` supplies the request handler, grant client and
+pinned READ-service SDK introspection adapter. Authentication requires matching
+active, unexpired `a2a` proof; a claimed agent-ID header alone is insufficient.
+The confirmed execution consumer receives targets only from READ's consumed grant.
+All HTTP adapters remain unmounted. Runtime SDK/pool configuration and service
+operation grants are not created by these modules or these commits.
+
+Focused evidence uses synthetic SDK/identity/database adapters for the cross-repo
+HTTP composition, plus real isolated PostgreSQL for single-use/fence checks. No
+live credentialed communication or production deployment was performed. The
+transport currently returns status metadata only; creator-authorized transient
+result delivery and durable controller/run retrieval remain to implement. Status
+`complete` is transport completion, not an assertion that extraction quality is
+complete. Existing per-page capture quality remains on the consumer result.

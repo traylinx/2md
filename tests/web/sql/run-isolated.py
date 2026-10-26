@@ -44,7 +44,9 @@ try:
     END $$"""])
     run(psql + ['-f', root/'deploy/web/002_worker.sql'])
     run(psql + ['-f', root/'tests/web/sql/worker.sql'])
-    print('ISOLATED_POSTGRES_ADMISSION_AND_WORKER_PASS', flush=True)
+    run(psql + ['-f', root/'deploy/web/003_dispatch.sql'])
+    run(psql + ['-f', root/'tests/web/sql/dispatch.sql'])
+    print('ISOLATED_POSTGRES_ADMISSION_WORKER_DISPATCH_PASS', flush=True)
 finally:
     if started:
         run([bin_dir/'pg_ctl', '-D', tmp/'data', '-m', 'fast', '-w', 'stop'])
