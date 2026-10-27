@@ -11,3 +11,10 @@ test('background lookup sends only service proof and immutable creator selectors
 test('foreign or downgraded current membership cannot authorize worker',async()=>{
  for(const actor of [bob,{...alice,effectiveRole:'VIEWER'}])await assert.rejects(setup(actor).resolve(fixture().plan),/FORBIDDEN/);
 });
+
+test('agent owner kind is explicit and never accepted as human',async()=>{
+ const plan={...fixture().plan,principalKind:'agent'},f=setup({...alice,kind:'agent'});
+ assert.equal((await f.resolve(plan)).kind,'agent');
+ assert.equal(JSON.parse(f.calls[0].init.body).principalKind,'agent');
+ await assert.rejects(setup(alice).resolve(plan),/FORBIDDEN/);
+});
