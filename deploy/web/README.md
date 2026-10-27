@@ -426,3 +426,13 @@ Evidence: workspace `docs/evidence/web-cache-backup-2026-10-27/`.
 Remaining release inputs: dedicated service identities, exact pilot/source policy,
 fixed endpoint settings and compatible AUTH/Workspace/SEARCH releases. Gate stays
 closed; these checks do not demonstrate an enabled end-to-end agent journey.
+
+## Cross-service identity release fix — 27 October 2026
+
+Workspace background-owner verification now supports a separate, explicitly pinned
+control-service identity as well as READ. Deploy Workspace `42459cb` or a descendant
+and configure `WEB_CONTROL_AGENT_ID`; otherwise control approval checks are denied.
+READ/customer proof validation is not broadened to arbitrary agents. The focused
+Workspace suite passed43tests/282assertions locally; this is not deployed evidence.
+See [service identity wiring](SERVICE_IDENTITIES.md) for the exact trust pins and
+fixed endpoints. Provisioning these identities and the upstream release are pending.
