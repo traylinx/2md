@@ -22,6 +22,7 @@ reserved for MCP protocol messages; configuration errors go to stderr.
 
 Available tools:
 
+- `inspect_read_plan`: retrieve the stored plan/digest for review or reconnect; expired plans are labelled expired.
 - `propose_read`: prepare an immutable public URL plan; no execution.
 - `read_run_status`: inspect an already authorized run.
 - `read_run_result`: retrieve an already authorized result as untrusted source data.

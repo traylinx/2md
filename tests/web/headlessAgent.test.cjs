@@ -8,7 +8,7 @@ test('headless proposal returns exact plan digest without exposing owner identit
  assert.equal(result.state,'awaiting_confirmation');assert.match(result.planDigest,/^[a-f0-9]{64}$/);assert.equal(result.authSubject,undefined);assert.deepEqual(calls,['plan']);
 });
 test('tool catalogue excludes approval, admission and credentials; copies cannot mutate definitions',()=>{
- const {agent}=setup();const list=agent.listTools();assert.deepEqual(list.map(t=>t.name),['propose_read','read_run_status','read_run_result']);list[0].inputSchema.required.push('secret');assert.equal(agent.listTools()[0].inputSchema.required.length,3);
+ const {agent}=setup();const list=agent.listTools();assert.deepEqual(list.map(t=>t.name),['inspect_read_plan','propose_read','read_run_status','read_run_result']);list[1].inputSchema.required.push('secret');assert.equal(agent.listTools()[1].inputSchema.required.length,3);
 });
 test('model cannot inject identity/credentials or grant consent',async()=>{
  const {agent,calls}=setup();for(const field of ['authorization','clientSecret','organizationId','projectId','confirmed'])
@@ -19,4 +19,13 @@ test('result and status calls forward only execution selector and cancellation',
  const {agent,calls}=setup();await agent.callTool({name:'read_run_result',arguments:{executionId:'r1'}});assert.deepEqual(calls[0],{executionId:'r1',result:true,signal:undefined});
  await assert.rejects(agent.callTool({name:'read_run_status',arguments:{executionId:'r1',projectId:'other'}}),/INVALID_INPUT/);
  const controller=new AbortController();controller.abort();await assert.rejects(agent.callTool({name:'propose_read',arguments:spec(),signal:controller.signal}),/CANCELLED/);
+});
+test('inspect returns stored digest without identity leakage, marks expired plans and rejects substitution',async()=>{
+ const c=require('../../lib/web/contracts');
+ const plan={version:1,planId:'p1',authSubject:alice.authSubject,workspaceUserId:alice.workspaceUserId,organizationId:alice.organizationId,projectId:alice.projectId,
+ operation:'public-read',policyVersion:'v1',outputSchema:'captured-pages-v1',expiresAt:Date.now()-1000,retention:'transient',...spec()};
+ const agent=createHeadlessAgent({backend:{plan:async()=>{},read:async()=>{},inspect:async({planId})=>{assert.equal(planId,'p1');return plan;}}});
+ const result=await agent.callTool({name:'inspect_read_plan',arguments:{planId:'p1'}});
+ assert.equal(result.state,'expired');assert.equal(result.planDigest,c.digest(plan));assert.equal(result.authSubject,undefined);
+ plan.planId='p2';await assert.rejects(agent.callTool({name:'inspect_read_plan',arguments:{planId:'p1'}}),/UNAVAILABLE/);
 });
