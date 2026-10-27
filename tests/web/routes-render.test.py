@@ -31,6 +31,12 @@ class RoutesTest(unittest.TestCase):
                         self.assertEqual(p['pathType'], 'Exact')
         self.assertEqual(paths, {'/web/project-access', '/web/agent-project-access', '/web/background-project-access', '/internal/web/read', '/web/v1', '/approvals'})
 
+    def test_dispatch_never_targets_legacy_python_search(self):
+        routes = module.render()["items"]
+        route = next(r for r in routes if r["metadata"]["name"] == "traylinx-web-search-ingress")
+        backend = route["spec"]["rules"][0]["http"]["paths"][0]["backend"]["service"]
+        self.assertEqual(backend, {"name": "traylinx-web-search", "port": {"number": 8083}})
+
     def test_invalid_namespace(self):
         for namespace in ['', '../production', 'Upper', 'trailing-']:
             with self.assertRaises(ValueError):

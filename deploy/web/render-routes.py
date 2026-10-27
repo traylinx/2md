@@ -19,7 +19,7 @@ def render(namespace='production'):
         ('workspace', 'api.makakoo.com', 'api-makakoo-com-tls', 'metrics-wsp-ms', 3000,
          [('/web/project-access', 'Exact'), ('/web/agent-project-access', 'Exact'),
           ('/web/background-project-access', 'Exact')]),
-        ('search', 'api.makakoo.com', 'api-makakoo-com-tls', 'search-engines-ms', 8005,
+        ('search', 'api.makakoo.com', 'api-makakoo-com-tls', 'traylinx-web-search', 8083,
          [('/internal/web/read', 'Exact')]),
         ('read', 'api.2md.traylinx.com', 'api-2md-traylinx-com-tls', 'traylinx-web-read', 8081,
          [('/web/v1', 'Prefix')]),
