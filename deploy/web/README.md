@@ -31,7 +31,7 @@ is protocol only. Inject Sentinel/project configuration through the host's secre
 mechanism. Do not bake secrets into image layers/build arguments. See
 `docs/headless-agent.md` for variables and the supported tools.
 
-Release gates still open: actual container build/run against an approved digest,
+Release gates still open: production-architecture image build/run and publication,
 scoped database provisioning, Workspace integration, host-controlled approval,
 background agent revocation and a real headless client journey. Agent execution is implemented behind a default-off gate, not enabled in production.
 Packaging is not evidence of deployment or full agent readiness.
@@ -95,7 +95,8 @@ HTTP before closing its bounded two-connection PostgreSQL pool. Configuration
 errors produce sanitized diagnostics. No Redis credentials are required.
 
 Factory, approval-handler and process-lifecycle tests passed with fixture
-adapters. The container has not been built or deployed. Workspace background
+adapters. The control container has passed isolated ARM64 build/start checks, but is not
+deployed or production-architecture qualified. Workspace background
 agent authority and rotation-aware AUTH references are now implemented locally;
 full framework/database and live integration remain unverified. **Keep agent
 execution disabled** until those release gates pass.
@@ -164,3 +165,21 @@ Scaling alone leaves readiness at 503 and cannot enable product traffic.
 `python3 tests/web/deployment-render.test.py` checks the inert preparation contract.
 Three tests pass; this is a structural check, not Kubernetes admission, image
 execution, server-side validation or deployment evidence. No manifests applied.
+
+## ARM64 image qualification — 27 October 2026
+
+All three Docker targets built on traylinx-ci using official Node 22 bookworm-slim
+resolved to `node@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d`.
+`tests/web/image-smoke.cjs` ran inside each image as UID1000, with networking disabled,
+read-only rootfs, all capabilities dropped, 1 CPU / 384 MiB / 96 PIDs.
+READ/control actual executable startup, live=200, disabled readiness=503, denied
+product traffic and graceful termination passed. MCP completed a real client/server
+initialize and tool-list handshake using synthetic configuration; no AUTH, model
+or capture request was sent. Actual packaged SDK/dependencies resolved successfully.
+
+Evidence and exact local image IDs: workspace
+`docs/evidence/web-image-packaging-2026-10-27/{BASE,BUILD,SMOKE,SCAN}.txt`.
+These are **ARM64 packaging results**, not AMD64 release qualification, an enabled
+end-to-end result, a vulnerability audit or registry publication. Mandatory NODE_IMAGE
+build argument produces expected Docker lint warnings about no default FROM value;
+the build supplied the exact digest. No deployment or feature activation occurred.
