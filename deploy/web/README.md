@@ -436,3 +436,22 @@ READ/customer proof validation is not broadened to arbitrary agents. The focused
 Workspace suite passed43tests/282assertions locally; this is not deployed evidence.
 See [service identity wiring](SERVICE_IDENTITIES.md) for the exact trust pins and
 fixed endpoints. Provisioning these identities and the upstream release are pending.
+
+## Internal HTTPS gateway connectivity — 27 October 2026
+
+The optional `--gateway-cluster-ip 10.43.131.119 --runtime-bindings` render mode
+adds fixed host aliases for `api.makakoo.com` and `api.2md.traylinx.com` to the
+verified Kong proxy service. URLs, Host/SNI and normal certificate validation do
+not change. Node-level requests through that exact service IP verified both TLS
+identities and received the expected release-gate HTTP503. This is not yet a pod
+network or enabled end-to-end verification.
+
+Each READ/control pod receives only its own HTTP ingress port from Kong app pods
+in namespace `kong`, plus TCP8443 egress to those same selected pods. There is no
+public Internet/DNS wildcard egress, admin-port access or permission for other
+namespace pods. Existing deny-all policies, separate PostgreSQL/cache rules,
+zero replicas and disabled feature flags remain. Database hostname/trust aliases
+are retained. Recheck the service IP/selectors and re-render after a Kong service
+replacement; stale mappings fail rather than silently allowing new destinations.
+Six focused renderer checks pass. This deployment-only change does not require
+rebuilding the qualified application images.

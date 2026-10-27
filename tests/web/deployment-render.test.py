@@ -75,6 +75,28 @@ class DeploymentTest(unittest.TestCase):
             self.assertEqual(policy['spec']['egress'], [])
         self.assertFalse(any(r['kind'] == 'Secret' for r in items))
 
+    def test_gateway_connections_are_scoped_and_keep_services_disabled(self):
+        items = module.render(self.image, self.image, runtime_bindings=True, gateway_cluster_ip='10.43.131.119')['items']
+        for d in (x for x in items if x['kind'] == 'Deployment'):
+            self.assertEqual(d['spec']['replicas'], 0)
+            aliases = d['spec']['template']['spec']['hostAliases']
+            self.assertEqual(aliases[-1], {'ip': '10.43.131.119', 'hostnames': ['api.makakoo.com', 'api.2md.traylinx.com']})
+            self.assertEqual(aliases[0]['hostnames'], ['traylinx-db'])
+        policies = [x['spec'] for x in items if x['metadata']['name'].endswith('-gateway-access')]
+        self.assertEqual(len(policies), 2)
+        for p, port in zip(policies, [8081, 8082]):
+            self.assertEqual(p['ingress'][0]['ports'], [{'protocol': 'TCP', 'port': port}])
+            self.assertEqual(p['egress'][0]['ports'], [{'protocol': 'TCP', 'port': 8443}])
+            peer = p['egress'][0]['to'][0]
+            self.assertEqual(peer['namespaceSelector']['matchLabels']['kubernetes.io/metadata.name'], 'kong')
+            self.assertEqual(peer['podSelector']['matchLabels']['app.kubernetes.io/instance'], 'kong')
+            self.assertNotIn('ipBlock', peer)
+        for ip in ['0.0.0.0', '8.8.8.8', '100.69.18.112', '::1', '10.43.0.0', '10.43.255.255', 'bad']:
+            with self.assertRaises(ValueError):
+                module.render(self.image, self.image, runtime_bindings=True, gateway_cluster_ip=ip)
+        with self.assertRaises(ValueError):
+            module.render(self.image, self.image, gateway_cluster_ip='10.43.131.119')
+
     def test_rejects_mutable_and_foreign_images(self):
         for value in ['node:22', 'ghcr.io/traylinx/web:latest', self.image + ':latest', self.image.replace('traylinx', 'untrusted')]:
             with self.assertRaises(ValueError):

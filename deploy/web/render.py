@@ -1,16 +1,27 @@
 #!/usr/bin/env python3
 """Render inert READ/control Kubernetes preparation; never applies resources."""
 import argparse
+import ipaddress
 import json
 import re
 
 
-def render(read_image, control_image, namespace='production', runtime_bindings=False):
+def render(read_image, control_image, namespace='production', runtime_bindings=False, gateway_cluster_ip=None):
     for image in (read_image, control_image):
         if not re.fullmatch(r'ghcr\.io/(?:traylinx|makakoo)/[a-z0-9][a-z0-9._/-]*@sha256:[a-f0-9]{64}', image):
             raise ValueError('Expected immutable Traylinx/Makakoo GHCR image digest')
     if not re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?', namespace):
         raise ValueError('Invalid namespace')
+
+    if gateway_cluster_ip is not None:
+        try:
+            address = ipaddress.ip_address(gateway_cluster_ip)
+            subnet = ipaddress.ip_network('10.43.0.0/16')
+            valid = address in subnet and address not in (subnet.network_address, subnet.broadcast_address)
+        except ValueError:
+            valid = False
+        if not runtime_bindings or not valid:
+            raise ValueError('Gateway requires runtime bindings and a verified cluster service IP')
 
     def resource(kind, name, spec):
         version = {'Deployment': 'apps/v1', 'NetworkPolicy': 'networking.k8s.io/v1'}.get(kind, 'v1')
@@ -97,6 +108,18 @@ def render(read_image, control_image, namespace='production', runtime_bindings=F
         items.append(resource('NetworkPolicy', name + '-isolate', {
             'podSelector': {'matchLabels': labels}, 'policyTypes': ['Ingress', 'Egress'],
             'ingress': [], 'egress': []}))
+        if gateway_cluster_ip is not None:
+            # Fixed service hosts only. Preserve HTTPS Host/SNI/certificate checks;
+            # avoid unrestricted Internet egress or public-IP DNS assumptions.
+            pod['hostAliases'].append({'ip': gateway_cluster_ip,
+                'hostnames': ['api.makakoo.com', 'api.2md.traylinx.com']})
+            gateway = {'namespaceSelector': {'matchLabels': {'kubernetes.io/metadata.name': 'kong'}},
+                       'podSelector': {'matchLabels': {'app.kubernetes.io/component': 'app',
+                           'app.kubernetes.io/instance': 'kong', 'app.kubernetes.io/name': 'kong'}}}
+            items.append(resource('NetworkPolicy', name + '-gateway-access', {
+                'podSelector': {'matchLabels': labels}, 'policyTypes': ['Ingress', 'Egress'],
+                'ingress': [{'from': [gateway], 'ports': [{'protocol': 'TCP', 'port': port}]}],
+                'egress': [{'to': [gateway], 'ports': [{'protocol': 'TCP', 'port': 8443}]}]}))
     return {'apiVersion': 'v1', 'kind': 'List', 'items': items}
 
 
@@ -106,9 +129,10 @@ def main():
     parser.add_argument('--control-image', required=True)
     parser.add_argument('--namespace', default='production')
     parser.add_argument('--runtime-bindings', action='store_true', help='Reference pre-provisioned secrets and stage control key; remain inert')
+    parser.add_argument('--gateway-cluster-ip', help='Verified Kong proxy ClusterIP in this cluster; retain HTTPS identity and scoped pod egress')
     args = parser.parse_args()
     try:
-        result = render(args.read_image, args.control_image, args.namespace, args.runtime_bindings)
+        result = render(args.read_image, args.control_image, args.namespace, args.runtime_bindings, args.gateway_cluster_ip)
     except ValueError as error:
         parser.error(str(error))
     print(json.dumps(result, indent=2))
