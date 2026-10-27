@@ -59,3 +59,15 @@ creation therefore requires controlled enrollment support first. Do not remove t
 guard alone, insert raw rows, clear the epoch or copy customer credentials.
 Workspace sprint `docs/sprints/WEB_SERVICE_IDENTITY_ENROLLMENT.md` records the
 implementation prerequisite and acceptance conditions. No identities created yet.
+
+## Dedicated SEARCH deployment
+
+The dispatch handler is the TypeScript `agentic-search-engines-ts` standalone
+listener (`src/web-read-server.ts`), not the existing Python `search-engines-ms`.
+Deploy it separately as `traylinx-web-search` on port8083 using
+`deploy/web/render-search.py` and an immutable private image. The renderer keeps
+replicas at zero and `WEB_READ_DISPATCH_ENABLED=0`; activation is a separate
+release step after identity/pilot wiring. Never replace the legacy search service.
+The new gated `/internal/web/read` route points only to this dedicated listener.
+Its gateway policy allows only Kong TLS egress and Kong ingress; no DB/cache,
+public Internet wildcard or provider credentials are needed by this transport.
