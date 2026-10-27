@@ -16,9 +16,9 @@ test('principal is strict, copied, immutable and bound to both tenant and creato
   assert.throws(() => c.bindPrincipal(c.principal(bob), makePlan()), /FORBIDDEN/);
   assert.throws(() => c.principal({ ...alice, role: 'OWNER' }), /INVALID_INPUT/);
 });
-test('deny stopped, unknown, denied and agent principals; viewer cannot execute', () => {
+test('deny stopped, unknown, denied and unknown principals; viewer cannot execute', () => {
   for (const change of [{ stopped: true }, { effectiveRole: 'DENIED' }, { effectiveRole: 'NONE' },
-    { effectiveRole: 'ROOT' }, { kind: 'agent' }]) assert.throws(() => c.principal({ ...alice, ...change }), /FORBIDDEN/);
+    { effectiveRole: 'ROOT' }, { kind: 'service' }]) assert.throws(() => c.principal({ ...alice, ...change }), /FORBIDDEN/);
   assert.equal(c.principal({ ...alice, effectiveRole: 'VIEWER' }).effectiveRole, 'VIEWER');
   assert.throws(() => c.executionPrincipal({ ...alice, effectiveRole: 'VIEWER' }), /FORBIDDEN/);
 });

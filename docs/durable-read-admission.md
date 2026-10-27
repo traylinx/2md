@@ -348,3 +348,24 @@ This transport-neutral module is implemented; it is not yet a registered MCP
 server or Sentinel-authenticated external API. Customer-pass/project mapping,
 real transport and host-controlled approval remain required. Existing human
 control pages stay inactive; a new web login is no longer a first-release task.
+
+### Customer Sentinel callers
+
+Set optional `WEB_READ_AGENT_ACCESS_URL` to Workspace's separately enabled
+`web/agent-project-access` endpoint to enable verified customer-agent lookups.
+With no endpoint configured, customer-agent requests are denied. READ forwards
+only the supplied Sentinel proof to that fixed HTTPS endpoint, uses no redirects
+or identity cache, and requires the returned `kind=agent`, exact subject and
+selected project/organization. Mixed human bearer and agent proof is rejected.
+
+Plan/status/result routes accept the agent proof headers. Agent plans persist
+`principalKind=agent`, included in the digest and binding checks. Existing human
+plans retain their original representation/digest. Neither kind can access the
+other's plan by sharing subject selectors. Human token lookup cannot return an
+agent principal. Current project policy is rechecked for result disclosure.
+
+**Agent confirmation and admission remain explicitly denied.** Host-controlled
+consent and agent background reauthorization/revocation must be integrated before
+agent execution is enabled. This is a working proposal/read boundary, not a
+complete MCP or end-to-end agent release. The existing human confirmation route
+and issuer remain human-only and inactive unless separately configured.
