@@ -273,3 +273,39 @@ modified. Runtime bindings, live key staging and enabled dependency checks remai
 pending. Workspace/SEARCH ingress currently attaches legacy auth plugins; dedicated
 Sentinel-only route handling must be verified before activation, without weakening
 legacy authentication.
+
+## Dedicated HTTPS routes — installed but gated
+
+`python3 deploy/web/render-routes.py` renders four additive Ingresses and one
+route-scoped `request-termination` plugin. It always blocks with HTTP503 and
+`{"error":"WEB_RELEASE_NOT_ACTIVE"}`; no activation option is provided.
+Existing ingress/auth plugins are not edited. Native backend paths are preserved:
+
+| Role | Fixed HTTPS endpoint |
+| --- | --- |
+| Human project authority | `https://api.makakoo.com/web/project-access` |
+| Customer agent authority | `https://api.makakoo.com/web/agent-project-access` |
+| Background owner authority | `https://api.makakoo.com/web/background-project-access` |
+| SEARCH dispatch | `https://api.makakoo.com/internal/web/read` |
+| READ base | `https://api.2md.traylinx.com/web/v1` |
+| READ dispatch grant | `https://api.2md.traylinx.com/web/v1/internal/dispatch-grants` |
+| Control approvals base | `https://api.2md.traylinx.com/approvals` |
+
+These routes avoid the legacy gateway bearer plugins that conflict with service
+proof-only requests. Application authentication remains mandatory on activation:
+current Sentinel identity and project scope, pinned service proofs, or human
+OWNER/ADMIN bearer as appropriate. AUTH retains its existing HTTPS API prefix.
+
+On 27 October all five resources passed server dry run and were applied with the
+gate attached. Six live TLS-verified checks returned the exact gated response.
+Before/after hashes of the five existing AUTH/Workspace/SEARCH/HTML2MD ingresses
+match. READ/control remain at zero replicas with deny-all networking.
+
+Evidence: workspace `docs/evidence/web-gated-routes-2026-10-27/`. This verifies
+routing to the gate, not upstream authentication, request delivery or activation.
+Do not remove the gate until compatible upstream releases, scoped secrets/storage,
+network rules and application-level denial checks are ready. Do not delete the
+plugin while its ingress annotations remain; controlled activation must explicitly
+change the relevant annotations and preserve all legacy routes.
+
+Kong reference: https://developer.konghq.com/plugins/request-termination/
