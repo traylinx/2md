@@ -28,3 +28,11 @@ test('result errors preserve safe semantic status, hide raw backend exception',a
  const f=fixture();for(const [error,status,code] of [[new WebBoundaryError('ARTIFACT_EXPIRED'),410,'ARTIFACT_EXPIRED'],[new Error('connection password'),503,'UNAVAILABLE']]){
  f.runtime.read=async()=>{throw error;};const r=await request(f.app).get('/web/v1/runs/r1/result').set('Authorization','Bearer synthetic').expect(status);assert.equal(r.body.error,code);assert.equal(r.headers['cache-control'],'no-store');}
 });
+test('comparison uses the same authorized result reader and never creates a new run',async()=>{
+ const f=fixture(),capture=require('./fixtures/result.cjs')().result;
+ f.runtime.read=async input=>{f.calls.push(input);return {executionId:input.executionId,planDigest:'a'.repeat(64),result:capture};};
+ const response=await request(f.app).get('/web/v1/runs/r1/comparison?organizationId=org&projectId=project').set('Authorization','Bearer synthetic').expect(200);
+ assert.equal(response.body.comparison.state,'partial');assert.equal(response.headers['cache-control'],'no-store');assert.equal(f.calls.length,1);assert.equal(f.calls[0].result,true);
+ f.runtime.read=async()=>{throw new WebBoundaryError('FORBIDDEN');};
+ await request(f.app).get('/web/v1/runs/r1/comparison').set('Authorization','Bearer synthetic').expect(403);
+});

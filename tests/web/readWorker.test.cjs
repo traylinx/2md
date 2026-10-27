@@ -46,3 +46,7 @@ test('result-store failure cannot publish completion or cause capture retry',asy
  const f=fixture({results:{put:async()=>{throw Error('cache unavailable');}}});
  assert.equal((await f.worker({executionId:'r1'})).state,'needs_reconciliation');assert.equal(f.calls.execute,1);
 });
+test('worker records its capture window in encrypted result, not upstream-supplied timestamps',async()=>{
+ let saved;const before=Date.now();const f=fixture({results:{put:async(_claim,result)=>{saved=result;return Date.now()+60000;}}});
+ await f.worker({executionId:'r1'});assert.ok(saved.collectionWindow.startedAt>=before);assert.ok(saved.collectionWindow.finishedAt>=saved.collectionWindow.startedAt);assert.ok(saved.collectionWindow.finishedAt<=Date.now());
+});

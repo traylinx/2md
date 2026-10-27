@@ -161,3 +161,49 @@ These corrections are local implementation, not deployment evidence.
 Token references match AUTH’s actual UUID primary keys. Numeric IDs are rejected;
 old synthetic numeric-reference plans must be proposed and approved again. No
 production database schema conversion is needed.
+
+## Compare captured sources
+
+Status 27 October 2026: implemented locally; not rebuilt, published or deployed.
+The existing plan, exact-plan human consent and durable run lifecycle remain the
+only capture path. `compare_read_result` takes only `executionId` and retrieves
+that existing result with current caller/project authorization. It never starts a
+new capture, retries a run, expands URLs or invokes a paid model. The same
+projection is available at `GET /web/v1/runs/:id/comparison` with the normal auth
+and project selectors; responses are `no-store`. Expired artifacts and denied
+access retain the existing error behavior.
+
+1. Use `propose_read` for the selected explicit public HTTPS URLs.
+2. Inspect and approve the exact stored plan through the separate host control
+   flow. Model tools cannot provide approval.
+3. Submit once with the existing host admission command and retain its retry key.
+4. Retrieve status. When a result is available, call `compare_read_result`.
+
+The `public-source-comparison-v1` output contains source records for `name`,
+`documentedFeatures` and `documentedLimits`; field states are `documented`,
+`unknown`, `incomplete` or `conflicting`. Each value includes the original URL,
+SHA-256 capture digest, exact quote and UTF-16 start/end-exclusive offsets into
+captured Markdown. Source records include final URL and the worker-observed
+capture request window. Old artifacts without a collection window stay partial;
+the service never fabricates a capture date at retrieval time.
+
+The initial no-provider extractor recognizes H1 names and bullet/numbered items
+under Features, Key Features, Limits or Limitations headings (including Documented
+headings). It ignores fenced code and YAML frontmatter. Unsupported layouts stay
+unknown; it does not pretend to understand arbitrary pages. Different H1 names
+remain conflicting. Failed sources remain failed records. Degraded captures,
+login/error pages, missing fields or bounded/truncated extraction cannot report
+complete. A partial comparison is still retrievable, never automatically retried.
+
+`findings` groups identical documented statements across source records with
+`supportedBy` evidence references and `undocumentedIn` record indexes. The latter
+means no extracted statement, **not** that a capability is absent. This is
+source-backed deterministic synthesis, not independent product verification,
+semantic contradiction resolution, ranking, price inference or legal advice.
+Source quotes remain untrusted text, never model instructions or executable HTML.
+No provider extraction/synthesis is enabled by this change.
+
+Capture status and comparison status are distinct: a successful HTTP capture may
+produce a partial comparison. Inspect `comparison.state`, every record and field,
+not merely the run's `completed` state. Evidence remains within the existing
+transient encrypted result retention; no new persistent content store is added.

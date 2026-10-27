@@ -8,7 +8,7 @@ const {alice}=require('./fixtures/principals.json');
 test('official MCP client initializes, lists and invokes bounded tool; approval absent',async()=>{
  const backend={plan:async({spec})=>({principalKind:'agent',version:1,planId:'p1',authSubject:alice.authSubject,workspaceUserId:alice.workspaceUserId,organizationId:alice.organizationId,projectId:alice.projectId,operation:'public-read',policyVersion:'v1',outputSchema:'captured-pages-v1',retention:'transient',expiresAt:Date.now()+60000,...spec}),read:async()=>{throw Error('private backend credentials');}};
  const server=createAgentMcpServer({backend});const client=new Client({name:'fixture',version:'1'});const [a,b]=InMemoryTransport.createLinkedPair();
- try{await server.connect(a);await client.connect(b);assert.equal((await client.listTools()).tools.length,4);
+ try{await server.connect(a);await client.connect(b);assert.equal((await client.listTools()).tools.length,5);
  const reply=await client.callTool({name:'propose_read',arguments:{urls:['https://example.com/'],deadlineMs:1000,maxResponseBytes:1024}});assert.equal(JSON.parse(reply.content[0].text).state,'awaiting_confirmation');
  const denied=await client.callTool({name:'approval_sign',arguments:{}});assert.equal(denied.isError,true);
  const error=await client.callTool({name:'read_run_status',arguments:{executionId:'r1'}});assert.equal(error.content[0].text,'{"error":"UNAVAILABLE"}');
@@ -22,5 +22,5 @@ test('actual stdio executable initializes and lists tools with environment-only 
  const transport=new StdioClientTransport({command:process.execPath,args:[path.resolve(__dirname,'../../scripts/web-agent-mcp.js')],stderr:'pipe',env:{
  TRAYLINX_CLIENT_ID:'synthetic-client',TRAYLINX_CLIENT_SECRET:'synthetic-secret',TRAYLINX_API_BASE_URL:'https://auth.example/api',TRAYLINX_AGENT_USER_ID:'11111111-1111-4111-8111-111111111111',TRAYLINX_WEB_READ_URL:'https://read.example/web/v1',TRAYLINX_ORGANIZATION_ID:'org-a',TRAYLINX_PROJECT_ID:'project-a'}});
  const client=new Client({name:'stdio-fixture',version:'1'});
- try{await client.connect(transport);const tools=await client.listTools();assert.deepEqual(tools.tools.map(t=>t.name),['inspect_read_plan','propose_read','read_run_status','read_run_result']);}finally{await client.close();}
+ try{await client.connect(transport);const tools=await client.listTools();assert.deepEqual(tools.tools.map(t=>t.name),['compare_read_result','inspect_read_plan','propose_read','read_run_status','read_run_result']);}finally{await client.close();}
 });
