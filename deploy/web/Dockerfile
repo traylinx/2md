@@ -33,3 +33,10 @@ FROM read AS mcp
 COPY --from=mcp-deps /app/deploy/web-agent /app/deploy/web-agent
 COPY scripts/web-agent-mcp.js /app/scripts/web-agent-mcp.js
 CMD ["node", "--max-old-space-size=256", "scripts/web-agent-mcp.js"]
+
+# Separate headless human control plane; do not mount its key/token in MCP or READ.
+FROM read AS control
+COPY scripts/web-control-server.js /app/scripts/web-control-server.js
+ENV WEB_CONTROL_ENABLED=0 WEB_CONTROL_HOST=0.0.0.0 WEB_CONTROL_PORT=8082
+EXPOSE 8082
+CMD ["node", "--max-old-space-size=256", "scripts/web-control-server.js"]

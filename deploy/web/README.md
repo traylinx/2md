@@ -65,3 +65,37 @@ Verified in an isolated real PostgreSQL 16 cluster using SET ROLE: admission,
 claim, dispatch consumption and finish work; direct lifecycle writes, plan deletion,
 schema creation and control-role admission/run reads are denied. The temporary
 cluster was removed. This does not mean the migration was applied in production.
+
+## Headless control process
+
+Run `node scripts/web-control-server.js`, or build the `control` Docker target
+with the same approved immutable `NODE_IMAGE` digest. It defaults disabled on
+port 8082. This service runs only approval HTTP handlers, not a worker, dispatcher
+or result-cache client. It does not migrate the database.
+
+Set `WEB_CONTROL_ENABLED=1` only after configuring:
+
+- `WEB_CONTROL_POSTGRES_URL`: protected login with only `web_read_control` membership.
+- `WEB_CONTROL_PROJECT_ACCESS_URL`: fixed HTTPS human project-authority endpoint.
+- `WEB_CONTROL_OWNER_ACCESS_URL`: fixed HTTPS background owner-authority endpoint.
+- `WEB_CONTROL_SENTINEL_URL`, `WEB_CONTROL_AGENT_ID`,
+  `WEB_CONTROL_SENTINEL_CLIENT_ID`, `WEB_CONTROL_SENTINEL_CLIENT_SECRET`:
+  protected service identity explicitly accepted by the owner-authority endpoint.
+- `WEB_CONTROL_CONFIRM_ISSUER`, `WEB_CONTROL_CONFIRM_KEY_ID`,
+  `WEB_CONTROL_POLICY_VERSION`: matching READ verification configuration.
+- `WEB_CONTROL_SIGNING_KEY_FILE`: an Ed25519 private-key file readable by the
+  service UID, mounted read-only with mode 0400 or 0600. Symlinks and group/world
+  permissions are rejected. Do not mount a default Kubernetes Secret symlink
+  directly: stage the selected key into a private service-owned file with the
+  required mode. Never place it in image layers, arguments, logs or MCP config.
+
+`WEB_CONTROL_HOST` and `WEB_CONTROL_PORT` override the listener; the container
+binds 0.0.0.0, while the direct executable defaults to loopback. Termination drains
+HTTP before closing its bounded two-connection PostgreSQL pool. Configuration
+errors produce sanitized diagnostics. No Redis credentials are required.
+
+Factory, approval-handler and process-lifecycle tests passed with fixture
+adapters. The container has not been built or deployed. The current Workspace
+background endpoint is human-only; **do not enable agent execution** until current
+agent authority and pass revocation are implemented and verified. Configuring a
+service identity does not remove that missing integration.

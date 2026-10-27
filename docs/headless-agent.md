@@ -71,6 +71,6 @@ changed approver cannot overwrite the original audit. Control-role UPDATE cannot
 change `approved_by`.
 
 Implementation tests use synthetic authorization/database adapters plus isolated
-real PostgreSQL audit/role checks. Production control-service composition,
-background agent revocation, actual interactive credentialed approval and agent
-admission remain pending. No web login/UI is required by this API/command.
+real PostgreSQL audit/role checks. Control-service composition is implemented and fixture-tested. Background agent
+revocation, actual interactive credentialed approval and agent admission remain
+pending. No web login/UI is required by this API/command.
