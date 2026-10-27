@@ -74,3 +74,17 @@ Implementation tests use synthetic authorization/database adapters plus isolated
 real PostgreSQL audit/role checks. Control-service composition is implemented and fixture-tested. Background agent
 revocation, actual interactive credentialed approval and agent admission remain
 pending. No web login/UI is required by this API/command.
+
+## Saved authorization reference
+
+New agent plans store only the verified token ID, application UID and token expiry
+returned by Workspace's AUTH introspection. The API does not accept these fields
+in a proposal. The immutable plan digest includes the reference, so changing it
+invalidates approval. Plan lifetime cannot exceed the introspected token expiry.
+No access token, Sentinel proof or client secret is stored in this reference.
+
+Background permission checks receive this exact reference. Old agent plans without
+one cannot pass that check and must be proposed again. Existing human plan shapes
+and digests are unchanged. The production background AUTH adapter, rotation
+coverage and execution enablement are still pending; saving a reference alone
+never authorizes a run.

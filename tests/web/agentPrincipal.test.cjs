@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');const assert=require('node:assert/strict');const request=require('supertest');const {randomBytes}=require('node:crypto');
 const {createAgentPrincipalResolver,createCallerResolver}=require('../../lib/web/agentPrincipal');const {createWebApplication}=require('../../lib/web/application');const c=require('../../lib/web/contracts');const {alice}=require('./fixtures/principals.json');
-const actor={...alice,kind:'agent'};const proof={agentId:actor.authSubject,token:'synthetic-proof'};
+const actor={...alice,kind:'agent',authorizationRef:{tokenId:12,clientId:'client-a',expiresAt:Date.now()+60000}};const proof={agentId:actor.authSubject,token:'synthetic-proof'};
 test('fixed Workspace lookup forwards proof without bearer; exact returned identity is mandatory',async()=>{
  let received;const resolve=createAgentPrincipalResolver({url:'https://workspace.example/access',fetchImpl:async(url,options)=>{received={url,options};return Response.json(actor,{headers:{'Cache-Control':'no-store'}});}});
  assert.deepEqual(await resolve({agentProof:proof,organizationId:actor.organizationId,projectId:actor.projectId}),actor);
@@ -22,8 +22,8 @@ test('router/runtime persist a distinct agent plan; confirmation and admission r
  const inspected=await request(app.app).get('/web/v1/plans/'+stored.planId+'?organizationId=org-a&projectId=project-a').set('X-Agent-User-Id',proof.agentId).set('X-Agent-Secret-Token',proof.token).expect(200);
  assert.deepEqual(inspected.body,stored);
  await request(app.app).get('/web/v1/plans/'+stored.planId+'?organizationId=org-a&projectId=project-a').set('Authorization','Bearer synthetic').expect(403);
- assert.equal(stored.principalKind,'agent');c.bindPrincipal(actor,stored);assert.throws(()=>c.bindPrincipal(alice,stored),/FORBIDDEN/);
- const humanPlan={...stored};delete humanPlan.principalKind;assert.notEqual(c.digest(stored),c.digest(humanPlan));assert.throws(()=>c.bindPrincipal(actor,humanPlan),/FORBIDDEN/);
+ assert.deepEqual(stored.authorizationRef,actor.authorizationRef);assert.equal(stored.expiresAt,actor.authorizationRef.expiresAt);assert.equal(stored.principalKind,'agent');c.bindPrincipal(actor,stored);assert.throws(()=>c.bindPrincipal(alice,stored),/FORBIDDEN/);
+ const humanPlan={...stored};delete humanPlan.principalKind;delete humanPlan.authorizationRef;assert.notEqual(c.digest(stored),c.digest(humanPlan));assert.throws(()=>c.bindPrincipal(actor,humanPlan),/FORBIDDEN/);
  await call('/web/v1/runs').send({planId:stored.planId,confirmationId:'c1'}).expect(403);
  await call(`/web/v1/plans/${stored.planId}/confirmations`).set('Origin','https://app.example').send({confirmationId:'c1'}).expect(403);
  }finally{await app.stop();}
