@@ -455,3 +455,22 @@ are retained. Recheck the service IP/selectors and re-render after a Kong servic
 replacement; stale mappings fail rather than silently allowing new destinations.
 Six focused renderer checks pass. This deployment-only change does not require
 rebuilding the qualified application images.
+
+## Comparison candidate publication and inactive cluster preparation
+
+Runtime source `70d46cf0ff0e758b57610e72de1c1692f6dd788b` has now passed native AMD64
+READ/control startup and MCP handshake checks and private publication:
+
+- READ: `ghcr.io/traylinx/web-intelligence-agent@sha256:9145476b377733d982855bd68dba36093c41d71b5134c431c31015c9fffb367f`
+- Control: `ghcr.io/traylinx/web-intelligence-agent@sha256:038bf1986beacd7b89b8fd9cb1b14698c9d7780b468d12ce751713a45d746157`
+- MCP: `ghcr.io/traylinx/web-intelligence-agent@sha256:cc69a116f47ea298a4625833257d3bf696a07c324dd69f7b852e9ed3b2c1a30e`
+
+Package privacy was checked before and after every push. READ/control deployment
+images (including the control key-staging init container) and gateway host aliases
+were updated using live resource-version/spec compare-and-set checks. Both remain
+zero replicas with disabled flags. The two narrow gateway NetworkPolicies were
+created; existing DB/cache policies and HTTP503 release gate remain intact.
+This is inactive cluster preparation, not a running comparison service or a new
+pod-level networking test. Service identities, pilot configuration, coordinated
+upstream enrollment release and bounded owner-authorized journey are still required.
+Evidence: workspace `docs/evidence/sentinel-enrollment-release-2026-10-27/`.
