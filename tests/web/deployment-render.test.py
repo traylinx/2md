@@ -34,6 +34,31 @@ class DeploymentTest(unittest.TestCase):
             self.assertEqual(policy['spec']['egress'], [])
         self.assertFalse(any(r['kind'] in ['Ingress', 'Secret', 'Job', 'Namespace'] for r in items))
 
+    def test_runtime_bindings_preserve_inert_gates_and_key_separation(self):
+        items = module.render(self.image, self.image, runtime_bindings=True)['items']
+        deployments = [r for r in items if r['kind'] == 'Deployment']
+        read, control = [d['spec']['template']['spec'] for d in deployments]
+        for deployment in deployments:
+            self.assertEqual(deployment['spec']['replicas'], 0)
+            pod = deployment['spec']['template']['spec']
+            container = pod['containers'][0]
+            self.assertEqual(pod['imagePullSecrets'], [{'name': 'traylinx-web-registry'}])
+            self.assertFalse(container['envFrom'][0]['secretRef']['optional'])
+            self.assertTrue(all(e['value'] == '0' for e in container['env'] if e['name'].endswith('_ENABLED')))
+        self.assertNotIn('initContainers', read)
+        self.assertNotIn('private.pem', str(read))
+        self.assertEqual(control['securityContext']['fsGroup'], 1000)
+        self.assertEqual(control['volumes'][1]['emptyDir']['medium'], 'Memory')
+        self.assertEqual(control['containers'][0]['volumeMounts'], [{'name': 'signing-key', 'mountPath': '/signing-key', 'readOnly': True}])
+        init = control['initContainers'][0]
+        self.assertEqual(init['image'], self.image)
+        self.assertIn('O_NOFOLLOW', init['command'][2])
+        self.assertIn('0o600', init['command'][2])
+        self.assertNotIn('envFrom', init)
+        for policy in (r for r in items if r['kind'] == 'NetworkPolicy'):
+            self.assertEqual(policy['spec']['egress'], [])
+        self.assertFalse(any(r['kind'] == 'Secret' for r in items))
+
     def test_rejects_mutable_and_foreign_images(self):
         for value in ['node:22', 'ghcr.io/traylinx/web:latest', self.image + ':latest', self.image.replace('traylinx', 'untrusted')]:
             with self.assertRaises(ValueError):

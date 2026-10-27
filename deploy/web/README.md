@@ -225,3 +225,33 @@ Manifests remain unapplied: zero replicas, execution off, deny-all network polic
 Before activation, verify registry pull permission, coordinated upstream release,
 scoped schema/logins, pilot/source parity, service identities, protected key mounts
 and actual endpoint/network paths. Publishing images does not satisfy those gates.
+
+## Protected runtime bindings
+
+Add `--runtime-bindings` to `deploy/web/render.py` to reference pre-provisioned
+runtime secrets without rendering their values. Output remains inert: zero
+replicas, explicit enable flags set to `0`, deny-all networking, no Secret objects
+or migration jobs. Explicit environment entries override secret-supplied flags.
+
+Required names in the deployment namespace:
+
+- `traylinx-web-registry`: image-pull secret with read access to the private package.
+- `traylinx-web-read-runtime`: READ environment configuration only.
+- `traylinx-web-control-runtime`: control environment configuration only.
+- `traylinx-web-confirmation-public`: `public.pem`, mounted only in READ.
+- `traylinx-web-confirmation-private`: `private.pem`, mounted only in the control
+  init container. Never include this key in READ, MCP or environment configuration.
+
+The non-root init container uses the same pinned control image. It stages the
+selected key into a memory-backed volume as a UID1000-owned regular mode0600 file.
+The control container receives only that staged volume, read-only. The original
+Secret mount is unavailable to the main container. No key appears in command-line
+arguments or logs. Startup continues to validate key type and protected file mode.
+
+Validation: four structural renderer tests pass. A bounded check using the
+qualified AMD64 control image and a synthetic symlinked key confirmed regular-file
+output, UID1000, mode0600 and Ed25519 parsing. This does not validate Kubernetes
+Secret projection/fsGroup behavior live; verify it during the disabled deployment
+before enabling approval traffic. No real signing key or cluster Secret was
+created by these checks. Runtime/network configuration and upstream deployment
+remain required; this option is not an activation command.

@@ -5,7 +5,7 @@ import json
 import re
 
 
-def render(read_image, control_image, namespace='production'):
+def render(read_image, control_image, namespace='production', runtime_bindings=False):
     for image in (read_image, control_image):
         if not re.fullmatch(r'ghcr\.io/(?:traylinx|makakoo)/[a-z0-9][a-z0-9._/-]*@sha256:[a-f0-9]{64}', image):
             raise ValueError('Expected immutable Traylinx/Makakoo GHCR image digest')
@@ -54,6 +54,37 @@ def render(read_image, control_image, namespace='production'):
                 'securityContext': {'runAsNonRoot': True, 'runAsUser': 1000, 'runAsGroup': 1000,
                                     'seccompProfile': {'type': 'RuntimeDefault'}},
                 'containers': [container]}}}))
+        if runtime_bindings:
+            pod = items[-1]['spec']['template']['spec']
+            # Bind pre-provisioned secrets only. Never render secret values or enable traffic.
+            container['envFrom'] = [{'secretRef': {'name': name + '-runtime', 'optional': False}}]
+            pod['imagePullSecrets'] = [{'name': 'traylinx-web-registry'}]
+            if role == 'read':
+                pod['volumes'] = [{'name': 'confirmation-public', 'secret': {
+                    'secretName': 'traylinx-web-confirmation-public', 'defaultMode': 292,
+                    'items': [{'key': 'public.pem', 'path': 'public.pem'}]}}]
+                container['volumeMounts'] = [{'name': 'confirmation-public', 'mountPath': '/confirmation-public', 'readOnly': True}]
+                container['env'].append({'name': 'WEB_READ_CONFIRM_PUBLIC_KEY_FILE', 'value': '/confirmation-public/public.pem'})
+            else:
+                pod['securityContext'].update({'fsGroup': 1000, 'fsGroupChangePolicy': 'OnRootMismatch'})
+                pod['volumes'] = [
+                    {'name': 'signing-source', 'secret': {'secretName': 'traylinx-web-confirmation-private',
+                     'defaultMode': 288, 'items': [{'key': 'private.pem', 'path': 'private.pem'}]}},
+                    {'name': 'signing-key', 'emptyDir': {'medium': 'Memory', 'sizeLimit': '1Mi'}}]
+                container['volumeMounts'] = [{'name': 'signing-key', 'mountPath': '/signing-key', 'readOnly': True}]
+                container['env'].append({'name': 'WEB_CONTROL_SIGNING_KEY_FILE', 'value': '/signing-key/private.pem'})
+                # Secret volumes are symlinks; production control deliberately rejects those.
+                # Copy only the selected key to a private regular file as the service UID.
+                stage_key = "const fs=require('node:fs');const p='/signing-key/private.pem';const b=fs.readFileSync('/signing-source/private.pem');if(b.length>8192)throw Error('key size');const fd=fs.openSync(p,fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_TRUNC|fs.constants.O_NOFOLLOW,0o600);try{fs.fchmodSync(fd,0o600);fs.writeFileSync(fd,b);}finally{fs.closeSync(fd);}"
+                pod['initContainers'] = [{
+                    'name': 'stage-signing-key', 'image': image, 'imagePullPolicy': 'IfNotPresent',
+                    'command': ['node', '-e', stage_key],
+                    'securityContext': {'allowPrivilegeEscalation': False, 'readOnlyRootFilesystem': True,
+                                        'capabilities': {'drop': ['ALL']}},
+                    'resources': {'requests': {'cpu': '25m', 'memory': '32Mi'},
+                                  'limits': {'cpu': '100m', 'memory': '64Mi'}},
+                    'volumeMounts': [{'name': 'signing-source', 'mountPath': '/signing-source', 'readOnly': True},
+                                     {'name': 'signing-key', 'mountPath': '/signing-key'}]}]
         items.append(resource('Service', name, {'type': 'ClusterIP', 'selector': labels,
             'ports': [{'name': 'http', 'port': port, 'targetPort': 'http'}]}))
         items.append(resource('NetworkPolicy', name + '-isolate', {
@@ -67,9 +98,10 @@ def main():
     parser.add_argument('--read-image', required=True)
     parser.add_argument('--control-image', required=True)
     parser.add_argument('--namespace', default='production')
+    parser.add_argument('--runtime-bindings', action='store_true', help='Reference pre-provisioned secrets and stage control key; remain inert')
     args = parser.parse_args()
     try:
-        result = render(args.read_image, args.control_image, args.namespace)
+        result = render(args.read_image, args.control_image, args.namespace, args.runtime_bindings)
     except ValueError as error:
         parser.error(str(error))
     print(json.dumps(result, indent=2))
