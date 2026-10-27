@@ -88,3 +88,10 @@ one cannot pass that check and must be proposed again. Existing human plan shape
 and digests are unchanged. The production background AUTH adapter, rotation
 coverage and execution enablement are still pending; saving a reference alone
 never authorizes a run.
+
+Authorization references also contain an opaque `generation` supplied by AUTH's
+trusted introspection extension. It participates in the plan digest and must match
+current application-secret state at execution. Missing generations are rejected;
+old agent plans must be proposed again. The fingerprint contains no caller secret
+and is not an execution credential. Rotation binding is implemented locally; the
+complete deployed journey remains unverified.

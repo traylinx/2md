@@ -13,7 +13,7 @@ test('foreign or downgraded current membership cannot authorize worker',async()=
 });
 
 test('agent owner kind is explicit and never accepted as human',async()=>{
- const plan={...fixture().plan,principalKind:'agent',authorizationRef:{tokenId:12,clientId:'client-a',expiresAt:Date.now()+60000}},f=setup({...alice,kind:'agent'});
+ const plan={...fixture().plan,principalKind:'agent',authorizationRef:{tokenId:12,clientId:'client-a',generation:'a'.repeat(64),expiresAt:Date.now()+60000}},f=setup({...alice,kind:'agent'});
  assert.equal((await f.resolve(plan)).kind,'agent');
  assert.equal(JSON.parse(f.calls[0].init.body).principalKind,'agent');
  await assert.rejects(setup(alice).resolve(plan),/FORBIDDEN/);

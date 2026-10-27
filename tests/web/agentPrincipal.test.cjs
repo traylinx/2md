@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');const assert=require('node:assert/strict');const request=require('supertest');const {randomBytes}=require('node:crypto');
 const {createAgentPrincipalResolver,createCallerResolver}=require('../../lib/web/agentPrincipal');const {createWebApplication}=require('../../lib/web/application');const c=require('../../lib/web/contracts');const {alice}=require('./fixtures/principals.json');
-const actor={...alice,kind:'agent',authorizationRef:{tokenId:12,clientId:'client-a',expiresAt:Date.now()+60000}};const proof={agentId:actor.authSubject,token:'synthetic-proof'};
+const actor={...alice,kind:'agent',authorizationRef:{tokenId:12,clientId:'client-a',generation:'a'.repeat(64),expiresAt:Date.now()+60000}};const proof={agentId:actor.authSubject,token:'synthetic-proof'};
 test('fixed Workspace lookup forwards proof without bearer; exact returned identity is mandatory',async()=>{
  let received;const resolve=createAgentPrincipalResolver({url:'https://workspace.example/access',fetchImpl:async(url,options)=>{received={url,options};return Response.json(actor,{headers:{'Cache-Control':'no-store'}});}});
  assert.deepEqual(await resolve({agentProof:proof,organizationId:actor.organizationId,projectId:actor.projectId}),actor);
