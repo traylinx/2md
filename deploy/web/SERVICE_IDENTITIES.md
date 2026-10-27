@@ -49,3 +49,13 @@ workflows, verify image identity and dependencies behind the closed gate, and ru
 one owner-approved pilot. Do not reuse historical chat credentials, invent pilot
 IDs or activate while required values are missing. No identity creation or upstream
 release is claimed by this document.
+
+## Current provisioning blocker
+
+Live inspection on27 October2026 found an active Sentinel epoch with a fixed
+35-agent cohort. The deployed provisioning guard rejects creation while that epoch
+is active, and unknown IDs are rejected by cohort enforcement. Dedicated identity
+creation therefore requires controlled enrollment support first. Do not remove the
+guard alone, insert raw rows, clear the epoch or copy customer credentials.
+Workspace sprint `docs/sprints/WEB_SERVICE_IDENTITY_ENROLLMENT.md` records the
+implementation prerequisite and acceptance conditions. No identities created yet.
