@@ -334,3 +334,17 @@ confirmation verifier, storage clients and dispatcher. It never applies schemas.
 The runtime image must include the pinned pg dependency and the existing pinned
 Sentinel SDK package. Packaging, real database/framework qualification and human
 control login integration remain release prerequisites; no deployment is implied.
+
+### Headless-first amendment (27 October 2026)
+
+The first product delivery targets API/MCP agent hosts, not a custom UI.
+`createHeadlessAgent` exposes `propose_read`, `read_run_status` and
+`read_run_result` contracts over an authenticated, host-bound backend. Tool
+arguments cannot select identity/project or carry credentials. Proposals return
+an exact digest and pending-confirmation state without execution. Approval and
+admission are deliberately absent from the model-facing catalogue.
+
+This transport-neutral module is implemented; it is not yet a registered MCP
+server or Sentinel-authenticated external API. Customer-pass/project mapping,
+real transport and host-controlled approval remain required. Existing human
+control pages stay inactive; a new web login is no longer a first-release task.
