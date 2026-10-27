@@ -96,10 +96,10 @@ HTTP before closing its bounded two-connection PostgreSQL pool. Configuration
 errors produce sanitized diagnostics. No Redis credentials are required.
 
 Factory, approval-handler and process-lifecycle tests passed with fixture
-adapters. The control container has passed isolated ARM64 build/start checks, but is not
-deployed or production-architecture qualified. Workspace background
+adapters. The control container has passed ARM64 and native AMD64 packaging/start checks,
+but is not deployed. Workspace background
 agent authority and rotation-aware AUTH references are now implemented locally;
-full framework/database and live integration remain unverified. **Keep agent
+isolated database checks passed; the complete live integration remains unverified. **Keep agent
 execution disabled** until those release gates pass.
 
 ## Approved agent admission rollout
@@ -210,3 +210,18 @@ Local image IDs are not registry manifest digests. Do not put them into Kubernet
 manifests as GHCR references. Publish privately and resolve the registry digest
 before rendering a release. Record the source revision and architecture alongside
 that digest. Rebuild if runtime source changes.
+
+## Private publication — 27 October 2026
+
+Qualified source `04ca2f6` READ/control/MCP images were published under the private
+GHCR package `traylinx/web-intelligence-agent`. Privacy was checked before any
+application content was uploaded and after each image push. Existing public
+`traylinx/2md` was not used. Runtime credentials were not included.
+
+The workspace evidence directory `docs/evidence/web-private-publication-2026-10-27/`
+contains exact registry references in `PUBLISHED_IMAGES.json`, six rendered inert
+resources in `INERT_KUBERNETES.json`, and outstanding inputs in `RELEASE_INPUTS.md`.
+Manifests remain unapplied: zero replicas, execution off, deny-all network policies.
+Before activation, verify registry pull permission, coordinated upstream release,
+scoped schema/logins, pilot/source parity, service identities, protected key mounts
+and actual endpoint/network paths. Publishing images does not satisfy those gates.
