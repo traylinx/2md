@@ -35,3 +35,33 @@ Release gates still open: actual container build/run against an approved digest,
 scoped database provisioning, Workspace integration, host-controlled approval,
 background agent revocation and a real headless client journey. Agent execution
 remains denied. Packaging is not evidence of deployment or full agent readiness.
+
+## Database roles (manual migration 005)
+
+After approved migrations 001–004, `005_runtime_roles.sql` creates three NOLOGIN,
+non-superuser group roles atomically. It intentionally fails if these names already
+exist rather than inheriting unknown grants. No passwords/login users are created.
+
+- `web_read_runtime`: reads product metadata, inserts immutable plans and verified
+  confirmations, and calls the five fenced lifecycle functions. It cannot directly
+  mutate runs/outbox, delete plans or create schema objects. Confirmation insertion
+  remains available because the current READ process contains that trusted route.
+- `web_read_control`: reads plans/confirmations and inserts confirmations only;
+  cannot admit/dispatch runs or read run contents. Optional/deferred control UI
+  does not have to be deployed to create this group.
+- `web_read_executor`: NOLOGIN function owner, never granted to application login
+  identities. Holds only tables/columns needed by the reviewed lifecycle functions.
+  SECURITY DEFINER functions use a fixed trusted search path with pg_temp last;
+  PUBLIC execution stays revoked.
+
+An operator must separately create protected login identities and grant only the
+appropriate runtime/control group. Never grant executor membership or reuse a
+superuser/migration login in the service. These are service-level privileges, not
+row-level tenant isolation: the application still validates every owner/project.
+No unrelated schema/database grants or shared credential changes are made.
+Future function replacements require an explicit ownership/privilege review.
+
+Verified in an isolated real PostgreSQL 16 cluster using SET ROLE: admission,
+claim, dispatch consumption and finish work; direct lifecycle writes, plan deletion,
+schema creation and control-role admission/run reads are denied. The temporary
+cluster was removed. This does not mean the migration was applied in production.
