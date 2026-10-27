@@ -50,7 +50,7 @@ one owner-approved pilot. Do not reuse historical chat credentials, invent pilot
 IDs or activate while required values are missing. No identity creation or upstream
 release is claimed by this document.
 
-## Current provisioning blocker
+## Enrollment prerequisite: now deployed; identities still pending
 
 Live inspection on27 October2026 found an active Sentinel epoch with a fixed
 35-agent cohort. The deployed provisioning guard rejects creation while that epoch
@@ -71,3 +71,11 @@ release step after identity/pilot wiring. Never replace the legacy search servic
 The new gated `/internal/web/read` route points only to this dedicated listener.
 Its gateway policy allows only Kong TLS egress and Kong ingress; no DB/cache,
 public Internet wildcard or provider credentials are needed by this transport.
+
+Update27 October2026: the approved additive enrollment migration and100-agent
+existing-epoch policy are now applied. AUTH/USERS APIs and workers run the qualified
+enrollment images with enrollment enabled. Live checks retain35base members and
+show zero new enrollments. The earlier fixed-cohort blocker above is historical.
+Provision the four service identities through the supported authenticated owner
+API next; do not insert raw rows or reuse customer credentials. Actual creation,
+retry and full agent communication remain to be verified live.
