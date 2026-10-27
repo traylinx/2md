@@ -309,3 +309,29 @@ plugin while its ingress annotations remain; controlled activation must explicit
 change the relevant annotations and preserve all legacy routes.
 
 Kong reference: https://developer.konghq.com/plugins/request-termination/
+
+## Runtime keys provisioned — 27 October 2026
+
+Four dedicated Secrets now exist in production:
+`traylinx-web-confirmation-public`, `traylinx-web-confirmation-private`,
+`traylinx-web-read-runtime`, `traylinx-web-control-runtime`.
+The Ed25519 pair was generated in memory and sent directly to Kubernetes;
+private/public key Secrets are immutable. The READ runtime Secret contains a
+fresh 32-byte result-encryption key. Both runtime Secrets contain matching issuer
+`traylinx-web-control`, key ID `web-20261027-v1` and base policy `pilot-v1`.
+No existing signing key or shared password was rotated. No private key or result
+key was written into repository files, command arguments, logs or evidence.
+
+Runtime bindings were applied while disabled. Actual Kubernetes checks confirmed
+Secret projection/fsGroup staging produces a regular UID1000-owned private key
+with mode0600; the control main container cannot access the original Secret mount.
+READ has no private-key mount and its public-key fingerprint matches control.
+Both deployments were returned to zero replicas; gateway release gate remains on.
+
+**Configuration is incomplete.** Runtime Secrets still need the scoped database,
+cache and service identity inputs, fixed endpoints and exact pilot/source policy.
+Do not replace these Secrets with incomplete manifests or regenerate keys on retry.
+Inspect existing names before resuming; preserve the current result/signing keys.
+Use the normal protected cluster backup/recovery process; do not export them into
+the planning/evidence repository. Evidence contains only names and public-key hash:
+workspace `docs/evidence/web-runtime-keys-2026-10-27/`.
