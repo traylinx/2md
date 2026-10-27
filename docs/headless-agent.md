@@ -78,7 +78,7 @@ activation remain pending. No web login/UI is required by this API/command.
 
 ## Saved authorization reference
 
-New agent plans store only the verified token ID, application UID and token expiry
+New agent plans store only the verified token ID (canonical lowercase UUID string), application UID and token expiry
 returned by Workspace's AUTH introspection. The API does not accept these fields
 in a proposal. The immutable plan digest includes the reference, so changing it
 invalidates approval. Plan lifetime cannot exceed the introspected token expiry.
@@ -157,3 +157,7 @@ returned. After an uncertain admission, preserve the original plan, confirmation
 and idempotency key. Do not generate another key to bypass a conflict.
 
 These corrections are local implementation, not deployment evidence.
+
+Token references match AUTH’s actual UUID primary keys. Numeric IDs are rejected;
+old synthetic numeric-reference plans must be proposed and approved again. No
+production database schema conversion is needed.

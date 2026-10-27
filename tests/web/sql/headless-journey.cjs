@@ -13,7 +13,7 @@ async function main(){
  for(let i=0;i<100;i++){if(spawnError)throw spawnError;try{await fs.stat(socket);break;}catch{await new Promise(r=>setTimeout(r,20));}}
  redis=new Redis({path:socket,lazyConnect:true,enableOfflineQueue:false,maxRetriesPerRequest:0,retryStrategy:()=>null});await redis.connect();
  const {privateKey,publicKey}=generateKeyPairSync('ed25519');const keys={issuer:'control',keyId:'key-1',policyVersion:'v1'};
- const actor={...alice,kind:'agent',authorizationRef:{tokenId:12,clientId:'client-a',generation:'a'.repeat(64),expiresAt:Date.now()+180000}};
+ const actor={...alice,kind:'agent',authorizationRef:{tokenId:'00000000-0000-4000-8000-000000000012',clientId:'client-a',generation:'a'.repeat(64),expiresAt:Date.now()+180000}};
  let revoked=false,dispatches=0,ownerChecks=0;
  const authorizeOwner=async plan=>{ownerChecks++;if(revoked)c.deny('FORBIDDEN');assert.deepEqual(plan.authorizationRef,actor.authorizationRef);return actor;};
  const resolvePrincipal=async input=>{if(input.agentProof?.agentId==='agent-a'&&input.agentProof.token==='synthetic-proof')return actor;c.deny('UNAUTHENTICATED');};
