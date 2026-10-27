@@ -1,7 +1,7 @@
 # Dedicated READ and headless MCP packaging
 
 This package does not replace the legacy API or browser/capture deployment.
-Targets `read` and `mcp` contain only the Node runtime dependencies and explicit
+Targets `read`, `control` and `mcp` contain only the Node runtime dependencies and explicit
 source paths. No Chromium, Python, frontend, tests, credentials or environment
 files are copied. Sentinel's existing package hash is checked during build.
 
@@ -33,8 +33,8 @@ mechanism. Do not bake secrets into image layers/build arguments. See
 
 Release gates still open: actual container build/run against an approved digest,
 scoped database provisioning, Workspace integration, host-controlled approval,
-background agent revocation and a real headless client journey. Agent execution
-remains denied. Packaging is not evidence of deployment or full agent readiness.
+background agent revocation and a real headless client journey. Agent execution is implemented behind a default-off gate, not enabled in production.
+Packaging is not evidence of deployment or full agent readiness.
 
 ## Database roles (manual migration 005)
 
@@ -95,10 +95,10 @@ HTTP before closing its bounded two-connection PostgreSQL pool. Configuration
 errors produce sanitized diagnostics. No Redis credentials are required.
 
 Factory, approval-handler and process-lifecycle tests passed with fixture
-adapters. The container has not been built or deployed. The current Workspace
-background endpoint is human-only; **do not enable agent execution** until current
-agent authority and pass revocation are implemented and verified. Configuring a
-service identity does not remove that missing integration.
+adapters. The container has not been built or deployed. Workspace background
+agent authority and rotation-aware AUTH references are now implemented locally;
+full framework/database and live integration remain unverified. **Keep agent
+execution disabled** until those release gates pass.
 
 ## Approved agent admission rollout
 
@@ -128,3 +128,39 @@ cleaned on failure as well as success. No production databases or credentials.
 Verified locally on 27 October: journey passed. AUTH/Workspace identity and SEARCH
 capture are fixture adapters; this is not real Rails/Sentinel/SEARCH qualification,
 a container build, load test or production deployment.
+
+## Kubernetes preparation renderer
+
+Render separate READ and control resources with qualified immutable images:
+
+```sh
+python3 deploy/web/render.py \
+  --read-image "$QUALIFIED_READ_IMAGE_DIGEST" \
+  --control-image "$QUALIFIED_CONTROL_IMAGE_DIGEST" \
+  --namespace production > /tmp/traylinx-web-preparation.json
+```
+
+This prints JSON only. It does not contact Kubernetes, build/publish images,
+create credentials or execute SQL. Do not pipe it to `kubectl apply` without
+review and release authorization. The renderer rejects mutable/foreign images.
+
+Both Deployments are deliberately **zero replicas with feature gates off**.
+Each has its own ClusterIP Service and deny-all ingress/egress NetworkPolicy.
+The pods use UID/GID 1000, read-only root filesystems, no capabilities, no service
+account token and capped resources. No Ingress, database migration Job, Secret,
+shared-service patch or private signing-key volume is generated. Recreate rollout
+avoids overlap during this first single-instance release. MCP remains host-side,
+not a public Kubernetes service.
+
+Before activation, an operator must supply narrowly scoped configuration/Secrets,
+private registry pull access, confirmation key mounts (including safe private-key
+staging for control), exact network allow rules and approved SQL migrations/roles.
+READ needs database, cache, Workspace, AUTH and SEARCH egress; control needs only
+database, Workspace and AUTH. Never solve this by granting unrestricted egress.
+Verify namespace-existing policies too: Kubernetes allow policies are additive.
+Then enable each required gate and scale explicitly in the reviewed release.
+Scaling alone leaves readiness at 503 and cannot enable product traffic.
+
+`python3 tests/web/deployment-render.test.py` checks the inert preparation contract.
+Three tests pass; this is a structural check, not Kubernetes admission, image
+execution, server-side validation or deployment evidence. No manifests applied.
