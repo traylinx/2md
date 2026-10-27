@@ -85,6 +85,13 @@ def render(read_image, control_image, namespace='production', runtime_bindings=F
                                   'limits': {'cpu': '100m', 'memory': '64Mi'}},
                     'volumeMounts': [{'name': 'signing-source', 'mountPath': '/signing-source', 'readOnly': True},
                                      {'name': 'signing-key', 'mountPath': '/signing-key'}]}]
+            # Existing PostgreSQL certificate identifies traylinx-db, not its IP.
+            # Pin public trust material and retain hostname verification.
+            pod['hostAliases'] = [{'ip': '100.69.18.112', 'hostnames': ['traylinx-db']}]
+            pod['volumes'].append({'name': 'postgres-tls', 'configMap': {
+                'name': 'traylinx-web-postgres-ca', 'defaultMode': 292,
+                'items': [{'key': 'server.pem', 'path': 'server.pem'}]}})
+            container['volumeMounts'].append({'name': 'postgres-tls', 'mountPath': '/postgres-tls', 'readOnly': True})
         items.append(resource('Service', name, {'type': 'ClusterIP', 'selector': labels,
             'ports': [{'name': 'http', 'port': port, 'targetPort': 'http'}]}))
         items.append(resource('NetworkPolicy', name + '-isolate', {

@@ -49,7 +49,11 @@ class DeploymentTest(unittest.TestCase):
         self.assertNotIn('private.pem', str(read))
         self.assertEqual(control['securityContext']['fsGroup'], 1000)
         self.assertEqual(control['volumes'][1]['emptyDir']['medium'], 'Memory')
-        self.assertEqual(control['containers'][0]['volumeMounts'], [{'name': 'signing-key', 'mountPath': '/signing-key', 'readOnly': True}])
+        self.assertEqual(control['containers'][0]['volumeMounts'][0], {'name': 'signing-key', 'mountPath': '/signing-key', 'readOnly': True})
+        for pod in (read, control):
+            self.assertEqual(pod['hostAliases'], [{'ip': '100.69.18.112', 'hostnames': ['traylinx-db']}])
+            self.assertEqual(pod['volumes'][-1]['configMap']['name'], 'traylinx-web-postgres-ca')
+            self.assertTrue(pod['containers'][0]['volumeMounts'][-1]['readOnly'])
         init = control['initContainers'][0]
         self.assertEqual(init['image'], self.image)
         self.assertIn('O_NOFOLLOW', init['command'][2])

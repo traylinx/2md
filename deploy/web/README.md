@@ -335,3 +335,36 @@ Inspect existing names before resuming; preserve the current result/signing keys
 Use the normal protected cluster backup/recovery process; do not export them into
 the planning/evidence repository. Evidence contains only names and public-key hash:
 workspace `docs/evidence/web-runtime-keys-2026-10-27/`.
+
+## Product database prepared — 27 October 2026
+
+Dedicated `web_intelligence` database now exists on `traylinx-db`, owned by the
+maintenance role with a 12-connection limit. Public database access is revoked.
+Migrations 001–006 were applied in order with bounded lock/statement deadlines.
+Four product tables and the three NOLOGIN permission groups exist; groups have no
+superuser, role/database creation or RLS-bypass privileges. Control cannot select
+runs; runtime cannot directly update runs. No executions exist. Existing databases
+were not migrated or modified. Migration hashes and outputs are recorded in the
+workspace evidence directory `docs/evidence/web-storage-preparation-2026-10-27/`.
+
+**Login provisioning remains pending.** Do not reuse an application superuser or
+existing AUTH credentials. Create separate runtime/control logins, grant only the
+corresponding group and database CONNECT, and add narrow database/user/network HBA
+entries after checking the current file. Executor membership is never a login grant.
+Include this new database in the established protected backup process before
+accepting durable production work; no backup enrollment is claimed here.
+
+The existing server certificate has SAN `DNS:traylinx-db`. The renderer now mounts
+public certificate trust from ConfigMap `traylinx-web-postgres-ca` at
+`/postgres-tls/server.pem` and resolves `traylinx-db` to private IP `100.69.18.112`.
+Use PostgreSQL URLs with hostname `traylinx-db` and query parameters
+`sslmode=verify-full&sslrootcert=/postgres-tls/server.pem`. Never set
+`rejectUnauthorized=false` or downgrade to plaintext to work around hostname errors.
+The public certificate was copied from the actual server; certificate rotation
+requires updating this pinned trust material before rollout.
+
+The packaged pg connection parser successfully loaded this CA with hostname and
+verification retained. This is configuration evidence, not a successful credentialed
+connection: dedicated logins/HBA rules are not provisioned yet. Runtime manifests
+with the trust mount are applied but remain at zero replicas behind the release gate.
+Valkey ACL and service-identity provisioning also remain pending.
