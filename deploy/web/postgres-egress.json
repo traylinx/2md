@@ -1,0 +1,10 @@
+{
+  "apiVersion": "networking.k8s.io/v1",
+  "kind": "NetworkPolicy",
+  "metadata": {"name": "traylinx-web-postgres-egress", "namespace": "production"},
+  "spec": {
+    "podSelector": {"matchExpressions": [{"key": "app.kubernetes.io/name", "operator": "In", "values": ["traylinx-web-read", "traylinx-web-control"]}]},
+    "policyTypes": ["Egress"],
+    "egress": [{"to": [{"ipBlock": {"cidr": "100.69.18.112/32"}}], "ports": [{"protocol": "TCP", "port": 5432}]}]
+  }
+}

@@ -328,7 +328,7 @@ with mode0600; the control main container cannot access the original Secret moun
 READ has no private-key mount and its public-key fingerprint matches control.
 Both deployments were returned to zero replicas; gateway release gate remains on.
 
-**Configuration is incomplete.** Runtime Secrets still need the scoped database,
+**Configuration is incomplete.** Runtime Secrets contain scoped database URLs but still need
 cache and service identity inputs, fixed endpoints and exact pilot/source policy.
 Do not replace these Secrets with incomplete manifests or regenerate keys on retry.
 Inspect existing names before resuming; preserve the current result/signing keys.
@@ -347,12 +347,21 @@ runs; runtime cannot directly update runs. No executions exist. Existing databas
 were not migrated or modified. Migration hashes and outputs are recorded in the
 workspace evidence directory `docs/evidence/web-storage-preparation-2026-10-27/`.
 
-**Login provisioning remains pending.** Do not reuse an application superuser or
-existing AUTH credentials. Create separate runtime/control logins, grant only the
-corresponding group and database CONNECT, and add narrow database/user/network HBA
-entries after checking the current file. Executor membership is never a login grant.
-Include this new database in the established protected backup process before
-accepting durable production work; no backup enrollment is claimed here.
+Separate `web_read_login` and `web_control_login` accounts are provisioned with
+only their corresponding group and database CONNECT, connection limits 4 and 2,
+5-second statement and 2-second lock deadlines. Protected URLs were added to the
+existing runtime Secrets without replacing their keys. Neither login belongs to
+`web_read_executor`. No existing application credentials were reused or rotated.
+
+HBA now permits only this database and these users over TLS from the three
+Kubernetes nodes' exact Tailscale IPs. The prior file was hash-checked and preserved
+as a root-only preimage; PostgreSQL configuration was reloaded, not restarted.
+`postgres-egress.json` adds only TCP5432 to `100.69.18.112/32` for the two product
+pod selectors. It is additive to deny-all isolation; no ingress or other egress is
+opened. Apply this separate policy only as part of approved runtime preparation.
+
+Include this database in the established protected backup process before accepting
+durable production work; **backup enrollment remains pending**.
 
 The existing server certificate has SAN `DNS:traylinx-db`. The renderer now mounts
 public certificate trust from ConfigMap `traylinx-web-postgres-ca` at
@@ -363,8 +372,10 @@ Use PostgreSQL URLs with hostname `traylinx-db` and query parameters
 The public certificate was copied from the actual server; certificate rotation
 requires updating this pinned trust material before rollout.
 
-The packaged pg connection parser successfully loaded this CA with hostname and
-verification retained. This is configuration evidence, not a successful credentialed
-connection: dedicated logins/HBA rules are not provisioned yet. Runtime manifests
-with the trust mount are applied but remain at zero replicas behind the release gate.
-Valkey ACL and service-identity provisioning also remain pending.
+Actual READ/control Kubernetes pods authenticated with their separate accounts
+using the pinned certificate and `verify-full`; both reported TLS enabled.
+Checks confirmed metadata reads, no direct run updates or executor membership,
+and control denied run reads. Both deployments returned to zero replicas with the
+public release gate retained. Evidence: workspace
+`docs/evidence/web-database-access-2026-10-27/`.
+Valkey ACL, backup enrollment and service-identity provisioning remain pending.

@@ -1,3 +1,4 @@
+import json
 import importlib.util
 import pathlib
 import unittest
@@ -10,6 +11,17 @@ spec.loader.exec_module(module)
 
 class DeploymentTest(unittest.TestCase):
     image = 'ghcr.io/traylinx/web-read@sha256:' + 'a' * 64
+
+    def test_postgres_egress_is_scoped(self):
+        policy = json.loads((path.parent / 'postgres-egress.json').read_text())
+        self.assertEqual(policy['metadata']['namespace'], 'production')
+        self.assertEqual(policy['spec'], {
+            'podSelector': {'matchExpressions': [{'key': 'app.kubernetes.io/name',
+                'operator': 'In', 'values': ['traylinx-web-read', 'traylinx-web-control']}]},
+            'policyTypes': ['Egress'],
+            'egress': [{'to': [{'ipBlock': {'cidr': '100.69.18.112/32'}}],
+                        'ports': [{'protocol': 'TCP', 'port': 5432}]}],
+        })
 
     def test_inert_separate_resources(self):
         items = module.render(self.image, self.image)['items']
