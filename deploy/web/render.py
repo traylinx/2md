@@ -51,6 +51,7 @@ def render(read_image, control_image, namespace='production', runtime_bindings=F
             'template': {'metadata': {'labels': labels}, 'spec': {
                 'automountServiceAccountToken': False, 'enableServiceLinks': False,
                 'terminationGracePeriodSeconds': 20,
+                'imagePullSecrets': [{'name': 'registry-ghcr'}],
                 'securityContext': {'runAsNonRoot': True, 'runAsUser': 1000, 'runAsGroup': 1000,
                                     'seccompProfile': {'type': 'RuntimeDefault'}},
                 'containers': [container]}}}))
@@ -58,7 +59,6 @@ def render(read_image, control_image, namespace='production', runtime_bindings=F
             pod = items[-1]['spec']['template']['spec']
             # Bind pre-provisioned secrets only. Never render secret values or enable traffic.
             container['envFrom'] = [{'secretRef': {'name': name + '-runtime', 'optional': False}}]
-            pod['imagePullSecrets'] = [{'name': 'traylinx-web-registry'}]
             if role == 'read':
                 pod['volumes'] = [{'name': 'confirmation-public', 'secret': {
                     'secretName': 'traylinx-web-confirmation-public', 'defaultMode': 292,

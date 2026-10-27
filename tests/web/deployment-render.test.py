@@ -42,7 +42,7 @@ class DeploymentTest(unittest.TestCase):
             self.assertEqual(deployment['spec']['replicas'], 0)
             pod = deployment['spec']['template']['spec']
             container = pod['containers'][0]
-            self.assertEqual(pod['imagePullSecrets'], [{'name': 'traylinx-web-registry'}])
+            self.assertEqual(pod['imagePullSecrets'], [{'name': 'registry-ghcr'}])
             self.assertFalse(container['envFrom'][0]['secretRef']['optional'])
             self.assertTrue(all(e['value'] == '0' for e in container['env'] if e['name'].endswith('_ENABLED')))
         self.assertNotIn('initContainers', read)

@@ -235,7 +235,8 @@ or migration jobs. Explicit environment entries override secret-supplied flags.
 
 Required names in the deployment namespace:
 
-- `traylinx-web-registry`: image-pull secret with read access to the private package.
+- `registry-ghcr`: existing platform image-pull secret. Access to the new private
+  package was verified by actual Kubernetes pulls; no credential copy or rotation.
 - `traylinx-web-read-runtime`: READ environment configuration only.
 - `traylinx-web-control-runtime`: control environment configuration only.
 - `traylinx-web-confirmation-public`: `public.pem`, mounted only in READ.
@@ -255,3 +256,20 @@ Secret projection/fsGroup behavior live; verify it during the disabled deploymen
 before enabling approval traffic. No real signing key or cluster Secret was
 created by these checks. Runtime/network configuration and upstream deployment
 remain required; this option is not an activation command.
+
+## Disabled cluster deployment verified — 27 October 2026
+
+READ/control Deployments, ClusterIP Services and deny-all NetworkPolicies now exist
+in production. Each deployment was briefly scaled to one replica with all feature
+flags off, using its qualified private digest and existing `registry-ghcr` pull
+secret. Both ran as UID1000 with zero restarts; liveness returned 200, readiness
+and product traffic returned 503 as required while disabled. Both were then scaled
+back to zero. No public ingress, runtime Secrets or product schema were created.
+
+Evidence: workspace `docs/evidence/web-disabled-deployment-2026-10-27/`. This proves
+private registry access and disabled startup on the actual cluster, not enabled
+service readiness. Existing AUTH/Workspace/SEARCH/HTML2MD deployments were not
+modified. Runtime bindings, live key staging and enabled dependency checks remain
+pending. Workspace/SEARCH ingress currently attaches legacy auth plugins; dedicated
+Sentinel-only route handling must be verified before activation, without weakening
+legacy authentication.
