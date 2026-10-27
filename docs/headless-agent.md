@@ -95,3 +95,33 @@ current application-secret state at execution. Missing generations are rejected;
 old agent plans must be proposed again. The fingerprint contains no caller secret
 and is not an execution credential. Rotation binding is implemented locally; the
 complete deployed journey remains unverified.
+
+## Submit an approved run
+
+After a human has approved the exact plan with the separate control command, the
+host can run:
+
+```sh
+node scripts/web-agent-run.js PLAN_ID CONFIRMATION_ID STABLE_IDEMPOTENCY_KEY
+```
+
+Use the same protected Sentinel/project environment as the MCP process. Arguments
+contain identifiers only, not credentials. The command does not approve anything.
+It submits the recorded approval to READ and prints the execution ID and state.
+Capture is asynchronous through the durable outbox. Use existing MCP status/result
+tools with that execution ID. No approval or admission MCP tool has been added.
+
+Choose and retain one idempotency key before submission. After an ambiguous network
+failure, reuse the same plan, confirmation and key; never invent a new logical run.
+The client does not retry automatically. A missing, foreign or revoked approval is
+denied. Agent admission additionally requires a recorded human approver. Current
+caller authentication is required for every submission; the worker revalidates the
+original authorization reference and current membership before dispatch.
+
+Production READ must explicitly set `WEB_READ_AGENT_EXECUTION_ENABLED=1` and
+configure `WEB_READ_AGENT_ACCESS_URL`. The new gate defaults off. Agent run calls
+reject browser Origin/cookies and mixed bearer/agent proof. Human routes remain
+unchanged. This gate must remain off until the complete runtime is qualified.
+
+Local route/repository/client/lifecycle tests passed with fixture dependencies.
+No production deployment or credentialed capture through this command has occurred.

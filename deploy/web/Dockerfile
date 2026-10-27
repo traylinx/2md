@@ -31,7 +31,7 @@ CMD ["node", "--max-old-space-size=256", "scripts/web-read-server.js"]
 
 FROM read AS mcp
 COPY --from=mcp-deps /app/deploy/web-agent /app/deploy/web-agent
-COPY scripts/web-agent-mcp.js /app/scripts/web-agent-mcp.js
+COPY scripts/web-agent-mcp.js scripts/web-agent-run.js /app/scripts/
 CMD ["node", "--max-old-space-size=256", "scripts/web-agent-mcp.js"]
 
 # Separate headless human control plane; do not mount its key/token in MCP or READ.

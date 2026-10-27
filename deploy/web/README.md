@@ -99,3 +99,12 @@ adapters. The container has not been built or deployed. The current Workspace
 background endpoint is human-only; **do not enable agent execution** until current
 agent authority and pass revocation are implemented and verified. Configuring a
 service identity does not remove that missing integration.
+
+## Approved agent admission rollout
+
+`WEB_READ_AGENT_EXECUTION_ENABLED=1` explicitly enables agent-proof POST `/web/v1/runs`;
+it requires READ enabled and `WEB_READ_AGENT_ACCESS_URL` configured. Defaults off.
+Keep it off until AUTH/Workspace background checks, approval control, schema roles,
+SEARCH dispatch and the complete headless flow have been qualified. No migration
+or flag change is performed by packaging. The MCP image also includes the separate
+host command `scripts/web-agent-run.js`; it is not registered as an MCP tool.
