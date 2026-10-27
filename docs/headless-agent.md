@@ -28,8 +28,9 @@ Available tools:
 - `read_run_result`: retrieve an already authorized result as untrusted source data.
 
 There is no model-callable approval, signing, admission, arbitrary fetch or shell
-tool. Host-controlled approval and background agent revocation are still pending;
-agent execution remains denied. This is not yet the complete comparison agent.
+tool. Host-controlled approval and background authorization are implemented and tested
+in isolation. Production activation remains pending. This is not yet the complete
+comparison agent.
 
 Verified locally: official MCP client initialization/list/call over in-memory
 transport, HTTP adapter boundaries using synthetic responses, and real stdio
@@ -71,9 +72,9 @@ changed approver cannot overwrite the original audit. Control-role UPDATE cannot
 change `approved_by`.
 
 Implementation tests use synthetic authorization/database adapters plus isolated
-real PostgreSQL audit/role checks. Control-service composition is implemented and fixture-tested. Background agent
-revocation, actual interactive credentialed approval and agent admission remain
-pending. No web login/UI is required by this API/command.
+real PostgreSQL audit/role checks. Control-service composition, background authorization and admission are implemented
+and tested in isolation. Actual interactive credentialed approval and production
+activation remain pending. No web login/UI is required by this API/command.
 
 ## Saved authorization reference
 
@@ -85,8 +86,8 @@ No access token, Sentinel proof or client secret is stored in this reference.
 
 Background permission checks receive this exact reference. Old agent plans without
 one cannot pass that check and must be proposed again. Existing human plan shapes
-and digests are unchanged. The production background AUTH adapter, rotation
-coverage and execution enablement are still pending; saving a reference alone
+and digests are unchanged. The background AUTH adapter and rotation checks are implemented and locally
+tested, but full AUTH database qualification and production activation remain pending; saving a reference alone
 never authorizes a run.
 
 Authorization references also contain an opaque `generation` supplied by AUTH's
@@ -125,3 +126,34 @@ unchanged. This gate must remain off until the complete runtime is qualified.
 
 Local route/repository/client/lifecycle tests passed with fixture dependencies.
 No production deployment or credentialed capture through this command has occurred.
+
+## Pilot restrictions and error recovery
+
+Enabled READ and control now require operator configuration
+`WEB_PILOT_ORGANIZATION_ID`, `WEB_PILOT_PROJECT_ID` and
+`WEB_CAPTURE_ALLOWED_ORIGINS` (1–20 exact public HTTPS origins). These are
+server-side restrictions, not values the model or customer can override. Missing
+configuration fails startup closed. Verified callers, human approvers and
+background owners must belong to the approved pilot project.
+
+READ and control must use the same base policy version and source list. Their
+effective policy version hashes the version, pilot scope and sorted origins;
+changing any of these invalidates old approvals. Source checks run before a
+proposal is saved and again before approval, admission and dispatch. Configure
+the identical source list on SEARCH (`WEB_CAPTURE_ALLOWED_ORIGINS`); receiver
+SSRF/source checks remain enabled. Cross-service configuration parity must be
+verified before activation; this is not runtime capability negotiation.
+
+Plans support 1–5 public URLs, with a **6,144-byte canonical JSON URL-array
+limit**, including URL encoding and JSON escaping. Oversized scopes fail before
+persistence; URLs are never truncated. This keeps accepted grants within the
+existing 8 KiB receiver limit and plans within 16 KiB HTTP/control limits.
+
+The headless client preserves allowlisted status/error pairs, including
+`STALE_PLAN`, `IDEMPOTENCY_CONFLICT`, `ALREADY_ADMITTED` and `RESULT_NOT_READY`.
+Only the last means the result is still pending. Unknown, mismatched, malformed
+or oversized errors become `UNAVAILABLE`; raw server diagnostics are not
+returned. After an uncertain admission, preserve the original plan, confirmation
+and idempotency key. Do not generate another key to bypass a conflict.
+
+These corrections are local implementation, not deployment evidence.

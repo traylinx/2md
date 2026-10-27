@@ -2,7 +2,7 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const os=require('node:os');const path=require('node:path');
 const {generateKeyPairSync,randomBytes}=require('node:crypto');const {spawn}=require('node:child_process');
 const {createProductionRead}=require('../../lib/web/production');
-function environment(file){return {WEB_READ_ENABLED:'1',WEB_READ_ORIGINS:'https://app.example',WEB_READ_RESULT_KEY:randomBytes(32).toString('base64'),
+function environment(file){return {WEB_PILOT_ORGANIZATION_ID:'org',WEB_PILOT_PROJECT_ID:'project',WEB_CAPTURE_ALLOWED_ORIGINS:'https://example.com',WEB_READ_ENABLED:'1',WEB_READ_ORIGINS:'https://app.example',WEB_READ_RESULT_KEY:randomBytes(32).toString('base64'),
  WEB_READ_CONFIRM_PUBLIC_KEY_FILE:file,WEB_READ_POSTGRES_URL:'postgresql://db.example/read',WEB_READ_REDIS_URL:'redis://cache.example',
  WEB_READ_PROJECT_ACCESS_URL:'https://workspace.example/access',WEB_READ_OWNER_ACCESS_URL:'https://workspace.example/owner',WEB_READ_SEARCH_URL:'https://search.example/read',
  WEB_READ_SENTINEL_URL:'https://auth.example/api',WEB_READ_SENTINEL_CLIENT_ID:'synthetic',WEB_READ_SENTINEL_CLIENT_SECRET:'synthetic',

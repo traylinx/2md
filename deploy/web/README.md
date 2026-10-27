@@ -183,3 +183,14 @@ These are **ARM64 packaging results**, not AMD64 release qualification, an enabl
 end-to-end result, a vulnerability audit or registry publication. Mandatory NODE_IMAGE
 build argument produces expected Docker lint warnings about no default FROM value;
 the build supplied the exact digest. No deployment or feature activation occurred.
+
+## Required pilot configuration
+
+Before enabling READ/control, their protected runtime configuration must include
+`WEB_PILOT_ORGANIZATION_ID`, `WEB_PILOT_PROJECT_ID` and
+`WEB_CAPTURE_ALLOWED_ORIGINS`. Disabled processes do not require these values.
+Use identical pilot values, source origins and base policy version in READ/control;
+use the identical source-origin list in SEARCH. Verify parity before deployment.
+Changes invalidate old plans; obtain fresh human approval. No global rollout
+switch is provided by this pilot implementation. Existing image smoke evidence
+predates these changes: rebuild/qualify the release images before activation.
