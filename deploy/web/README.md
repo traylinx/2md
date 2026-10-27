@@ -108,3 +108,23 @@ Keep it off until AUTH/Workspace background checks, approval control, schema rol
 SEARCH dispatch and the complete headless flow have been qualified. No migration
 or flag change is performed by packaging. The MCP image also includes the separate
 host command `scripts/web-agent-run.js`; it is not registered as an MCP tool.
+
+## Bounded isolated headless journey
+
+Run `PG_BIN=/path/to/postgresql/bin python3 tests/web/sql/run-headless-isolated.py`
+with the existing pinned Node dependencies available (`pg`, `ioredis`, `supertest`)
+and `redis-server` installed. For a checkout without `pg`, stage the locked
+`deploy/web/runtime` manifest in an owned temporary directory, run its `npm ci`,
+set `NODE_PATH` to that temporary node_modules directory, then remove it afterward.
+Do not reinstall unrelated project dependencies or install system packages.
+
+The driver creates a socket-only temporary PostgreSQL cluster, applies migrations
+001–006, and runs a single bounded Node journey using actual runtime/control SQL
+roles and a socket-only persistence-disabled Redis. It verifies human approval,
+idempotent admission, single-use dispatch, encrypted result retrieval and
+revocation before dispatch. Node/Redis process group and temporary cluster are
+cleaned on failure as well as success. No production databases or credentials.
+
+Verified locally on 27 October: journey passed. AUTH/Workspace identity and SEARCH
+capture are fixture adapters; this is not real Rails/Sentinel/SEARCH qualification,
+a container build, load test or production deployment.
