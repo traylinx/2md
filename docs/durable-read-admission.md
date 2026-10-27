@@ -301,3 +301,36 @@ resolver; `resolveSession` must come from independent human authentication.
 The current Traylinx frontend's bearer storage is not that independent session.
 Production session login, scoped-role provisioning and listener configuration
 remain pending; synthetic database/session checks do not certify production.
+
+### Dedicated READ executable
+
+Run `npm run start:web-read` (or `node scripts/web-read-server.js`) for the
+separate READ process. The legacy `npm start` command is unchanged. Default state
+is disabled, with no database/SDK connections and readiness HTTP 503. Set
+`WEB_READ_ENABLED=1` only after release prerequisites pass. SIGTERM/SIGINT drain
+owned work and clients; a stuck shutdown exits unsuccessfully after 15 seconds.
+Startup diagnostics never include configuration values or backend exceptions.
+
+Required enabled configuration:
+
+- `WEB_READ_POSTGRES_URL`, `WEB_READ_REDIS_URL`: separately scoped connections.
+- `WEB_READ_RESULT_KEY`: canonical base64 encoding of the shared 32-byte result key.
+- `WEB_READ_PROJECT_ACCESS_URL`, `WEB_READ_OWNER_ACCESS_URL`,
+  `WEB_READ_SEARCH_URL`: fixed HTTPS service endpoints.
+- `WEB_READ_SENTINEL_URL`, `WEB_READ_SENTINEL_CLIENT_ID`,
+  `WEB_READ_SENTINEL_CLIENT_SECRET`, `WEB_READ_AGENT_ID`,
+  `WEB_READ_SEARCH_AGENT_ID`: service identities and pinned peer.
+- `WEB_READ_CONFIRM_PUBLIC_KEY_FILE`, `WEB_READ_CONFIRM_ISSUER`,
+  `WEB_READ_CONFIRM_KEY_ID`: public Ed25519 verification material only.
+  Private signing PEMs are rejected; keep signing keys on the human control service.
+- `WEB_READ_POLICY_VERSION`, `WEB_READ_WORKER_ID`: explicit policy and replica identity.
+- `WEB_READ_ORIGINS`: comma-separated exact HTTPS origins, no wildcard.
+- Optional `WEB_READ_HOST` (default `127.0.0.1`) and `WEB_READ_PORT` (default `8081`).
+
+Supply credentials through protected runtime configuration, never command-line
+arguments. SDK requests use a 3-second timeout and no automatic retries. The
+executable composes the real Workspace resolvers, pinned Sentinel receiver,
+confirmation verifier, storage clients and dispatcher. It never applies schemas.
+The runtime image must include the pinned pg dependency and the existing pinned
+Sentinel SDK package. Packaging, real database/framework qualification and human
+control login integration remain release prerequisites; no deployment is implied.

@@ -9,6 +9,7 @@
   "scripts": {
     "build": "npm run build --prefix frontend",
     "start": "node server.js",
+    "start:web-read": "node scripts/web-read-server.js",
     "dev": "node server.js",
     "test": "vitest run",
     "test:compat": "node scripts/test-compat.cjs",
