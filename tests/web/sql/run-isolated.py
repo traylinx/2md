@@ -50,7 +50,9 @@ try:
     run(psql + ['-f', root/'tests/web/sql/results.sql'])
     run(psql + ['-f', root/'deploy/web/005_runtime_roles.sql'])
     run(psql + ['-f', root/'tests/web/sql/roles.sql'])
-    print('ISOLATED_POSTGRES_ADMISSION_WORKER_DISPATCH_RESULTS_ROLES_PASS', flush=True)
+    run(psql + ['-f', root/'deploy/web/006_agent_approval_audit.sql'])
+    run(psql + ['-f', root/'tests/web/sql/approval_audit.sql'])
+    print('ISOLATED_POSTGRES_ADMISSION_WORKER_DISPATCH_RESULTS_ROLES_APPROVAL_PASS', flush=True)
 finally:
     if started:
         run([bin_dir/'pg_ctl', '-D', tmp/'data', '-m', 'fast', '-w', 'stop'])

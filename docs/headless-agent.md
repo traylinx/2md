@@ -40,3 +40,37 @@ qualified/configured before remote proposal/result calls can work.
 
 Protocol references: [stdio transport](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports)
 and [tools](https://modelcontextprotocol.io/specification/2025-03-26/server/tools).
+
+## Separate headless approval command (not an MCP tool)
+
+`node scripts/web-agent-approve.js <planId> [confirmationId]` is a user-operated
+interactive command. It requires a real terminal, fetches the stored plan from a
+separate control API, displays JSON-escaped targets/bounds/digest, and asks the
+user to type the full digest. No `--yes` or noninteractive override exists. A
+confirmation ID is displayed before submission; reuse it after an ambiguous
+response rather than approving a second logical run.
+
+The user's protected environment supplies `TRAYLINX_CONTROL_URL` (HTTPS base
+ending in `/approvals`), `TRAYLINX_CONTROL_HUMAN_TOKEN`, and the organization/project
+selectors. **Do not put this human token in the MCP process environment or expose
+this command through model tools.** A terminal check alone is not proof of a
+human: the host must protect this separate credential/control boundary.
+
+The separate disabled-by-default `createHeadlessApprovalApplication` exposes
+GET/POST `/approvals/:planId`. It rejects browser/cookie/agent credentials and
+requires a current human OWNER/ADMIN in that project. It validates the agent's
+current project authority, the exact stored digest and policy, signs internally,
+verifies its assertion and records confirmation plus the human approver subject.
+The private signing key and assertion never leave the control service. This is
+explicit project-administrator approval, not creator impersonation or automatic
+consent inferred from the customer pass. MEMBER approval is not yet supported.
+
+Manual migration `006_agent_approval_audit.sql` adds the approver audit column.
+Existing confirmations are not backfilled as human approvals. A retry with a
+changed approver cannot overwrite the original audit. Control-role UPDATE cannot
+change `approved_by`.
+
+Implementation tests use synthetic authorization/database adapters plus isolated
+real PostgreSQL audit/role checks. Production control-service composition,
+background agent revocation, actual interactive credentialed approval and agent
+admission remain pending. No web login/UI is required by this API/command.
