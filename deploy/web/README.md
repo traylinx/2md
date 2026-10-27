@@ -31,9 +31,10 @@ is protocol only. Inject Sentinel/project configuration through the host's secre
 mechanism. Do not bake secrets into image layers/build arguments. See
 `docs/headless-agent.md` for variables and the supported tools.
 
-Release gates still open: production-architecture image build/run and publication,
-scoped database provisioning, Workspace integration, host-controlled approval,
-background agent revocation and a real headless client journey. Agent execution is implemented behind a default-off gate, not enabled in production.
+Release gates still open: image publication, scoped production database/runtime
+provisioning, coordinated service release and a real owner-approved headless
+journey. Workspace, approval and background authorization are implemented and
+tested in isolation; that is not live deployment evidence. Agent execution is implemented behind a default-off gate, not enabled in production.
 Packaging is not evidence of deployment or full agent readiness.
 
 ## Database roles (manual migration 005)
@@ -194,3 +195,18 @@ use the identical source-origin list in SEARCH. Verify parity before deployment.
 Changes invalidate old plans; obtain fresh human approval. No global rollout
 switch is provided by this pilot implementation. Existing image smoke evidence
 predates these changes: rebuild/qualify the release images before activation.
+
+## Native AMD64 packaging
+
+Run `bash scripts/package-web-amd64.sh` on the existing native x86_64 Docker
+engine. It packages a committed source whitelist, scans with Gitleaks, builds
+READ/control/MCP sequentially against the pinned Node22 base, verifies architecture
+and runs the real entrypoint/MCP handshake with networking disabled. Smoke
+containers use 1 CPU, 384 MiB, read-only root and no capabilities. Build dependency
+installation requires registry access; no runtime credentials enter the context.
+The script does not publish images, create infrastructure or deploy anything.
+
+Local image IDs are not registry manifest digests. Do not put them into Kubernetes
+manifests as GHCR references. Publish privately and resolve the registry digest
+before rendering a release. Record the source revision and architecture alongside
+that digest. Rebuild if runtime source changes.
