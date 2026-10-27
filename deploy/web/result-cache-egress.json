@@ -1,0 +1,35 @@
+{
+  "apiVersion": "networking.k8s.io/v1",
+  "kind": "NetworkPolicy",
+  "metadata": {
+    "name": "traylinx-web-result-cache-egress",
+    "namespace": "production"
+  },
+  "spec": {
+    "podSelector": {
+      "matchLabels": {
+        "app.kubernetes.io/name": "traylinx-web-read"
+      }
+    },
+    "policyTypes": [
+      "Egress"
+    ],
+    "egress": [
+      {
+        "to": [
+          {
+            "ipBlock": {
+              "cidr": "100.69.18.112/32"
+            }
+          }
+        ],
+        "ports": [
+          {
+            "protocol": "TCP",
+            "port": 6379
+          }
+        ]
+      }
+    ]
+  }
+}

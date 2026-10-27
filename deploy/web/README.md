@@ -329,7 +329,8 @@ READ has no private-key mount and its public-key fingerprint matches control.
 Both deployments were returned to zero replicas; gateway release gate remains on.
 
 **Configuration is incomplete.** Runtime Secrets contain scoped database URLs but still need
-cache and service identity inputs, fixed endpoints and exact pilot/source policy.
+service identity inputs, fixed endpoints and exact pilot/source policy. Cache
+credentials are now present for READ only.
 Do not replace these Secrets with incomplete manifests or regenerate keys on retry.
 Inspect existing names before resuming; preserve the current result/signing keys.
 Use the normal protected cluster backup/recovery process; do not export them into
@@ -361,7 +362,8 @@ pod selectors. It is additive to deny-all isolation; no ingress or other egress 
 opened. Apply this separate policy only as part of approved runtime preparation.
 
 Include this database in the established protected backup process before accepting
-durable production work; **backup enrollment remains pending**.
+durable production work. The existing daily job already includes this database;
+see the verified backup preparation below.
 
 The existing server certificate has SAN `DNS:traylinx-db`. The renderer now mounts
 public certificate trust from ConfigMap `traylinx-web-postgres-ca` at
@@ -378,4 +380,49 @@ Checks confirmed metadata reads, no direct run updates or executor membership,
 and control denied run reads. Both deployments returned to zero replicas with the
 public release gate retained. Evidence: workspace
 `docs/evidence/web-database-access-2026-10-27/`.
-Valkey ACL, backup enrollment and service-identity provisioning remain pending.
+Valkey and backup preparation are recorded below. Service identities and the
+coordinated upstream release remain pending.
+
+## Scoped result cache and backup coverage — 27 October 2026
+
+`web-read-results-v1` is provisioned on the shared Valkey7.2.13 service. Its only
+key pattern is `web-read:{transient-results}:*`; exact commands are versioned in
+`result-cache-acl.json`. INFO supports the existing ioredis readiness handshake.
+No SELECT, key discovery, administrative commands, Pub/Sub or foreign key access
+is granted. EVAL permits scripts within these command/key grants; it is not a
+CPU sandbox or a separate tenant. Existing default/Sentinel users and global
+memory/AOF settings were compared and preserved.
+
+`provision-result-cache.py` is a root/operator utility, not application startup.
+It takes a password through protected stdin, defaults to inspection, and requires
+an approved reference plus exact config hash to apply. It checks the existing
+Sentinel include hash, saves a root-only preimage, creates only the new service-owned
+0600 `/etc/valkey/web-read-users.conf`, and appends its explicit include. No global
+rewrite or restart occurs. Resume interrupted preparation with the existing Secret
+and exact inputs; never regenerate/overwrite credentials to make a retry pass.
+Persistent file verification is not a live restart or recovery test.
+
+Only `traylinx-web-read-runtime` received `WEB_READ_REDIS_URL`. The separate
+`result-cache-egress.json` permits READ alone to reach100.69.18.112:6379; control
+has no cache credential or cache egress. This uses Redis over the private Tailscale
+network, not native Redis TLS. Never expose this listener publicly.
+
+Actual READ pod used the packaged runtime clients and production result-store
+implementation with synthetic content: connection, encrypted write/read, duplicate
+rejection, one-second payload expiry and foreign-key/admin denial all passed.
+One small synthetic index/size reservation remains until normal stale-entry cleanup;
+no global delete/flush was performed. Deployment returned to zero replicas.
+13 focused provisioning/policy tests passed; no runtime image rebuild was needed.
+
+Existing root cron runs the protected database backup script daily at03:00 server
+time. Its database enumeration already includes `web_intelligence`, so no script
+change was needed. Initial server-local custom-format archive was created under
+root-only `/var/backups/pg`, mode0600, and `pg_restore --list` succeeded. No archive
+contents left the host. This is archive readability, **not a restore rehearsal**;
+cluster roles and Kubernetes key recovery remain separate recovery dependencies.
+Existing seven-day find-based retention was unchanged.
+
+Evidence: workspace `docs/evidence/web-cache-backup-2026-10-27/`.
+Remaining release inputs: dedicated service identities, exact pilot/source policy,
+fixed endpoint settings and compatible AUTH/Workspace/SEARCH releases. Gate stays
+closed; these checks do not demonstrate an enabled end-to-end agent journey.

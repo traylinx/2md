@@ -1,0 +1,24 @@
+{
+  "user": "web-read-results-v1",
+  "rules": [
+    "reset",
+    "on",
+    "sanitize-payload",
+    "resetchannels",
+    "~web-read:{transient-results}:*",
+    "+ping",
+    "+info",
+    "+eval",
+    "+time",
+    "+zrangebyscore",
+    "+hdel",
+    "+zrem",
+    "+exists",
+    "+hvals",
+    "+zcard",
+    "+zadd",
+    "+hset",
+    "+set",
+    "+get"
+  ]
+}
