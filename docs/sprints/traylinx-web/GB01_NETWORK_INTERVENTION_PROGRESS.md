@@ -43,3 +43,21 @@ OPERATION_BRIDGE.tap:3 overlapping targeted checks PASS after adding child pause
 coverage. No real browser intervention yet. Protected owner UI and Puppeteer wait
 behavior across a long pause still require integration/qualification. Public-mode
 and initial-navigation interventions remain separate outstanding coverage.
+
+## Protected host decision surface
+
+Paired loopback `/operations/:id` displays only destination/method/resource/body size,
+session and operation digest; approve signs exact current pending context, deny
+cancels it. HttpOnly owner-session and one-use origin-bound CSRF checks precede both.
+The page states that approval resumes the held request automatically; MCP instructions
+say to poll its original action ID, never issue a replacement action. An unpaired
+browser cannot inspect or approve the operation.
+
+OPERATION_HOST.tap:121 focused checks passed including actual loopback owner form,
+signed runtime routes and fixture-worker continuation. OPERATION_HOST_AUTHORITY.tap:
+1 additional paired-owner/signing check passed. Still not real Chromium end-to-end.
+Browser click now retains command ownership through network idle; navigation/auth
+waits use the active action/session deadline instead of an independent wall-clock
+Puppeteer timeout, so a trusted pause is not defeated by a five-second timeout.
+These browser timing changes still require the next real Chromium long-pause check.
+Public/initial-navigation intervention handling remains pending.

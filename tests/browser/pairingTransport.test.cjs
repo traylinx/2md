@@ -8,7 +8,12 @@ const {bound,owner,grant,privateKey}=require('./support.cjs');
 const c=require('../../lib/browser/contracts');
 for(const emailFirst of [false,true])test(`signed pairing transport and single protected input, email-first=${emailFirst}`,async()=>{
  let revoked=false;const g={...grant(),policyVersion:c.POLICY,hostKeyFingerprint:bound.hostKeyFingerprint,approvedByWorkspaceUserId:owner.workspaceUserId};
- const nonces=new Set();const runtime=createBrowserRuntime({privateEnabled:true,pairingOrigin:'https://traylinx.example.org',autoSweep:false,runtimeEpoch:'e1',authorize:async()=>{if(revoked)c.deny('PERMISSION_REQUIRED');return g;},resolveCaller:async()=>bound,resolveHuman:async({authorization})=>{if(authorization!=='Bearer owned-human-fixture')c.deny('FORBIDDEN');return owner;},consumeNonce:async({nonce})=>{if(nonces.has(nonce))return false;nonces.add(nonce);return true;},lease:async()=>{},workerFactory:({protectedInputForSession})=>async input=>({execute:async(name,action)=>{assert.equal(name,'browser_authenticate');const provider=protectedInputForSession(input.sessionId),prepared=await provider.getAuthDecision(action);await provider.verifyDecision(prepared.proof,prepared.decision);await provider.credentialAccess({credentialRef:action.credentialRef,sessionId:input.sessionId,origin:'https://example.org',recipients:prepared.recipients},secret=>{assert.equal(secret.password.toString(),action.fields.passwordRef?'SYNTHETIC_PASSWORD':'');assert.equal(secret.username.toString(),'SYNTHETIC_USER');});return {state:'login_submitted',evidenceIds:[]};},dispose:async()=>{}})});
+ const nonces=new Set();const runtime=createBrowserRuntime({privateEnabled:true,pairingOrigin:'https://traylinx.example.org',autoSweep:false,runtimeEpoch:'e1',authorize:async()=>{if(revoked)c.deny('PERMISSION_REQUIRED');return g;},resolveCaller:async()=>bound,resolveHuman:async({authorization})=>{if(authorization!=='Bearer owned-human-fixture')c.deny('FORBIDDEN');return owner;},consumeNonce:async({nonce})=>{if(nonces.has(nonce))return false;nonces.add(nonce);return true;},lease:async()=>{},workerFactory:({protectedInputForSession})=>async input=>({execute:async(name,action)=>{const provider=protectedInputForSession(input.sessionId);
+ if(name==='browser_act'){
+  const record={sessionId:input.sessionId,operationId:'network1',operationDigest:'a'.repeat(64),recipients:['https://new.example.org'],expiresAt:Date.now()+30000,nonce:'network-nonce',reason:'recipient',method:'GET',origin:'https://new.example.org',type:'fetch',bodyBytes:0};
+  const proof=await provider.requestDecision(record),{reason,method,origin,type,bodyBytes,...decision}=record;await provider.verifyDecision(proof,decision);return {state:'active'};
+ }
+ assert.equal(name,'browser_authenticate');const prepared=await provider.getAuthDecision(action);await provider.verifyDecision(prepared.proof,prepared.decision);await provider.credentialAccess({credentialRef:action.credentialRef,sessionId:input.sessionId,origin:'https://example.org',recipients:prepared.recipients},secret=>{assert.equal(secret.password.toString(),action.fields.passwordRef?'SYNTHETIC_PASSWORD':'');assert.equal(secret.username.toString(),'SYNTHETIC_USER');});return {state:'login_submitted',evidenceIds:[]};},dispose:async()=>{}})});
  const client=createBrowserHttpClient({url:'https://browser.example.org/api/browser/v1',bound,grantId:g.grantId,privateKey,agentId:'agent1',sdk:{getAgentRequestHeaders:async()=>({'X-Agent-User-Id':'agent1','X-Agent-Secret-Token':'fixture'})},fetchImpl:async(url,opts)=>{
   const r=await request(runtime.app).post(new URL(url).pathname).set(opts.headers).send(JSON.parse(opts.body));return new Response(r.text,{status:r.status,headers:r.headers});
  }});
@@ -37,6 +42,15 @@ for(const emailFirst of [false,true])test(`signed pairing transport and single p
   const executed=await host.call('browser_authenticate',action);assert.equal(executed.state,'succeeded');assert.equal(executed.output.inputUrl,undefined);assert.equal(executed.output.state,'login_submitted');
   assert.deepEqual(await host.call('browser_authenticate',action),executed);
   await assert.rejects(host.call('browser_authenticate',{...action,submitRef:'different'}),{code:'IDEMPOTENCY_CONFLICT'});
+  if(!emailFirst){
+   const click={sessionId:opened.sessionId,runtimeEpoch:'e1',actionId:'network-click',observationId:'o2',action:{type:'click',ref:'r2'}};
+   const pendingOperation=await host.call('browser_act',click);assert.equal(pendingOperation.state,'needs_input');const operationUrl=pendingOperation.output.inputUrl;assert.match(operationUrl,/\/operations\/network1$/);
+   assert.equal((await fetch(operationUrl)).status,403);
+   const operationPage=await fetch(operationUrl,{headers:{Cookie:cookie}}),markup=await operationPage.text();assert.equal(operationPage.status,200);assert.match(markup,/new.example.org/);assert.doesNotMatch(markup,/SYNTHETIC_PASSWORD/);
+   const operationCsrf=/name="csrf" value="([^"]+)"/.exec(markup)[1];
+   const allowed=await fetch(operationUrl,{method:'POST',headers:{Cookie:cookie,Origin:new URL(operationUrl).origin,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrf:operationCsrf,decision:'approve'})});assert.equal(allowed.status,200);
+   const outcome=await host.call('browser_action_status',{sessionId:opened.sessionId,runtimeEpoch:'e1',actionId:'network-click'});assert.equal(outcome.state,'succeeded');assert.deepEqual(await host.call('browser_act',click),outcome);
+  }
   const next=await host.call('browser_credentials',input);assert.match(next.inputUrl,/^http:\/\/127\.0\.0\.1:/);
   revoked=true;assert.equal((await fetch(url,{headers:{Cookie:cookie}})).status,403);revoked=false;assert.equal((await fetch(url,{headers:{Cookie:cookie}})).status,403);
   // Pairing-only mount does not accidentally expose grant creation.
