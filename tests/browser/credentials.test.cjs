@@ -23,7 +23,7 @@ test('loopback entry requires pairing, same origin and single-use CSRF; no passw
  try{
  const r=p.request(bound,request()),url=s.urlFor(r.interventionId),origin=new URL(url).origin;
  assert.equal((await fetch(url)).status,403);
- const page=await fetch(url,{headers:{cookie:'owner=paired'}}),html=await page.text();assert.equal(page.status,200);assert.equal(page.headers.get('cache-control'),'no-store');
+ const page=await fetch(url,{headers:{cookie:'owner=paired'}}),html=await page.text();assert.equal(page.status,200);assert.equal(page.headers.get('cache-control'),'no-store');assert.equal(page.headers.get('referrer-policy'),'same-origin');
  const csrf=/name="csrf" value="([^"]+)"/.exec(html)[1];
  const body=new URLSearchParams({csrf,username:'owned-user',password:'SYNTHETIC_TEST_ONLY'}).toString();
  const headers={cookie:'owner=paired',origin,'content-type':'application/x-www-form-urlencoded'};
