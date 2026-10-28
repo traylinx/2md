@@ -6,14 +6,17 @@ const {createBrowserHttpClient}=require('../../lib/browser/httpClient');
 const {createProtectedHost}=require('../../lib/browser/protectedHost');
 const {bound,owner,grant,privateKey}=require('./support.cjs');
 const c=require('../../lib/browser/contracts');
-for(const emailFirst of [false,true])test(`signed pairing transport and single protected input, email-first=${emailFirst}`,async()=>{
+for(const emailFirst of [false,true,'paused'])test(`signed pairing transport and single protected input, email-first=${emailFirst}`,async()=>{
  let revoked=false;const g={...grant(),policyVersion:c.POLICY,hostKeyFingerprint:bound.hostKeyFingerprint,approvedByWorkspaceUserId:owner.workspaceUserId};
  const nonces=new Set();const runtime=createBrowserRuntime({privateEnabled:true,pairingOrigin:'https://traylinx.example.org',autoSweep:false,runtimeEpoch:'e1',authorize:async()=>{if(revoked)c.deny('PERMISSION_REQUIRED');return g;},resolveCaller:async()=>bound,resolveHuman:async({authorization})=>{if(authorization!=='Bearer owned-human-fixture')c.deny('FORBIDDEN');return owner;},consumeNonce:async({nonce})=>{if(nonces.has(nonce))return false;nonces.add(nonce);return true;},lease:async()=>{},workerFactory:({protectedInputForSession})=>async input=>({execute:async(name,action)=>{const provider=protectedInputForSession(input.sessionId);
  if(name==='browser_act'){
   const record={sessionId:input.sessionId,operationId:'network1',operationDigest:'a'.repeat(64),recipients:['https://new.example.org'],expiresAt:Date.now()+30000,nonce:'network-nonce',reason:'recipient',method:'GET',origin:'https://new.example.org',type:'fetch',bodyBytes:0};
   const proof=await provider.requestDecision(record),{reason,method,origin,type,bodyBytes,...decision}=record;await provider.verifyDecision(proof,decision);return {state:'active'};
  }
- assert.equal(name,'browser_authenticate');const prepared=await provider.getAuthDecision(action);await provider.verifyDecision(prepared.proof,prepared.decision);await provider.credentialAccess({credentialRef:action.credentialRef,sessionId:input.sessionId,origin:'https://example.org',recipients:prepared.recipients},secret=>{assert.equal(secret.password.toString(),action.fields.passwordRef?'SYNTHETIC_PASSWORD':'');assert.equal(secret.username.toString(),'SYNTHETIC_USER');});return {state:'login_submitted',evidenceIds:[]};},dispose:async()=>{}})});
+ assert.equal(name,'browser_authenticate');const prepared=await provider.getAuthDecision(action);await provider.verifyDecision(prepared.proof,prepared.decision);await provider.credentialAccess({credentialRef:action.credentialRef,sessionId:input.sessionId,origin:'https://example.org',recipients:prepared.recipients},secret=>{assert.equal(secret.password.toString(),action.fields.passwordRef?'SYNTHETIC_PASSWORD':'');assert.equal(secret.username.toString(),'SYNTHETIC_USER');});if(emailFirst==='paused'&&!action.fields.passwordRef){
+ const record={sessionId:input.sessionId,operationId:'email-network',operationDigest:'b'.repeat(64),recipients:['https://new.example.org'],expiresAt:Date.now()+30000,nonce:'email-nonce',reason:'recipient',method:'POST',origin:'https://new.example.org',type:'fetch',bodyBytes:0};
+ const proof=await provider.requestDecision(record),{reason,method,origin,type,bodyBytes,...decision}=record;await provider.verifyDecision(proof,decision);
+ }return {state:'login_submitted',evidenceIds:[]};},dispose:async()=>{}})});
  const client=createBrowserHttpClient({url:'https://browser.example.org/api/browser/v1',bound,grantId:g.grantId,privateKey,agentId:'agent1',sdk:{getAgentRequestHeaders:async()=>({'X-Agent-User-Id':'agent1','X-Agent-Secret-Token':'fixture'})},fetchImpl:async(url,opts)=>{
   const r=await request(runtime.app).post(new URL(url).pathname).set(opts.headers).send(JSON.parse(opts.body));return new Response(r.text,{status:r.status,headers:r.headers});
  }});
@@ -38,7 +41,14 @@ for(const emailFirst of [false,true])test(`signed pairing transport and single p
   const supplied=await fetch(url,{method:'POST',headers:{Cookie:cookie,Origin:new URL(url).origin,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrf,username:'SYNTHETIC_USER',password:'SYNTHETIC_PASSWORD'})});assert.equal(supplied.status,200);assert.doesNotMatch(await supplied.text(),/SYNTHETIC/);
   const ready=await host.call('browser_credentials',input);assert.equal(ready.state,'ready');
   const action={sessionId:opened.sessionId,runtimeEpoch:'e1',actionId:'login1',observationId:'o1',credentialRef:ready.credentialRef,fields:{passwordRef:'p1'},submitRef:'b1'};
-  if(emailFirst){const email={...action,actionId:'email1',fields:{usernameRef:'u1'}};const first=await host.call('browser_authenticate',email);assert.equal(first.state,'succeeded');assert.equal(first.output.state,'login_submitted');assert.equal(first.output.inputUrl,undefined);assert.deepEqual(await host.call('browser_authenticate',email),first);}
+  if(emailFirst){const email={...action,actionId:'email1',fields:{usernameRef:'u1'}};let first=await host.call('browser_authenticate',email);
+  if(emailFirst==='paused'){
+   assert.equal(first.state,'needs_input');const operationUrl=first.output.inputUrl;
+   const markup=await (await fetch(operationUrl,{headers:{Cookie:cookie}})).text();const csrf=/name="csrf" value="([^"]+)"/.exec(markup)[1];
+   assert.equal((await fetch(operationUrl,{method:'POST',headers:{Cookie:cookie,Origin:new URL(operationUrl).origin,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrf,decision:'approve'})})).status,200);
+   first=await host.call('browser_action_status',{sessionId:opened.sessionId,runtimeEpoch:'e1',actionId:'email1'});
+  }
+  assert.equal(first.state,'succeeded');assert.equal(first.output.state,'login_submitted');assert.equal(first.output.inputUrl,undefined);assert.deepEqual(await host.call('browser_authenticate',email),first);}
   const executed=await host.call('browser_authenticate',action);assert.equal(executed.state,'succeeded');assert.equal(executed.output.inputUrl,undefined);assert.equal(executed.output.state,'login_submitted');
   assert.deepEqual(await host.call('browser_authenticate',action),executed);
   await assert.rejects(host.call('browser_authenticate',{...action,submitRef:'different'}),{code:'IDEMPOTENCY_CONFLICT'});
