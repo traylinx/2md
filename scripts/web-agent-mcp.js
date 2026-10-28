@@ -11,7 +11,14 @@ async function main(env=process.env){
  const agentId=required('TRAYLINX_AGENT_USER_ID');
  const sdk=new TraylinxAuthClient(required('TRAYLINX_CLIENT_ID'),required('TRAYLINX_CLIENT_SECRET'),required('TRAYLINX_API_BASE_URL'),agentId,{timeout:3000,maxRetries:0});
  const backend=createHeadlessClient({url:required('TRAYLINX_WEB_READ_URL'),organizationId:required('TRAYLINX_ORGANIZATION_ID'),projectId:required('TRAYLINX_PROJECT_ID'),agentId,sdk});
- server=createAgentMcpServer({backend});
+ let privateReads;
+ if(env.TRAYLINX_LOGIN_CONNECTIONS_FILE||env.TRAYLINX_WEB_CAPTURE_URL){
+  const connections=require('../lib/web/loginConnections').createLoginConnections(required('TRAYLINX_LOGIN_CONNECTIONS_FILE'));
+  connections.list(); // Fail closed on unsafe host file before exposing tools.
+  const capture=require('../lib/web/privateReadClient').createPrivateReadClient({url:required('TRAYLINX_WEB_CAPTURE_URL'),agentId,sdk,backend});
+  privateReads=require('../lib/web/privateReadAgent').createPrivateReadAgent({connections,capture});
+ }
+ server=createAgentMcpServer({backend,privateReads});
  await server.connect(new StdioServerTransport());
  const close=()=>{void server.close().catch(()=>{process.exitCode=1;});};
  process.once('SIGTERM',close);process.once('SIGINT',close);
