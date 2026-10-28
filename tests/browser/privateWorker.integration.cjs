@@ -18,7 +18,7 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
   return res.end('<main><h1>Inbox for owned@example.test</h1><ol>'+messages.slice(second?3:0,second?5:3).map(m=>'<li>'+m+'</li>').join('')+'</ol><p hidden>HIDDEN_MESSAGE</p>'+(second?'':'<a href="/messages?page=2">Older messages</a>')+'</main>');
  }
  if(req.method==='POST'&&process.env.FIXTURE_LOGIN_OUTCOME==='reject'){posts++;req.resume();return res.end('<main><h1>Sign in</h1><p role="alert">Incorrect username or password</p><label>Password<input type="password"></label></main>');}
- if(req.method==='POST'){res.setHeader('Set-Cookie','owned_session=fixture; Secure; HttpOnly; SameSite=Strict');posts++;req.on('data',b=>{body+=b;});return req.on('end',()=>res.end('<aside>OUTSIDE_REGION</aside><main><h1>Owned organization</h1><p>Private membership details. Echo: SYNTHETIC_WORKER_PASSWORD</p><a href="/messages">Messages</a><p hidden>HIDDEN_REGION</p><input value="INPUT_REGION"></main>'));}
+ if(req.method==='POST'){res.setHeader('Set-Cookie','owned_session=fixture; Secure; HttpOnly; SameSite=Strict');posts++;req.on('data',b=>{body+=b;});return req.on('end',()=>res.end('<aside>OUTSIDE_REGION</aside><main><h1>Owned organization</h1><p>Signed in: owned@example.test</p><p>Private membership details. Echo: SYNTHETIC_WORKER_PASSWORD</p><a href="/messages">Messages</a><p hidden>HIDDEN_REGION</p><input value="INPUT_REGION"></main>'));}
  res.end('<h1>Login</h1><form method="post" action="/account"><label>Username<input name="username"></label><label>Password<input type="password" name="password"></label><button>Log in</button></form>');
 });
 (async()=>{
