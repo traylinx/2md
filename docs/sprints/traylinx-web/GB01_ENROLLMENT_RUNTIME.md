@@ -21,3 +21,23 @@ Validation: focused browser suite 105 passed; subsequent database-target configu
 check passed 8 targeted overlapping tests. Database adapters used fixtures, not a
 live privilege/migration verification. Installer flow and release qualification remain
 pending. No production configuration, grants or deployment changed.
+
+## Host connection installer
+
+`node scripts/browser-connect.js` reuses the protected Sentinel credentials loader.
+Host packaging supplies `TRAYLINX_BROWSER_ENROLLMENT_URL` (fixed HTTPS endpoint
+ending `/api/browser/enrollment/v1`), `TRAYLINX_BROWSER_OWNER_SETUP_URL` (fixed HTTPS
+`/admin/browser/connect`), `TRAYLINX_BROWSER_CONNECTION_FILE`, and existing project,
+organization and Sentinel configuration. The destination parent must already be an
+owner-only real directory. Existing files are never overwritten.
+
+Installer generates the Ed25519 key locally, prints a scoped owner-setup link and
+fingerprint, and waits at an ephemeral loopback callback for at most the enrollment
+lifetime. Only a verified PKCE exchange for the same host/grant/project permits a
+0600 connection-file write. Callback errors contain no remote body or credentials.
+Restart the MCP client after installation. No website recipes are involved.
+
+Synthetic integration exercises signed begin/exchange, human approval, real local
+HTTP callback, rejected wrong state, and reload of the protected file. Live owner UI,
+production service and packaging defaults still need qualification. No user host
+connection was created by these tests.
