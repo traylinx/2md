@@ -41,12 +41,12 @@ test('production defaults off and refuses missing containment/configuration',asy
 test('dedicated boot checks schema, wires authority/runtime and closes clients; never applies migrations',async()=>{
  let opened=0,closed=0,stopped=0,queries=[],deps;
  const fakeServer={once(name,callback){if(name==='listening')queueMicrotask(callback);return this;},closeAllConnections(){},close(callback){callback();}};
- const service=createProductionBrowser(env,{loadSdk:()=>({TraylinxAuthClient:class{getAgentRequestHeaders(){return sdk.getAgentRequestHeaders();}}}),clientsFactory:()=>({pool:{query:async q=>{queries.push(q.text);return {rows:[]};}},redis:{set:async()=> 'OK'},open:async()=>{opened++;},close:async()=>{closed++;}}),runtimeFactory:input=>{deps=input;return {app:{listen:()=>fakeServer},stop:async()=>{stopped++;}};}});
+ const service=createProductionBrowser(env,{protectProcess:()=>true,loadSdk:()=>({TraylinxAuthClient:class{getAgentRequestHeaders(){return sdk.getAgentRequestHeaders();}}}),clientsFactory:()=>({pool:{query:async q=>{queries.push(q.text);return {rows:[]};}},redis:{set:async()=> 'OK'},open:async()=>{opened++;},close:async()=>{closed++;}}),runtimeFactory:input=>{deps=input;return {app:{listen:()=>fakeServer},stop:async()=>{stopped++;}};}});
  assert.deepEqual(await service.start(),{enabled:true,port:8292});assert.equal(opened,1);assert.deepEqual(queries,['SELECT grant_id FROM web_browser.grants LIMIT 0']);assert.equal(typeof deps.authorize,'function');assert.equal(typeof deps.resolveCaller,'function');assert.equal(deps.privateEnabled,false);
  await service.stop();await service.stop();assert.equal(stopped,1);assert.equal(closed,1);
 });
 test('missing database schema fails startup and closes clients before binding listener',async()=>{
- let closed=0;const service=createProductionBrowser(env,{loadSdk:()=>({TraylinxAuthClient:class{}}),clientsFactory:()=>({pool:{query:async()=>{throw Error('schema missing');}},open:async()=>{},close:async()=>{closed++;}}),runtimeFactory:()=>{throw Error('must not construct');}});
+ let closed=0;const service=createProductionBrowser(env,{protectProcess:()=>true,loadSdk:()=>({TraylinxAuthClient:class{}}),clientsFactory:()=>({pool:{query:async()=>{throw Error('schema missing');}},open:async()=>{},close:async()=>{closed++;}}),runtimeFactory:()=>{throw Error('must not construct');}});
  await assert.rejects(service.start(),{code:'UNAVAILABLE'});assert.equal(closed,1);
 });
 test('enrollment boot uses separate scoped writer and passes both authority boundaries',async()=>{
@@ -56,7 +56,7 @@ test('enrollment boot uses separate scoped writer and passes both authority boun
  const configured={...env,BROWSER_ENROLLMENT_ENABLED:'1',BROWSER_POSTGRES_URL:'postgres://reader@fixture/web',BROWSER_ENROLLMENT_POSTGRES_URL:'postgres://writer@fixture/web',BROWSER_PROJECT_ACCESS_URL:'https://auth.example.org/project'};
  assert.throws(()=>configuration({...configured,BROWSER_ENROLLMENT_POSTGRES_URL:''}));
  const server={once(n,fn){if(n==='listening')queueMicrotask(fn);},closeAllConnections(){},close(fn){fn();}};
- const service=createProductionBrowser(configured,{
+ const service=createProductionBrowser(configured,{protectProcess:()=>true,
   loadSdk:()=>({TraylinxAuthClient:class{getAgentRequestHeaders(){return sdk.getAgentRequestHeaders();}}}),
   clientsFactory:()=>({pool:{query:async()=>({rows:[r]})},redis:{set:async()=> 'OK'},open:async()=>{},close:async()=>{readerClosed++;}}),
   enrollmentPoolFactory:url=>{assert.equal(url,configured.BROWSER_ENROLLMENT_POSTGRES_URL);return {query:async()=>({rows:[w]}),end:async()=>{writerClosed++;}};},
@@ -64,4 +64,11 @@ test('enrollment boot uses separate scoped writer and passes both authority boun
  });
  await service.start();assert.ok(deps.enrollment);assert.equal(typeof deps.resolveEnrollmentPrincipal,'function');assert.equal(typeof deps.resolveHuman,'function');assert.equal(deps.privateEnabled,false);
  await service.stop();assert.equal(writerClosed,1);assert.equal(readerClosed,1);
+});
+test('unprotected process fails before credentials, clients or listeners are constructed',async()=>{
+ for(const protectProcess of [()=>false,()=>{throw Error('guard unavailable');}]){
+  let touched=false;
+  const service=createProductionBrowser(env,{protectProcess,loadSdk:()=>{touched=true;throw Error('unexpected SDK');},clientsFactory:()=>{touched=true;throw Error('unexpected clients');}});
+  await assert.rejects(service.start(),{code:'UNAVAILABLE'});assert.equal(touched,false);
+ }
 });
