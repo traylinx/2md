@@ -248,3 +248,24 @@ Only an exact loopback PKCE callback is accepted after approval.
 This completes the pairing presentation for an already enrolled host. Initial grant
 and protected host-file enrollment remain unfinished. Source/unit/JSX checks do not
 prove rendered UI, deployed CORS, real owner login or actual agent-app acceptance.
+
+### Initial enrollment components (transport integration pending)
+
+`enrollment` holds bounded two-minute requests for a new host. A current Sentinel
+agent alone creates no permission. The authenticated project owner inspects host
+fingerprint, exact operations, public-HTTPS navigation scope and the proposed
+24-hour grant expiry before approval. Approval uses the existing grant authority
+and transitions into the single-use PKCE pairing exchange. Agent/human scope,
+current token generation, stopped state and callback restrictions are checked.
+Failures attempt revocation; a database outage is not claimed as a verified rollback.
+
+`hostEnrollmentFile` generates the Ed25519 host identity and writes the resulting
+connection through the existing strict loader. The installer supplies a protected
+owner-only directory. The file is created exclusively with mode0600 and fsync;
+existing files/symlinks and unsafe parent directories are refused. Nothing asks the
+user to author JSON, and these operations are not MCP tools.
+
+These components are tested with repository/current-authority fixtures and owned
+local files. Enrollment HTTP proof-of-possession, frontend approval mode and actual
+installer/stdIO activation are not yet connected. No production grant or host file
+was created by these tests.
