@@ -65,3 +65,13 @@ exact candidate HTTP/TLS/PG/Valkey/Chromium end-to-end isolation or all SSRF cas
 First attempt never reached readiness; CNI_REHEARSAL.json retained as unsuccessful,
 cleanup true. Capture image absent from node03's subsequent cache listing; original
 pod waiting reason was not captured, so registry failure is not a proven diagnosis.
+
+### Protected native input follow-up 056d07b
+
+Owned real Chromium found native credential POSTs were rejected because no-referrer
+made Origin null. Changed the protected form policy to same-origin, retaining strict
+Origin/pairing/CSRF enforcement and suppression of external referrers. Six affected
+transport checks and rebuilt exact-image rendered form passed. Evidence:
+PROTECTED_INPUT_RENDERED_RESULT.md / PROTECTED_INPUT_RENDERED_EXACT.txt.
+Candidate c34d6d945b616f42f01dccb3783546b3abb9bf6583098b9ba047c01096e32899.
+No real account, human onboarding certification or production deployment implied.
