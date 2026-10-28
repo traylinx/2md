@@ -21,3 +21,7 @@ test('host cleans up a late open completion after transport shutdown',async()=>{
  let release;const closed=[];const host=createHostLifecycle({autoHeartbeat:false,backend:{protectedCall:async()=>{},call:async(name,input)=>{if(name==='browser_open')return new Promise(r=>{release=r;});closed.push(input.sessionId);return {};}}});
  const pending=host.call('browser_open',{});await host.close();release({sessionId:'late1',state:'succeeded',output:{state:'active'}});await assert.rejects(pending,{code:'CANCELLED'});assert.deepEqual(closed,['late1']);
 });
+test('host without protected input does not advertise or accept private login',async()=>{
+ const host=createHostLifecycle({privateAvailable:false,autoHeartbeat:false,backend:{protectedCall:async()=>{},call:async()=>({available:['browser_open','browser_credentials','browser_authenticate'],permitted:['browser_credentials'],credentialChannel:'protected_provider',ownerConnection:{url:'https://example.org'}})}});
+ try{const result=await host.call('get_browser_capabilities',{});assert.deepEqual(result.available,['browser_open']);assert.deepEqual(result.permitted,[]);assert.equal(result.credentialChannel,'unavailable');assert.equal(result.ownerConnection,undefined);await assert.rejects(host.call('browser_open',{mode:'login_read'}),{code:'UNSUPPORTED'});}finally{await host.close();}
+});

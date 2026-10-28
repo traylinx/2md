@@ -1,6 +1,6 @@
 'use strict';
 async function main(env=process.env){
- let server,browserHost;
+ let server,browserHost,protectedHost;
  try{
  env=require('../lib/web/hostCredentials').hostEnvironment(env);
  const c=require('../lib/web/contracts');
@@ -22,15 +22,16 @@ async function main(env=process.env){
  if(env.TRAYLINX_BROWSER_CONNECTION_FILE){
   const connection=require('../lib/browser/hostConnection').loadHostConnection(env.TRAYLINX_BROWSER_CONNECTION_FILE);
   const browserBackend=require('../lib/browser/httpClient').createBrowserHttpClient({...connection,agentId,sdk});
-  browserHost=require('../lib/browser/hostLifecycle').createHostLifecycle({backend:browserBackend});
+  if(env.TRAYLINX_BROWSER_OWNER_SETUP_URL)protectedHost=await require('../lib/browser/protectedHost').createProtectedHost({...connection,client:browserBackend,ownerSetupUrl:env.TRAYLINX_BROWSER_OWNER_SETUP_URL});
+  browserHost=require('../lib/browser/hostLifecycle').createHostLifecycle({backend:protectedHost||browserBackend,privateAvailable:!!protectedHost});
   browserAgent=require('../lib/browser/mcpAgent').createBrowserMcpAgent({backend:browserHost});
  }
  server=createAgentMcpServer({backend,privateReads,browserAgent});
- server.onclose=()=>{void browserHost?.close().catch(()=>{});};
+ server.onclose=()=>{void (async()=>{await browserHost?.close().catch(()=>{});await protectedHost?.close().catch(()=>{});})();};
  await server.connect(new StdioServerTransport());
  const close=()=>{void server.close().catch(()=>{process.exitCode=1;});};
  process.once('SIGTERM',close);process.once('SIGINT',close);
- }catch{process.stderr.write('traylinx-web-agent: configuration unavailable\n');process.exitCode=1;await server?.close().catch(()=>{});await browserHost?.close().catch(()=>{});}
+ }catch{process.stderr.write('traylinx-web-agent: configuration unavailable\n');process.exitCode=1;await server?.close().catch(()=>{});await browserHost?.close().catch(()=>{});await protectedHost?.close().catch(()=>{});}
 }
 if(require.main===module)void main();
 module.exports={main};

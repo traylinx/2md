@@ -226,3 +226,25 @@ The explicit decision surface remains for cases requiring a genuinely new decisi
 The signed pairing transport fixture now verifies this single-input journey, original
 receipt recovery and changed-action rejection. This corrects the earlier extra-step
 UX; actual stdio setup presentation and multi-step browser acceptance remain pending.
+
+### Traylinx pairing page and actual MCP host
+
+Set `TRAYLINX_BROWSER_OWNER_SETUP_URL=https://traylinx.com/admin/browser/connect`
+only when that page and matching private runtime are deployed. With a configured
+host connection, the stdio entrypoint creates the paired protected host automatically.
+Capabilities return `ownerConnection` containing the one-time setup link, fingerprint
+and expiry until pairing succeeds. The model presents this link; it cannot approve
+it. Without protected-host configuration, private tools are not advertised as
+available and login_read is rejected locally rather than falsely promised.
+
+The page inspects current owner-scoped pairing details before showing its approval
+button. `BROWSER_PAIRING_ORIGIN=https://traylinx.com` enables narrowly scoped CORS
+for pairing inspection/approval only, with bearer authorization and no cookies.
+Legacy grant endpoints retain their no-Origin boundary. Frontend deployment sets
+`REACT_APP_BROWSER_CONTROL_URL` to the fixed HTTPS `/api/browser/control/v1` endpoint;
+URLs supplied in query parameters cannot choose the token destination or callback.
+Only an exact loopback PKCE callback is accepted after approval.
+
+This completes the pairing presentation for an already enrolled host. Initial grant
+and protected host-file enrollment remain unfinished. Source/unit/JSX checks do not
+prove rendered UI, deployed CORS, real owner login or actual agent-app acceptance.
