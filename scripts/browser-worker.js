@@ -17,7 +17,7 @@ process.on('disconnect',terminate);
 process.on('message',async message=>{
   if(message?.type!=='command'||typeof message.requestId!=='string')return;
   const {requestId,name,input}=message;
-  const respond=(type,result)=>process.send?.({type,requestId,...(type==='result'?{result}:{code:'UNAVAILABLE'})});
+  const respond=(type,result)=>process.send?.({type,requestId,...(type==='result'?{result}:{code:result||'UNAVAILABLE'})});
   if(busy){respond('error');return;}busy=true;
   let deadline;
   try{
@@ -43,6 +43,6 @@ process.on('message',async message=>{
       if(Buffer.byteLength(JSON.stringify(result))>limits.maxResultBytes)c.deny('LIMIT_EXCEEDED');
       respond('result',result);
     }
-  }catch{respond('error');}
+  }catch(error){const code=c.publicError(error).body.error;respond('error',['STALE_REFERENCE','PROTECTED_INPUT_REQUIRED','OPERATION_PERMISSION_REQUIRED'].includes(code)?code:'UNAVAILABLE');}
   finally{deadline?.close();busy=false;}
 });

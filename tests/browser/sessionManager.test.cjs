@@ -92,3 +92,15 @@ test('close during creation disposes the late handle and releases its own slot',
  await new Promise(r=>setImmediate(r));
  assert.equal(closed,1);assert.equal(f.manager.diagnostics().active,0);await f.manager.shutdown();
 });
+test('pre-action reference rejection preserves session and receipt without replay',async()=>{
+ let actions=0;const f=fixture({createWorker:async()=>({execute:async name=>{actions++;if(name==='browser_act')c.deny('STALE_REFERENCE');return {observed:true};},dispose:async()=>{}})});
+ const s=await f.manager.open(bound,opening),input=click(s.sessionId);
+ assert.equal((await f.manager.execute(bound,'browser_act',input)).state,'failed');
+ assert.equal((await f.manager.execute(bound,'browser_act',input)).error,'STALE_REFERENCE');assert.equal(actions,1);
+ assert.deepEqual(await f.manager.query(bound,'browser_observe',{sessionId:s.sessionId}),{observed:true});await f.manager.shutdown();
+});
+test('observation output is withheld when authorization is revoked during query',async()=>{
+ let f;f=fixture({createWorker:async()=>({execute:async()=>{f.revoke();return {private:'not returned'};},dispose:async()=>{}})});
+ const s=await f.manager.open(bound,opening);
+ await assert.rejects(f.manager.query(bound,'browser_extract',{sessionId:s.sessionId}),{code:'PERMISSION_REQUIRED'});await f.manager.shutdown();
+});
