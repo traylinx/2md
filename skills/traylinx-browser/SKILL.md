@@ -46,6 +46,7 @@ or accepting elicitation is not owner approval: the protected surface verifies i
 Use the returned credential reference with the observed username/password/submit
 refs. For email-first forms, submit username only, observe the next step and use
 the same reference for the password step. Do not repeat a password attempt blindly.
+`credentials_rejected` means stop, not ask for another password automatically.
 `login_submitted` is not verified account identity; cite the account actually shown
 and flag missing or inconsistent identity evidence.
 
