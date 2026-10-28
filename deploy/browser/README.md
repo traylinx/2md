@@ -151,3 +151,10 @@ noeviction/AOF settings preserved; no restart/data writes.13legacy+16nonce guard
 tests and live scoped checks passed. Production proxy Secret and Workspace pin
 ConfigMap created without deployment/activation. Runtime/database Secret, schema
 and coordinated rollout remain pending. Protected passwords are never in this repo.
+
+Database preparation29October:008 now defines separate browser NOLOGIN roles.
+Migration applied only to web_intelligence; dedicated bounded LOGIN roles created,
+verify-full TLS/effective permissions passed, no READ schema access in either
+direction. Runtime Secret11keys created, no grants seeded. Cluster dependency path
+and runtime activation still await coordinated release. Old fixture evidence using
+READ roles is historical, superseded by BROWSER_DEDICATED_PG_TEST.txt.
