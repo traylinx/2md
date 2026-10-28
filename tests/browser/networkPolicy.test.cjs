@@ -63,3 +63,16 @@ test('pending decision cannot rewrite recipient scope or survive private transit
  await f.policy.enterPrivate('verified',f.record);release('verified');
  await assert.rejects(first,{code:'PERMISSION_REQUIRED'});
 });
+test('private unknown recipient pauses before forwarding and becomes session-authorized only after exact proof',async()=>{
+ let release,seen,calls=0;const f=fixture({requestDecision:record=>{calls++;seen=record;return new Promise(r=>{release=r;});}});
+ await f.policy.enterPrivate('verified',f.record);
+ let forwarded=false;const pending=f.policy.allow(req('https://new.example.org/asset?private=value')).then(()=>{forwarded=true;});
+ await new Promise(r=>setImmediate(r));assert.equal(forwarded,false);assert.equal(seen.reason,'recipient');assert.equal(seen.origin,'https://new.example.org');assert.doesNotMatch(JSON.stringify(seen),/private=value/);
+ release('verified');await pending;assert.equal(forwarded,true);
+ await f.policy.allow(req('https://new.example.org/another'));assert.equal(calls,1);
+});
+test('denied recipient decision never widens scope and requires a new decision',async()=>{
+ let calls=0;const f=fixture({requestDecision:async()=>{calls++;return 'untrusted';}});await f.policy.enterPrivate('verified',f.record);
+ for(let i=0;i<2;i++)await assert.rejects(f.policy.allow(req('https://unapproved.example.org/asset')),{code:'PERMISSION_REQUIRED'});
+ assert.equal(calls,2);assert.equal(f.policy.state().pending,false);
+});
