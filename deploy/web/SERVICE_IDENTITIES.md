@@ -79,3 +79,11 @@ show zero new enrollments. The earlier fixed-cohort blocker above is historical.
 Provision the four service identities through the supported authenticated owner
 API next; do not insert raw rows or reuse customer credentials. Actual creation,
 retry and full agent communication remain to be verified live.
+
+Update28 October2026: all four distinct service identities are now provisioned
+through the authenticated owner API. Same-intent replay preserved the identity and
+credentials; changed-intent replay returned409. Protected runtime Secrets contain
+the role-specific credentials and trust pins. A bounded live SDK check verified
+all four proofs as active. AUTH pins the Workspace verifier; capture grants the
+SEARCH service public capture only for the selected pilot origins. New web routes
+remain closed pending the Workspace release and full approved agent journey.
