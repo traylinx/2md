@@ -8,13 +8,14 @@ const {applySessionGuard}=require('../../lib/browser/browserGuard');
 const c=require('../../lib/browser/contracts');
 const {Observations}=require('../../lib/browser/observations');
 const {createInteractions}=require('../../lib/browser/interactions');
+const {createAuthentication}=require('../../lib/browser/authentication');
 const origin='https://site.example.org',other='https://other.example.org';const requests=[];
 const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),cert:fs.readFileSync(process.env.FIXTURE_CERT)},(req,res)=>{
  requests.push({host:req.headers.host,path:req.url,method:req.method});res.setHeader('Content-Type','text/html');res.setHeader('Access-Control-Allow-Origin',origin);
  if(req.url==='/slow')return;
  if(req.url==='/frame')return res.end(`<p>Same-origin frame content</p><button type=button onclick="this.textContent='Frame clicked'">Frame control</button>`);
  if(req.url==='/login-result')return res.end('<main>Owned account information</main>');
- res.end('<h1>Owned site</h1><iframe src="/frame"></iframe><form method="post" action="/login-result"><input name="user"><button>Log in</button></form>');
+ res.end('<h1>Owned site</h1><iframe src="/frame"></iframe><form method="post" action="/login-result"><input name="user" aria-label="Username"><input name="password" type="password" aria-label="Password"><button>Log in</button></form>');
 });
 (async()=>{
  const lifetime=new Deadline(25000);let browser,proxy,guard;
@@ -46,7 +47,29 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
  assert.equal(await page.evaluate(async()=>(await fetch('/xhr-auth',{method:'POST',body:'synthetic'})).ok),true);
  await Promise.all([page.waitForNavigation({waitUntil:'domcontentloaded'}),page.click('button')]);
  assert.match(await page.content(),/Owned account information/);assert.ok(requests.some(r=>r.path==='/login-result'&&r.method==='POST'));
- policy.endAuthentication();await guard.close();guard=null;
- console.log('PASS: real Chromium same-origin frame observation/action, generic public origin, draining live request, private GET exfil blocked, opaque POST blocked, selected XHR and native POST');
+ policy.endAuthentication();
+ await page.goto(origin,{waitUntil:'networkidle0'});
+ const loginRefs=new Observations(page,'login-page'),loginSnapshot=await loginRefs.observe();
+ let consumed=0;
+ const login=createAuthentication({page,observations:loginRefs,network:policy,credentialAccess:async(binding,use)=>{
+   assert.equal(binding.origin,origin);assert.equal(binding.credentialRef,'owned-credential');assert.equal(consumed++,0);
+   const secret={username:Buffer.from('owned-user'),password:Buffer.from('SYNTHETIC_ONLY')};try{return await use(secret);}finally{Object.values(secret).forEach(b=>b.fill(0));}
+ }});
+ const ref=name=>loginSnapshot.controls.find(c=>c.name===name).ref;
+ const loginRequest={sessionId:'owned-session',runtimeEpoch:'e1',actionId:'login1',observationId:loginSnapshot.observationId,credentialRef:'owned-credential',fields:{usernameRef:ref('Username'),passwordRef:ref('Password')},submitRef:ref('Log in')};
+ await assert.rejects(login(loginRequest,{proof:'owned-verified',decision:{sessionId:'owned-session',operationId:'login1',operationDigest:'wrong',recipients:[origin]},recipients:[origin]},lifetime),{code:'PERMISSION_REQUIRED'});assert.equal(consumed,0);
+ const result=await login(loginRequest,{proof:'owned-verified',decision:{sessionId:'owned-session',operationId:'login1',operationDigest:c.digest(loginRequest),recipients:[origin]},recipients:[origin]},lifetime);
+ assert.equal(result.state,'login_submitted');assert.deepEqual(result.evidenceIds,[]);assert.match(await page.content(),/Owned account information/);assert.equal(consumed,1);
+ await assert.rejects(loginRefs.resolve(loginSnapshot.observationId,ref('Log in')),{code:'STALE_REFERENCE'});
+ await page.goto(origin,{waitUntil:'networkidle0'});
+ await page.evaluate(()=>{const form=document.querySelector('form');const controls=[...form.children];form.replaceWith(...controls);const button=document.querySelector('button');button.type='button';button.onclick=async()=>{await fetch('/spa-login',{method:'POST',body:JSON.stringify({user:document.querySelector('input[name=user]').value,password:document.querySelector('input[type=password]').value})});document.body.innerHTML='<main>Owned SPA account information</main>';};});
+ const spaRefs=new Observations(page,'spa-page'),spaSnapshot=await spaRefs.observe();let spaConsumed=0;
+ const spaLogin=createAuthentication({page,observations:spaRefs,network:policy,credentialAccess:async(binding,use)=>{assert.equal(spaConsumed++,0);const secret={username:Buffer.from('owned-user'),password:Buffer.from('SYNTHETIC_ONLY')};try{return await use(secret);}finally{Object.values(secret).forEach(b=>b.fill(0));}}});
+ const spaRef=name=>spaSnapshot.controls.find(c=>c.name===name).ref;
+ const spaRequest={sessionId:'owned-session',runtimeEpoch:'e1',actionId:'spa-login',observationId:spaSnapshot.observationId,credentialRef:'owned-spa',fields:{usernameRef:spaRef('Username'),passwordRef:spaRef('Password')},submitRef:spaRef('Log in')};
+ const spaResult=await spaLogin(spaRequest,{proof:'owned-verified',decision:{sessionId:'owned-session',operationId:'spa-login',operationDigest:c.digest(spaRequest),recipients:[origin]},recipients:[origin]},lifetime);
+ assert.equal(spaResult.state,'login_submitted');assert.match(await page.content(),/Owned SPA account information/);assert.equal(spaConsumed,1);
+ await guard.close();guard=null;
+ console.log('PASS: real Chromium same-origin frame observation/action, generic public origin, draining live request, private GET exfil blocked, opaque POST blocked, selected XHR and native POST, generic credential-ref native and form-less SPA login (identity not claimed)');
  }finally{await guard?.close();await browser?.close();await proxy?.close();lifetime.close();server.closeAllConnections();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1;});
