@@ -144,3 +144,10 @@ Dedicated browser service8f839393-2f4f-438e-99dc-270a95f9dae3 was created throug
 owner API with persisted idempotency intent and protected response. Bounded OAuth
 identity check confirms active agent binding. No service credentials are in Git.
 Workspace pin and browser runtime bindings are not activated yet.
+
+Runtime preparation29October: guarded provision-nonces.py applied the dedicated
+nonce ACL on traylinx-db after exact-hash preflight. Existing consumers/config and
+noeviction/AOF settings preserved; no restart/data writes.13legacy+16nonce guard
+tests and live scoped checks passed. Production proxy Secret and Workspace pin
+ConfigMap created without deployment/activation. Runtime/database Secret, schema
+and coordinated rollout remain pending. Protected passwords are never in this repo.
