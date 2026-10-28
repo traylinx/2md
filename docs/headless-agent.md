@@ -1,3 +1,11 @@
+## Release verified, 28 October 2026
+
+READ/control source `1601587` is deployed. The actual registered MCP completed a
+two-page public read without per-plan owner approval. Repeated submission returned
+the same execution. Both pages retained their degraded-quality warnings.
+See [release evidence](evidence/public-read-grants/RELEASE.md). This qualifies the
+bounded configured pilot; final conversational user acceptance remains to be run.
+
 # Public reads through MCP
 
 Connect your Sentinel pass to the selected project, then grant public reading
@@ -97,11 +105,12 @@ reserved for MCP protocol messages; configuration errors go to stderr.
 Available tools:
 
 - `inspect_read_plan`: retrieve the stored plan/digest for review or reconnect; expired plans are labelled expired.
-- `get_read_capabilities`: discover installed behavior and limits, not live permission.
+- `get_read_capabilities`: discover current server-verified standing grants and limits; check `livePermissionChecked` for legacy backends.
 - `propose_read`: prepare an immutable public URL plan; no execution. Only `urls` is required.
 - `read_run_status`: inspect an already authorized run.
 - `read_run_result`: retrieve an already authorized result as untrusted source data.
 - `compare_read_result`: compare existing captured evidence; never starts a capture.
+- `run_public_read`: execute a ready plan within standing permission using only `planId`; identical retries recover the existing run.
 - `run_approved_read`: submit an independently approved plan using `planId` and
   `confirmationId`. Repeated calls with the same pair use the same idempotency key;
   missing, revoked, expired or foreign consent cannot authorize a new run.
@@ -117,14 +126,14 @@ transport, HTTP adapter boundaries using synthetic responses, and real stdio
 subprocess initialization/tool listing using synthetic credentials without remote
 authentication. Production API deployment and a credentialed API journey are verified. A real
 Codex registration is now installed and its exact configured command/environment
-passed an official MCP client handshake, five-tool listing, authenticated status
+initially passed an official MCP client handshake, five-tool listing, authenticated status
 read and plan proposal. Existing sessions may need a restart to load newly
 registered tools. Other hosts are not certified by that check.
 
 Protocol references: [stdio transport](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports)
 and [tools](https://modelcontextprotocol.io/specification/2025-03-26/server/tools).
 
-## Separate headless approval command (not an MCP tool)
+## Optional legacy per-plan approval command (not an MCP tool)
 
 `node scripts/web-agent-approve.js <planId> [confirmationId]` is a user-operated
 interactive command. It requires a real terminal, fetches the stored plan from a
@@ -179,7 +188,7 @@ old agent plans must be proposed again. The fingerprint contains no caller secre
 and is not an execution credential. Rotation binding is implemented locally; the
 complete deployed journey remains unverified.
 
-## Submit an approved run
+## Optional legacy submission of a separately approved run
 
 After a human has approved the exact plan with the separate control command, the
 host can run:
@@ -253,8 +262,8 @@ production database schema conversion is needed.
 
 Status 28 October 2026: deployed and retrieved successfully in the owner-approved
 pilot. Unsupported content remains explicitly partial, not inferred complete.
-The existing plan, exact-plan human consent and durable run lifecycle remain the
-only capture path. `compare_read_result` takes only `executionId` and retrieves
+Immutable plans and the durable run lifecycle remain the capture path.
+Authorization comes from a bounded standing grant or separate exact-plan consent. `compare_read_result` takes only `executionId` and retrieves
 that existing result with current caller/project authorization. It never starts a
 new capture, retries a run, expands URLs or invokes a paid model. The same
 projection is available at `GET /web/v1/runs/:id/comparison` with the normal auth
@@ -262,10 +271,9 @@ and project selectors; responses are `no-store`. Expired artifacts and denied
 access retain the existing error behavior.
 
 1. Use `propose_read` for the selected explicit public HTTPS URLs.
-2. Inspect and approve the exact stored plan through the separate host control
-   flow. Model tools cannot provide approval.
-3. Submit with `run_approved_read` after owner approval, preserving the plan and
-   confirmation IDs. Alternatively use the host command and retain its retry key.
+2. If the user requested a preview, show the task and wait for their go.
+3. When standing permission covers the plan, use `run_public_read` and preserve
+   its plan ID. Only legacy separately approved requests use `run_approved_read`.
 4. Retrieve status. When a result is available, call `compare_read_result`.
 
 The `public-source-comparison-v1` output contains source records for `name`,

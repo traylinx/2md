@@ -1,6 +1,6 @@
 # MCP public-read usability correction
 
-Status: host and durable standing authorization implemented locally; publication/deployment pending.
+Status: implemented, published and deployed; bounded live MCP journey passed. Final conversational user acceptance pending.
 Date: 28 October 2026. Product requirements supplement, not a replacement for the
 canonical Web Intelligence product specification or a monetization authorization.
 
@@ -64,3 +64,5 @@ Do not expand target/network policy or implement monetization as part of this fi
 Local host ergonomics evidence: 19 focused tests passed via
 `node --test --test-concurrency=2 tests/web/hostGuide.test.cjs tests/web/headlessAgent.test.cjs tests/web/mcpServer.test.cjs tests/web/approvalHandoff.test.cjs`.
 This is not a live journey or backend authorization result.
+
+Release evidence: `docs/evidence/web-public-read-grants-2026-10-28/RELEASE_SUMMARY.md`. One-time owner control UI remains separate future product work.

@@ -1,3 +1,16 @@
+## Web Agent standing permission — deployed and live verified, 28 October 2026
+
+READ/control runtime `1601587` and additive migration007 deployed. Registered MCP
+now discovers scoped standing permission and executes public reads without a
+per-plan owner command or confirmation ID. The two-source live run completed;
+repeated admission recovered exactly one execution. Both page-quality warnings
+remain explicit. Legacy/capture and AUTH/USERS deployments were unchanged.
+
+Current [release evidence](../../evidence/public-read-grants/RELEASE.md) records
+exact digests, tests, grant expiry, rollback and final user-test instructions.
+
+---
+
 ## CDN hydration release — live verified, 28 October 2026
 
 Runtime `75cdc964c88343e0a7ec58e29a11e223aa8935b7` is deployed through the
