@@ -201,4 +201,29 @@ Implementation qualification (28 October 2026): 81 targeted capture/auth/route
 checks, six resource-policy checks and an isolated owned Chromium regression
 passed. A separate credential-free public probe returned the MiniMax plan names
 and pricing with the CDN resource grant; malformed-table and blocked-resource
-warnings remained. These are implementation results, not a deployment claim.
+warnings remained. These implementation results were followed by the controlled production release
+documented below.
+
+## CDN hydration release — live verified, 28 October 2026
+
+Runtime `75cdc964c88343e0a7ec58e29a11e223aa8935b7` is deployed through the
+[production workflow](https://github.com/traylinx/2md/actions/runs/40664859704).
+The scoped controllers promoted both the legacy and private capture images;
+all release verification jobs passed. Capture/egress image:
+`ghcr.io/traylinx/2md-capture@sha256:06f33275049b547e3a3f3e9e62552a319be2932d641f4dce4bf69efa08fa7a38`.
+
+The existing SEARCH service grant now includes only the required CDN origin as
+`resourceOrigins`, separate from its unchanged navigation origins. Other callers'
+grants and authenticated-recipe boundaries are unchanged. A guarded capture
+restart loaded the updated grant; rollback snapshots remain on the cluster node.
+
+One authenticated production capture returned HTTP200 with 11,609 Markdown
+characters, plan names and pricing in 11.668 seconds. Direct navigation to the
+resource-only CDN returned HTTP403 without content. The result remains degraded:
+blocked resources, sensitive-text redaction and malformed-table text fallback
+are reported rather than hidden. This is not universal website compatibility or
+a throughput certification. Existing status/dispatch availability findings in
+the headless agent remain separate, unresolved work.
+
+Evidence: workspace `docs/evidence/capture-resource-scope-2026-10-28/`.
+
