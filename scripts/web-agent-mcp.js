@@ -2,6 +2,7 @@
 async function main(env=process.env){
  let server;
  try{
+ env=require('../lib/web/hostCredentials').hostEnvironment(env);
  const c=require('../lib/web/contracts');
  const required=name=>{const v=env[name];if(typeof v!=='string'||!v.trim())c.deny('UNAVAILABLE');return v;};
  const {TraylinxAuthClient}=require('../deploy/capture/sentinel-sdk/node_modules/traylinx-auth-client');

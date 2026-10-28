@@ -2,6 +2,7 @@
 // Host-operated submission, not a model approval tool. Requires existing consent.
 async function main(env=process.env,args=process.argv.slice(2)){
  try{
+ env=require('../lib/web/hostCredentials').hostEnvironment(env);
  const c=require('../lib/web/contracts');
  if(args.length!==3)c.deny('INVALID_INPUT');
  const [planId,confirmationId,idempotencyKey]=args.map(c.identifier);

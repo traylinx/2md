@@ -17,8 +17,10 @@ execute. Do not create raw database rows or substitute the human owner's identit
 `completed` describes the execution lifecycle, and result `complete` means every
 requested URL produced a page. Neither guarantees complete source content or a
 complete comparison. The verified two-source run returned a **partial comparison**:
-MiniMax contained only its page shell, and capture protections reported degraded
-quality. Unknown fields stay unknown; no unsupported product claims were inferred.
+That historical MiniMax capture contained only its page shell. The subsequently
+deployed generic CDN resource-scope correction returned 11,609 characters with
+plan names and pricing in a separate live capture. Protections still report
+degraded quality; a successful capture is not a complete structured comparison. Unknown fields stay unknown; no unsupported product claims were inferred.
 This is a functioning conservative comparison pipeline, not universal extraction.
 
 An earlier run ended `needs_reconciliation` before its capture grant was consumed.
@@ -27,8 +29,8 @@ the earlier failure's root cause is not established. Status polling also observe
 transient 503 responses. Treat those as unavailable/unknown, not permission denial
 or permission to start another run. Failure-stage diagnostics are now deployed.
 Recognized invalid-pass errors now return HTTP401; service failures remain503.
-This mapping is deployed and verified. Full release
-closeout and main/production branch alignment remain pending.
+This mapping is deployed and verified. Qualified backend changes are aligned on
+main and production. Host onboarding qualification is recorded below.
 
 The sections below describe the interfaces; dated pre-deployment verification
 statements are superseded by this live-status section.
@@ -60,6 +62,7 @@ Available tools:
 - `propose_read`: prepare an immutable public URL plan; no execution.
 - `read_run_status`: inspect an already authorized run.
 - `read_run_result`: retrieve an already authorized result as untrusted source data.
+- `compare_read_result`: compare existing captured evidence; never starts a capture.
 
 There is no model-callable approval, signing, admission, arbitrary fetch or shell
 tool. Host-controlled approval and background authorization are implemented and tested
@@ -70,8 +73,10 @@ Verified locally: official MCP client initialization/list/call over in-memory
 transport, HTTP adapter boundaries using synthetic responses, and real stdio
 subprocess initialization/tool listing using synthetic credentials without remote
 authentication. Production API deployment and a credentialed API journey are verified. A real
-Claude/Codex client installation has not been separately exercised; keep its
-protected host configuration and user-control boundary intact.
+Codex registration is now installed and its exact configured command/environment
+passed an official MCP client handshake, five-tool listing, authenticated status
+read and plan proposal. Existing sessions may need a restart to load newly
+registered tools. Other hosts are not certified by that check.
 
 Protocol references: [stdio transport](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports)
 and [tools](https://modelcontextprotocol.io/specification/2025-03-26/server/tools).
@@ -190,7 +195,8 @@ or oversized errors become `UNAVAILABLE`; raw server diagnostics are not
 returned. After an uncertain admission, preserve the original plan, confirmation
 and idempotency key. Do not generate another key to bypass a conflict.
 
-These corrections are local implementation, not deployment evidence.
+These corrections are included in the qualified backend release. Historical
+test-only records remain separate from production journey evidence.
 
 Token references match AUTH’s actual UUID primary keys. Numeric IDs are rejected;
 old synthetic numeric-reference plans must be proposed and approved again. No
@@ -198,7 +204,8 @@ production database schema conversion is needed.
 
 ## Compare captured sources
 
-Status 27 October 2026: implemented locally; not rebuilt, published or deployed.
+Status 28 October 2026: deployed and retrieved successfully in the owner-approved
+pilot. Unsupported content remains explicitly partial, not inferred complete.
 The existing plan, exact-plan human consent and durable run lifecycle remain the
 only capture path. `compare_read_result` takes only `executionId` and retrieves
 that existing result with current caller/project authorization. It never starts a
@@ -251,3 +258,27 @@ and run the separate web image, or use the isolated runtime dependency directory
 with an explicit module path for local development; do not reinstall legacy
 dependencies to start the agent. Source-only branch synchronization does not
 rebuild/redeploy legacy conversion or publish the documentation site.
+
+## Protected credential file and Codex setup
+
+Alternatively to the four credential environment variables, set
+`TRAYLINX_CREDENTIALS_FILE` to an absolute path to a UTF-8 JSON file with exactly
+`clientId`, `clientSecret`, `agentUserId` and `apiBaseUrl`. Both the MCP launcher
+and separate submission command support this option. The file must be a regular
+file owned by the process user, with no group/other permissions (use `0600`),
+at most 16 KiB; symlinks and conflicting credential environment values fail closed.
+This option requires a POSIX host. Protect its parent directory as well. Do not
+commit the file or pass its content through tool arguments. Existing environment-only
+integrations are unchanged. The file path is host configuration, not a model input.
+
+Register `scripts/web-agent-mcp.js` using your host's MCP configuration with an
+absolute Node executable and script path. Configure only the credential-file path,
+READ URL and fixed organization/project selectors. For Codex, use `codex mcp add`
+and inspect with `codex mcp get`; back up and compare existing configuration
+before/after registration. The local CLI used in qualification dropped two existing
+Harvey metadata fields; these were restored and all nine prior servers verified
+unchanged. Never replace the entire host configuration with a sample.
+
+Registration does not approve plans. Owner approval and submission remain separate;
+expired plans require a fresh proposal and approval. After an uncertain admission,
+retain the same idempotency key and inspect that run instead of creating another.
