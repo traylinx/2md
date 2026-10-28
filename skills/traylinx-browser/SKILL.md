@@ -70,3 +70,5 @@ that every remote GET or JavaScript action is immutable.
 No arbitrary scripts, raw selectors, uploads or business-write workaround. Close
 the session when finished or abandoned. Report access failures truthfully instead
 of treating a login gate as successful account retrieval.
+
+Account evidence: report the visible signed-in identity. Compare only with an account explicitly expected for this task, not a usual email from memory or unrelated profile. Stop before private messages on an explicit mismatch; absent identity stays unverified.

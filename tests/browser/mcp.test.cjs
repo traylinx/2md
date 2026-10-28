@@ -53,3 +53,10 @@ test('legacy MCP discovery and calls stay unchanged with browser off, enabled an
   assert.equal((await busy).isError,false);
  }finally{release?.();await busy?.catch(()=>{});await old.client.close();await old.server.close();await enabled?.client.close();await enabled?.server.close();}
 });
+
+test('client-neutral instructions forbid inferred account mismatch from unrelated profile',()=>{
+ const {instructions}=require('../../lib/browser/mcpAgent');
+ assert.match(instructions,/account explicitly expected for this task/);
+ assert.match(instructions,/stop before opening private messages/);
+ assert.match(instructions,/identity is absent, say it is unverified/);
+});
