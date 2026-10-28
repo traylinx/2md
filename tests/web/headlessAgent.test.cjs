@@ -5,10 +5,10 @@ function setup(){const calls=[];const backend={plan:async({spec})=>{calls.push('
 const spec=()=>({urls:['https://example.com/'],deadlineMs:1000,maxResponseBytes:1024});
 test('headless proposal returns exact plan digest without exposing owner identity or execution',async()=>{
  const {agent,calls}=setup();const result=await agent.callTool({name:'propose_read',arguments:spec()});
- assert.equal(result.state,'awaiting_confirmation');assert.match(result.planDigest,/^[a-f0-9]{64}$/);assert.equal(result.authSubject,undefined);assert.deepEqual(calls,['plan']);
+ assert.equal(result.state,'awaiting_confirmation');assert.equal(result.approvalHandoff.chatApprovalSupported,false);assert.equal(result.approvalHandoff.afterApproval.tool,'run_approved_read');assert.match(result.planDigest,/^[a-f0-9]{64}$/);assert.equal(result.authSubject,undefined);assert.deepEqual(calls,['plan']);
 });
-test('tool catalogue excludes approval, admission and credentials; copies cannot mutate definitions',()=>{
- const {agent}=setup();const list=agent.listTools();assert.deepEqual(list.map(t=>t.name),['compare_read_result','inspect_read_plan','propose_read','read_run_status','read_run_result']);list[2].inputSchema.required.push('secret');assert.equal(agent.listTools()[2].inputSchema.required.length,3);
+test('tool catalogue excludes approval and credentials; approved admission is separate; copies cannot mutate definitions',()=>{
+ const {agent}=setup();const list=agent.listTools();assert.deepEqual(list.map(t=>t.name),['get_read_capabilities','compare_read_result','inspect_read_plan','propose_read','read_run_status','read_run_result','run_public_read','run_approved_read']);list[3].inputSchema.required.push('secret');assert.equal(agent.listTools()[3].inputSchema.required.length,1);
 });
 test('model cannot inject identity/credentials or grant consent',async()=>{
  const {agent,calls}=setup();for(const field of ['authorization','clientSecret','organizationId','projectId','confirmed'])

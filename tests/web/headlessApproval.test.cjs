@@ -33,3 +33,20 @@ test('approval command refuses noninteractive use, including an MCP-style subpro
  child.stdin.end();let output='';child.stderr.on('data',chunk=>output+=chunk);
  const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('exit',resolve);});assert.equal(code,1);assert.match(output,/Approval unavailable/);
 });
+test('one-time public grant requires real owner, not model flags',async()=>{
+ const f=fixture();const uri='/approve/p1/public-read-grants?organizationId=org-a&projectId=project-a';
+ const body={planDigest:c.digest(f.plan),grantId:'grant-a',limits:{origins:['https://example.com'],maxUrls:5,deadlineMs:60000,maxResponseBytes:2000000,expiresAt:Date.now()+3600000}};
+ await request(f.app).post(uri).set('X-Agent-User-Id','agent-a').set('X-Agent-Secret-Token','synthetic').send(body).expect(403);
+ f.state.human.effectiveRole='MEMBER';await request(f.app).post(uri).set('Authorization','Bearer human').send(body).expect(403);
+ f.state.human.effectiveRole='OWNER';const response=await request(f.app).post(uri).set('Authorization','Bearer human').send(body).expect(200);
+ assert.equal(response.body.grantId,'grant-a');const insert=f.state.queries.find(q=>q.sql.includes('INSERT INTO web_read.public_read_grants'));assert.equal(insert.args[3],alice.authSubject);
+ assert.equal(JSON.stringify(f.state.queries).includes('Bearer'),false);
+ await request(f.app).post(uri).set('Authorization','Bearer human').send({...body,confirmed:true}).expect(400);
+});
+test('standing permission revoke is human-only and project scoped',async()=>{
+ const f=fixture();const uri='/approve/read-grants/g1/revoke?organizationId=org-a&projectId=project-a';
+ await request(f.app).post(uri).set('X-Agent-User-Id','agent-a').send({}).expect(403);
+ f.state.human.effectiveRole='MEMBER';await request(f.app).post(uri).set('Authorization','Bearer human').send({}).expect(403);
+ f.state.human.effectiveRole='OWNER';await request(f.app).post(uri).set('Authorization','Bearer human').send({}).expect(200);
+ const update=f.state.queries.find(q=>q.sql.startsWith('UPDATE web_read.public_read_grants'));assert.deepEqual(update.args,['g1','org-a','project-a']);
+});

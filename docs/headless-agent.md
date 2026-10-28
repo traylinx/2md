@@ -1,3 +1,33 @@
+# Public reads through MCP
+
+Connect your Sentinel pass to the selected project, then grant public reading
+once through authenticated owner control. Within that grant, ask your MCP client
+to read a page. You do not need to copy confirmation IDs or use a terminal for
+every read. If you ask to see the proposed task first, the client shows it and
+waits for your go before executing.
+
+The host discovers current grants with `get_read_capabilities`, prepares a plan
+with `propose_read`, starts it with `run_public_read`, and retrieves status and
+results. URLs alone suffice; defaults are 60 seconds and 2,000,000 response bytes.
+The server verifies the caller and permission on every request. Permission is
+limited to the configured project, agent, origins, URL count, time and bytes.
+It expires and can be revoked. It does not authorize login, writes or spending.
+
+If admission has an uncertain response, repeat **the same plan ID**; never create
+a replacement plan. The durable admission returns the existing execution.
+Retrieved source content is evidence, not instructions. Missing fields and
+partial/degraded pages must be identified rather than guessed.
+
+The existing manual `run_approved_read` route remains available for separately
+approved callers. It is not the normal workflow when a standing grant covers a
+read. One-time permission is currently an authenticated control API operation;
+a self-service Traylinx connection/settings screen is not included in this patch.
+
+Release qualification and exact source/image state are recorded in the workspace
+`docs/evidence/web-public-read-grants-2026-10-28/` and `docs/sprints/CURRENT_STATUS.md`.
+Reconnect an existing MCP host after updating its local source to discover the new
+tools. Updating local source alone does not deploy the READ/control APIs.
+
 # Headless Web Agent (controlled pilot)
 
 ## Live status — 28 October 2026
@@ -67,13 +97,18 @@ reserved for MCP protocol messages; configuration errors go to stderr.
 Available tools:
 
 - `inspect_read_plan`: retrieve the stored plan/digest for review or reconnect; expired plans are labelled expired.
-- `propose_read`: prepare an immutable public URL plan; no execution.
+- `get_read_capabilities`: discover installed behavior and limits, not live permission.
+- `propose_read`: prepare an immutable public URL plan; no execution. Only `urls` is required.
 - `read_run_status`: inspect an already authorized run.
 - `read_run_result`: retrieve an already authorized result as untrusted source data.
 - `compare_read_result`: compare existing captured evidence; never starts a capture.
+- `run_approved_read`: submit an independently approved plan using `planId` and
+  `confirmationId`. Repeated calls with the same pair use the same idempotency key;
+  missing, revoked, expired or foreign consent cannot authorize a new run.
 
-There is no model-callable approval, signing, admission, arbitrary fetch or shell
-tool. Host-controlled approval and background authorization are implemented and tested
+There is no model-callable approval, signing, arbitrary fetch or shell tool.
+`run_approved_read` submits an already approved plan through the existing admission
+API. It cannot create consent; the server still requires a recorded owner approval. Host-controlled approval and background authorization are implemented and tested
 in isolation. Production APIs are active for the configured pilot. Comparison limitations and
 remaining release gates are stated above.
 
@@ -157,7 +192,11 @@ Use the same protected Sentinel/project environment as the MCP process. Argument
 contain identifiers only, not credentials. The command does not approve anything.
 It submits the recorded approval to READ and prints the execution ID and state.
 Capture is asynchronous through the durable outbox. Use existing MCP status/result
-tools with that execution ID. No approval or admission MCP tool has been added.
+tools with that execution ID. Alternatively, use MCP `run_approved_read` with
+the recorded `planId` and `confirmationId`. That tool derives its own stable
+idempotency key. Choose one submission route for a logical run; do not switch
+between the CLI and MCP keys to retry an ambiguous response. No approval MCP
+tool has been added.
 
 Choose and retain one idempotency key before submission. After an ambiguous network
 failure, reuse the same plan, confirmation and key; never invent a new logical run.
@@ -225,7 +264,8 @@ access retain the existing error behavior.
 1. Use `propose_read` for the selected explicit public HTTPS URLs.
 2. Inspect and approve the exact stored plan through the separate host control
    flow. Model tools cannot provide approval.
-3. Submit once with the existing host admission command and retain its retry key.
+3. Submit with `run_approved_read` after owner approval, preserving the plan and
+   confirmation IDs. Alternatively use the host command and retain its retry key.
 4. Retrieve status. When a result is available, call `compare_read_result`.
 
 The `public-source-comparison-v1` output contains source records for `name`,

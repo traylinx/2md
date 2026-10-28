@@ -486,3 +486,35 @@ This is inactive cluster preparation, not a running comparison service or a new
 pod-level networking test. Service identities, pilot configuration, coordinated
 upstream enrollment release and bounded owner-authorized journey are still required.
 Evidence: workspace `docs/evidence/sentinel-enrollment-release-2026-10-27/`.
+
+## Standing public-read permission (migration 007)
+
+Apply `007_public_read_grants.sql` once before releasing the updated READ/control
+images. It is additive, creates no grant and preserves existing manual approvals.
+READ can inspect grants and execute the guarded admission function, but cannot
+create or revoke grants. Control can create/revoke grants after current human
+OWNER/ADMIN verification. The internal executor owns scoped SQL functions.
+
+Owner setup: create an agent plan, then use authenticated control
+`POST /approvals/:planId/public-read-grants?organizationId=...&projectId=...` with
+`{planDigest, grantId, limits: {origins, maxUrls, deadlineMs, maxResponseBytes, expiresAt}}`.
+`expiresAt` is epoch milliseconds, at most 30 days ahead. Origins must be within
+the operator rollout policy. The grant is bound to that plan's verified agent
+and project. Identical grant ID retries are safe; changed or revoked IDs conflict.
+Revoke through `POST /approvals/read-grants/:grantId/revoke` with the same scope
+and `{}` body. Only the human control channel accepts these operations, not MCP
+or Sentinel agent proof. Do not put human credentials into MCP configuration.
+
+READ adds authenticated `GET /web/v1/capabilities`,
+`GET /web/v1/plans/:planId/authorization` and `POST /web/v1/public-runs` with
+`{planId}`. Plan ID is the stable public-admission retry identity. Grant metadata
+is separate from per-plan human approval; `approved_by` on generated confirmations
+stays null. Admission and actual dispatch consumption lock/check the grant against
+revocation. Revocation cannot undo work already dispatched. Previously admitted
+runs remain recoverable without authorizing another capture.
+
+Rollback: first revoke the release's standing grants through control, then restore
+previous READ/control image digests. Keep the additive schema and audit records;
+do not drop tables, delete runs or replay uncertain work. Migration 007 uses a
+5-second lock timeout and is transactional. No AUTH/USERS migration, signing-key
+change, legacy/capture redeployment or wallet operation is needed.

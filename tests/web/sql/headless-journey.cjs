@@ -41,6 +41,22 @@ async function main(){
  const denied=await propose();await approve(denied,'consent-b');const deniedRun=(await admit(denied,'consent-b','key-b').expect(202)).body;
  revoked=true;await app.runtime.dispatcher.tick();assert.equal(dispatches,1);
  const state=(await agent(request(app.app).get('/web/v1/runs/'+deniedRun.executionId+scope)).expect(200)).body;assert.equal(state.state,'failed');
+ revoked=false;
+ const publicPlan=await propose();
+ const grantLimits={origins:[...new Set(publicPlan.urls.map(u=>new URL(u).origin))],maxUrls:5,deadlineMs:10000,maxResponseBytes:65536,expiresAt:Date.now()+3600000};
+ await request(control.app).post('/approvals/'+publicPlan.planId+'/public-read-grants'+scope).set('Authorization','Bearer synthetic-human').send({planDigest:c.digest(publicPlan),grantId:'journey-grant',limits:grantLimits}).expect(200);
+ const capability=(await agent(request(app.app).get('/web/v1/capabilities'+scope)).expect(200)).body;assert.equal(capability.grants.length,1);
+ assert.equal((await agent(request(app.app).get('/web/v1/plans/'+publicPlan.planId+'/authorization'+scope)).expect(200)).body.canRun,true);
+ const publicAdmit=()=>agent(request(app.app).post('/web/v1/public-runs'+scope)).send({planId:publicPlan.planId});
+ const publicRun=(await publicAdmit().expect(202)).body;
+ assert.equal((await publicAdmit().expect(200)).body.executionId,publicRun.executionId);
+ await app.runtime.dispatcher.tick();
+ assert.equal((await agent(request(app.app).get('/web/v1/runs/'+publicRun.executionId+'/result'+scope)).expect(200)).body.state,'completed');
+ assert.equal(dispatches,2);
+ await request(control.app).post('/approvals/read-grants/journey-grant/revoke'+scope).set('Authorization','Bearer synthetic-human').send({}).expect(200);
+ assert.equal((await publicAdmit().expect(200)).body.executionId,publicRun.executionId);
+ const deniedPublic=await propose();await agent(request(app.app).post('/web/v1/public-runs'+scope)).send({planId:deniedPublic.planId}).expect(403);
+ console.log('STANDING_GRANT_REAL_SQL_HTTP_ADMISSION_REPLAY_DISPATCH_RESULT_REVOKE_PASS');
  assert.ok(ownerChecks>=4);console.log('HEADLESS_ISOLATED_PG_REDIS_APPROVAL_ADMISSION_DISPATCH_RESULT_REVOCATION_PASS');
  console.log('Real SQL scoped roles, Redis encryption and Node routes; AUTH/Workspace identity and SEARCH capture are fixtures. No production qualification.');
  }finally{

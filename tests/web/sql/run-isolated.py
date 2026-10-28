@@ -52,6 +52,8 @@ try:
     run(psql + ['-f', root/'tests/web/sql/roles.sql'])
     run(psql + ['-f', root/'deploy/web/006_agent_approval_audit.sql'])
     run(psql + ['-f', root/'tests/web/sql/approval_audit.sql'])
+    run(psql + ['-f', root/'deploy/web/007_public_read_grants.sql'])
+    run(psql + ['-f', root/'tests/web/sql/public_grants.sql'])
     print('ISOLATED_POSTGRES_ADMISSION_WORKER_DISPATCH_RESULTS_ROLES_APPROVAL_PASS', flush=True)
 finally:
     if started:

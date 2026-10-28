@@ -36,3 +36,15 @@ test('comparison uses the same authorized result reader and never creates a new 
  f.runtime.read=async()=>{throw new WebBoundaryError('FORBIDDEN');};
  await request(f.app).get('/web/v1/runs/r1/comparison').set('Authorization','Bearer synthetic').expect(403);
 });
+test('public admission requires enabled agent execution, proof and exact body without browser authority',async()=>{
+ const f=fixture();f.runtime.admitPublic=async input=>{f.calls.push(input);return {executionId:'r1',replayed:false};};
+ const app=express();app.use('/web/v1',createWebRouter({enabled:true,agentExecutionEnabled:true,runtime:f.runtime,allowedOrigins:['https://app.example']}));
+ const path='/web/v1/public-runs?organizationId=org&projectId=project';const call=()=>request(app).post(path).set('X-Agent-User-Id','agent-a').set('X-Agent-Secret-Token','synthetic');
+ await call().send({planId:'p1'}).expect(202);assert.equal(f.calls.length,1);assert.equal(f.calls[0].planId,'p1');
+ await call().send({planId:'p1',confirmed:true}).expect(422);
+ await call().set('Origin','https://app.example').send({planId:'p1'}).expect(403);
+ await call().set('Cookie','session=x').send({planId:'p1'}).expect(403);
+ await request(app).post(path).set('Authorization','Bearer human').send({planId:'p1'}).expect(403);
+ await request(f.app).post(path).set('X-Agent-User-Id','agent-a').set('X-Agent-Secret-Token','synthetic').send({planId:'p1'}).expect(403);
+ f.runtime.admitPublic=async()=>{throw new WebBoundaryError('PUBLIC_READ_PERMISSION_REQUIRED');};await call().send({planId:'p1'}).expect(403);
+});
