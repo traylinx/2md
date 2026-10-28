@@ -75,3 +75,9 @@ it('classifies login, challenge and empty shells without claiming success', () =
   expect(() => assertPageState({ text: 'Loading...' })).toThrow('No usable page content');
   expect(() => assertPageState({ text: 'This is a useful article with several visible words.' })).not.toThrow();
 });
+it('full rendered document is opt-in and preserves supplementary session content', () => {
+  const html='<body><main><h1>Plan</h1><p>'+('Detailed article content. '.repeat(40))+'</p></main><aside><p>Supplementary session result</p></aside></body>';
+  const legacy=extract(html,'https://example.com');
+  expect(extract(html,'https://example.com','',[],{fullDocument:false})).toEqual(legacy);
+  expect(extract(html,'https://example.com','',[],{fullDocument:true}).markdown).toContain('Supplementary session result');
+});
