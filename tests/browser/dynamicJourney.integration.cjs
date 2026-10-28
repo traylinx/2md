@@ -10,6 +10,10 @@ const origin='https://example.com';let posts=0;
 const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),cert:fs.readFileSync(process.env.FIXTURE_CERT)},(req,res)=>{
  res.setHeader('Content-Type','text/html');
  if(req.method!=='GET'){posts++;res.statusCode=405;return res.end('Denied');}
+ if(req.url==='/gate/mfa')return res.end('<h1>Verify account</h1><label>Security code<input autocomplete="one-time-code"></label>');
+ if(req.url==='/gate/invitation')return res.end('<h1>Beta Access Required</h1><label>Invitation code<input></label>');
+ if(req.url==='/gate/captcha')return res.end('<h1>Verify you are human</h1><div class="captcha">Owned challenge fixture</div>');
+ if(req.url==='/gate/shadow')return res.end(`<div id="host"></div><script>document.querySelector("#host").attachShadow({mode:"open"}).innerHTML='<label>Security code<input autocomplete="one-time-code"></label>';</script>`);
  if(req.url==='/details')return res.end('<main><h1>Plan details</h1><p>Annual billing is charged once per year.</p></main>');
  if(req.url==='/frame')return res.end('<main><h2>Usage policy</h2><p>No absolute token quota published in this fixture.</p></main>');
  res.end(`<!doctype html><title>Owned dynamic plans</title><main><h1>Plans</h1>
@@ -53,6 +57,11 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
  let frameFound=false;for(const frame of view.frames.filter(f=>f.supported)){const evidence=await extract({frameId:frame.frameId});if(evidence.markdown.includes('No absolute token quota'))frameFound=true;}assert.equal(frameFound,true);
  await act(v=>({type:'click',ref:v.links.find(x=>x.name==='Billing details').ref}));assert.match((await extract()).markdown,/Annual billing is charged once per year/);
  const back=await runtime.manager.execute(bound,'browser_navigate',{sessionId,runtimeEpoch:'e1',actionId:'back',target:{back:true}});assert.equal(back.state,'succeeded',JSON.stringify(back));assert.equal(new URL((await extract()).source.url).pathname,'/');
+ for(const [gate,warning] of [['mfa','MFA_REQUIRED'],['invitation','INVITATION_REQUIRED'],['captcha','CAPTCHA_REQUIRED'],['shadow','MFA_REQUIRED']]){
+  const navigation=await runtime.manager.execute(bound,'browser_navigate',{sessionId,runtimeEpoch:'e1',actionId:'gate'+gate,target:{url:origin+'/gate/'+gate}});assert.equal(navigation.state,'succeeded');
+  const state=await observe();assert.equal(state.state,'access_required');assert.ok(state.warnings.includes(warning),JSON.stringify(state.warnings));
+  assert.equal((await extract()).quality,'blocked');
+ }
  assert.equal(posts,0);await runtime.manager.close(bound,sessionId);assert.equal(releases,1);assert.deepEqual(fs.readdirSync(tempRoot),[]);
  console.log('PASS: actual worker dynamic pricing associations, annual tab/currency select, open-shadow action, lazy-scroll limits, same-origin frame extraction, link/back navigation, hidden/disabled exclusion, zero writes and cleanup');
  }finally{await runtime?.stop();await proxy?.close();lifetime.close();server.closeAllConnections();await new Promise(r=>server.close(r));fs.rmSync(tempRoot,{recursive:true,force:true});}
