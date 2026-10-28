@@ -25,3 +25,26 @@ Evidence lives in workspace docs/evidence/gb01-implementation-2026-10-28:
 GRANT_MIGRATION_PG.txt, EXACT_IMAGE_PRIVATE_WORKER.txt,
 CANDIDATE_PROCESS_ISOLATION.txt. Container-isolation fix remains actionable work;
 this is not a request to pause or abandon the sprint.
+
+
+## Guarded candidate follow-up
+
+Candidate `sha256:1ccfb66e5c598971455dd0a4d6ed440cb2b5a6a268f320d4f47b2f4f51eaf6f1`,
+source `e2ab98f`, fixes the observed environment exposure with a non-dumpable
+launcher/runtime and fail-closed kernel-visible startup verification. Probe under
+nonroot/cap-drop-all found both same-UID ancestors unreadable. Worker environment
+has no synthetic parent marker. This proves that observed defect fixed, not all
+possible process-containment properties.
+
+`PROCESS_GUARD_IMAGE.txt`, `GUARDED_PRIVATE_WORKER.txt` and
+`PRIVATE_MESSAGE_FIDELITY.txt` pass. Actual forked Chromium, signed private input,
+one login, cookie-bound two-page inbox, five ordered synthetic messages, account
+and source evidence, no hidden message/password disclosure, no duplicate action,
+profile/proxy cleanup. Owned HTTPS fixture has test-only TLS bypass; network none,
+read-only filesystem, no capabilities, 1 CPU/1 GiB/256 PIDs. No real credentials.
+
+Reproduce with `python3 tests/browser/runCandidatePrivate.py <exact-local-image-id>`.
+Test files mounted read-only; runtime bytes remain the exact image. This scripted
+journey is not a held-out independent layout or a real agentic-client acceptance.
+Remaining client, network/containment, compatibility and release gates still apply.
+No GB01 image published or deployed.
