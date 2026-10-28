@@ -122,6 +122,8 @@ production health check. A failure is not permission to retry indefinitely.
 on api.2md.traylinx.com, using the existing TLS reference. Its separate Kong termination
 gate returns503 until a controlled release explicitly opens it. No apply, activation,
 legacy ingress change, proxy port or health route is included. Dedicated browser
-identity verification in Workspace is still required; current READ/control pins are
-not permission to share their credentials. Retain the gate for rollback before
+identity verification is implemented in Workspace68dbd4a on the published feature
+branch feat/gb01-browser-service-pin, not deployed. Its optional WEB_BROWSER_AGENT_ID
+pin must match the dedicated runtime service identity; READ/control pins are not
+permission to share credentials. Retain the gate for rollback before
 stopping the new runtime. Schema/grant records must remain intact.
