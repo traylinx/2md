@@ -8,8 +8,8 @@ const {StdioServerTransport}=require('../../deploy/web-agent/node_modules/@model
 const c=require('../../lib/browser/contracts');
 async function main(){
  const image=process.argv[2];if(!/^sha256:[a-f0-9]{64}$/.test(image||''))throw Error('Exact image required');
- const fixture=process.argv[3]==='--private'?'privateWorker.integration.cjs':'dynamicJourney.integration.cjs';
- const child=spawn('python3',[path.join(__dirname,'runCandidatePrivate.py'),image,fixture,'--rpc'],{env:{PATH:process.env.PATH,HOME:process.env.HOME},stdio:['pipe','pipe','pipe']});
+ const fixture=['--private','--heldout-private','--heldout-spa-private'].includes(process.argv[3])?'privateWorker.integration.cjs':'dynamicJourney.integration.cjs';
+ const child=spawn('python3',[path.join(__dirname,'runCandidatePrivate.py'),image,fixture,process.argv[3]==='--heldout-spa-private'?'--rpc-heldout-spa':process.argv[3]==='--heldout-private'?'--rpc-heldout':'--rpc'],{env:{PATH:process.env.PATH,HOME:process.env.HOME},stdio:['pipe','pipe','pipe']});
  child.stderr.on('data',()=>{});const pending=new Map();let serial=0,server;
  let readyResolve,readyReject;const ready=new Promise((resolve,reject)=>{readyResolve=resolve;readyReject=reject;});
  readline.createInterface({input:child.stdout}).on('line',line=>{

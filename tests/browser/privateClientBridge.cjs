@@ -19,7 +19,7 @@ async function servePrivateClient(runtime,g){
   const approved=await fetch('http://127.0.0.1:'+api.address().port+'/api/browser/control/v1/pairings/'+pairing+'/approve?organizationId='+owner.organizationId+'&projectId='+owner.projectId,{method:'POST',headers:{Authorization:'Bearer owned-human-fixture','Content-Type':'application/json'},body:'{}'});
   assert.equal(approved.status,200);const callback=await fetch((await approved.json()).redirectUri,{redirect:'manual'});assert.equal(callback.status,303);
   const cookie=callback.headers.get('set-cookie').split(';')[0];
-  lifecycle=createHostLifecycle({backend:host});let supplied=0;
+  lifecycle=createHostLifecycle({backend:host});let supplied=0,decisions=0;
   const input=require('node:readline').createInterface({input:process.stdin});let pending=Promise.resolve();const timer=setTimeout(()=>input.close(),230000);
   process.stdout.write(JSON.stringify({ready:true})+'\n');
   try{await new Promise(done=>{
@@ -33,6 +33,16 @@ async function servePrivateClient(runtime,g){
       const csrf=/name="csrf" value="([^"]+)"/.exec(await page.text())[1];
       const response=await fetch(url,{method:'POST',headers:{Cookie:cookie,Origin:new URL(url).origin,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrf,username:'owned',password:'SYNTHETIC_WORKER_PASSWORD'})});assert.equal(response.status,200);
       result=await lifecycle.call(request.name,request.arguments||{});assert.equal(result.state,'ready');
+     }
+     if(process.env.FIXTURE_HELDOUT==='spa'&&result.state==='needs_input'&&['recipient_consent','operation_consent'].includes(result.output?.reason)){
+      // Synthetic fixture owner, never an MCP approval tool. Exact real protected
+      // form/CSRF/signature path; only the owned origin or owned API is allowed.
+      assert.ok(++decisions<=4);const url=result.output.inputUrl;
+      const response=await fetch(url,{headers:{Cookie:cookie}});assert.equal(response.status,200);
+      const html=await response.text();assert.match(html,/Destination: https:\/\/(?:api\.)?example\.com</);
+      const csrf=/name="csrf" value="([^"]+)"/.exec(html)[1];
+      const approved=await fetch(url,{method:'POST',headers:{Cookie:cookie,Origin:new URL(url).origin,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrf,decision:'approve'})});assert.equal(approved.status,200);
+      result=await lifecycle.call('browser_action_status',{runtimeEpoch:request.arguments.runtimeEpoch,sessionId:result.sessionId,actionId:request.arguments.actionId});
      }
      assert.doesNotMatch(JSON.stringify(result),/SYNTHETIC_WORKER_PASSWORD|owned-human-fixture/);
      process.stdout.write(JSON.stringify({id:request.id,result})+'\n');

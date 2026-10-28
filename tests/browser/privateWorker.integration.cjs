@@ -8,9 +8,11 @@ const {createCompletionSigner}=require('../../lib/browser/completionProof');
 const {AUDIENCE}=require('../../lib/browser/consent');
 const {bound,owner,grant,privateKey}=require('./support.cjs');
 const c=require('../../lib/browser/contracts');
+const heldOut=process.env.FIXTURE_HELDOUT?require('./fixtures/heldOutSite.cjs').createSite({spa:process.env.FIXTURE_HELDOUT==='spa'}):null;
 const origin='https://example.com';let posts=0,body='',messageReads=0;
 const messages=['Message 5: latest synthetic update','Message 4: synthetic schedule','Message 3: synthetic proposal','Message 2: synthetic receipt','Message 1: earliest synthetic note'];
 const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),cert:fs.readFileSync(process.env.FIXTURE_CERT)},(req,res)=>{
+ if(heldOut)return heldOut.handler(req,res);
  res.setHeader('Content-Type','text/html');
  if(req.url.startsWith('/messages')){
   if(!req.headers.cookie?.includes('owned_session=fixture')){res.statusCode=401;return res.end('Login required');}
@@ -28,7 +30,7 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
  const g={...grant(),policyVersion:c.POLICY,hostKeyFingerprint:bound.hostKeyFingerprint,approvedByWorkspaceUserId:owner.workspaceUserId};const nonces=new Set();
  runtime=createBrowserRuntime({privateEnabled:true,pairingOrigin:'https://traylinx.example.org',resolveHuman:async({authorization})=>{if(authorization!=='Bearer owned-human-fixture')c.deny('FORBIDDEN');return owner;},autoSweep:false,runtimeEpoch:'e1',tempRoot,executablePath:process.env.FIXTURE_CHROMIUM_WRAPPER,
  authorize:async()=>g,resolveCaller:async()=>bound,consumeNonce:async({nonce})=>{if(nonces.has(nonce))return false;nonces.add(nonce);return true;},
- lease:async()=>{leases++;proxy=createEgressProxy({deadline:lifetime,resolve:async value=>{const url=new URL(value);assert.equal(url.origin,origin);return {url,addresses:[{address:'127.0.0.1',family:4}]};},connect:options=>net.connect({...options,port:server.address().port})});await new Promise(r=>proxy.server.listen(0,'127.0.0.1',r));return {proxyUrl:`http://127.0.0.1:${proxy.server.address().port}`,release:async()=>{releases++;await proxy.close();}};},
+ lease:async()=>{leases++;proxy=createEgressProxy({deadline:lifetime,resolve:async value=>{const url=new URL(value);assert.ok([origin,...(process.env.FIXTURE_HELDOUT==='spa'?['https://api.example.com']:[])].includes(url.origin));return {url,addresses:[{address:'127.0.0.1',family:4}]};},connect:options=>net.connect({...options,port:server.address().port})});await new Promise(r=>proxy.server.listen(0,'127.0.0.1',r));return {proxyUrl:`http://127.0.0.1:${proxy.server.address().port}`,release:async()=>{releases++;await proxy.close();}};},
  });
  if(process.env.FIXTURE_RPC==='1'){await require('./privateClientBridge.cjs').servePrivateClient(runtime,g);return;}
  const opened=await runtime.manager.open(bound,{runtimeEpoch:'e1',actionId:'open1',mode:'login_read',url:origin,purpose:'Owned synthetic account'});assert.equal(opened.state,'succeeded',JSON.stringify(opened));
