@@ -1,0 +1,52 @@
+'use strict';
+const assert=require('node:assert/strict'),https=require('node:https'),fs=require('node:fs'),net=require('node:net');
+const puppeteer=require('puppeteer');
+const {Deadline}=require('../../lib/capture/deadline');
+const {createEgressProxy}=require('../../lib/capture/egressProxy');
+const {createSessionNetwork}=require('../../lib/browser/networkPolicy');
+const {applySessionGuard}=require('../../lib/browser/browserGuard');
+const c=require('../../lib/browser/contracts');
+const {Observations}=require('../../lib/browser/observations');
+const {createInteractions}=require('../../lib/browser/interactions');
+const origin='https://site.example.org',other='https://other.example.org';const requests=[];
+const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),cert:fs.readFileSync(process.env.FIXTURE_CERT)},(req,res)=>{
+ requests.push({host:req.headers.host,path:req.url,method:req.method});res.setHeader('Content-Type','text/html');res.setHeader('Access-Control-Allow-Origin',origin);
+ if(req.url==='/slow')return;
+ if(req.url==='/frame')return res.end(`<p>Same-origin frame content</p><button type=button onclick="this.textContent='Frame clicked'">Frame control</button>`);
+ if(req.url==='/login-result')return res.end('<main>Owned account information</main>');
+ res.end('<h1>Owned site</h1><iframe src="/frame"></iframe><form method="post" action="/login-result"><input name="user"><button>Log in</button></form>');
+});
+(async()=>{
+ const lifetime=new Deadline(25000);let browser,proxy,guard;
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ const resolve=async value=>{const url=new URL(value);assert.ok([origin,other].includes(url.origin));return {url,addresses:[{address:'127.0.0.1',family:4}]};};
+ try{
+ proxy=createEgressProxy({deadline:lifetime,resolve,connect:options=>net.connect({...options,port:server.address().port})});await new Promise(r=>proxy.server.listen(0,'127.0.0.1',r));
+ browser=await puppeteer.launch({executablePath:process.env.PUPPETEER_EXECUTABLE_PATH,headless:true,pipe:true,args:['--no-sandbox','--disable-dev-shm-usage','--disable-background-networking','--disable-quic','--ignore-certificate-errors',`--proxy-server=http://127.0.0.1:${proxy.server.address().port}`,'--proxy-bypass-list=<-loopback>','--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1']});
+ const page=await browser.newPage();
+ const policy=createSessionNetwork({sessionId:'owned-session',limits:c.LIMITS,navigation:{mode:'public_https'},lifetime,resolve,drainPublic:()=>guard.drainPublic(),verifyDecision:async(proof,record)=>proof==='owned-verified'?record:null});
+ guard=await applySessionGuard(page,browser,policy,lifetime);
+ await page.goto(origin,{waitUntil:'networkidle0'});
+ const frame=page.frames().find(f=>f.url()===origin+'/frame');assert.ok(frame);
+ const refs=new Observations(page,'owned-page'),snapshot=await refs.observe(frame);
+ const action=createInteractions({page,pageId:'owned-page',observations:refs,validateNavigation:async()=>{throw Error('not expected');}});
+ await action.act({observationId:snapshot.observationId,action:{type:'click',ref:snapshot.controls.find(c=>c.name==='Frame control').ref}},lifetime);
+ assert.match(await frame.content(),/Frame clicked/);await refs.clear();
+ assert.equal(await page.evaluate(async url=>(await fetch(url)).ok,other+'/public'),true);
+ await page.evaluate(()=>{void fetch('/slow').catch(()=>{});});
+ for(let i=0;i<100&&!requests.some(r=>r.path==='/slow');i++)await new Promise(r=>setTimeout(r,10));
+ assert.ok(requests.some(r=>r.path==='/slow'));
+ await policy.enterPrivate('owned-verified',{sessionId:'owned-session',operationId:'private1',recipients:[origin]});
+ assert.equal(policy.state().phase,'private');
+ const blocked=await page.evaluate(async url=>{try{await fetch(url);return false;}catch{return true;}},other+'/private-exfil?encoded=synthetic');assert.equal(blocked,true);
+ assert.ok(!requests.some(r=>r.path.startsWith('/private-exfil')));
+ assert.equal(await page.evaluate(async()=>{try{await fetch('/opaque',{method:'POST',body:'synthetic'});return false;}catch{return true;}}),true);
+ assert.ok(!requests.some(r=>r.path==='/opaque'));
+ policy.startAuthentication({operationId:'auth1',origins:[origin],expiresAt:Date.now()+10000,maxRequests:3});
+ assert.equal(await page.evaluate(async()=>(await fetch('/xhr-auth',{method:'POST',body:'synthetic'})).ok),true);
+ await Promise.all([page.waitForNavigation({waitUntil:'domcontentloaded'}),page.click('button')]);
+ assert.match(await page.content(),/Owned account information/);assert.ok(requests.some(r=>r.path==='/login-result'&&r.method==='POST'));
+ policy.endAuthentication();await guard.close();guard=null;
+ console.log('PASS: real Chromium same-origin frame observation/action, generic public origin, draining live request, private GET exfil blocked, opaque POST blocked, selected XHR and native POST');
+ }finally{await guard?.close();await browser?.close();await proxy?.close();lifetime.close();server.closeAllConnections();await new Promise(r=>server.close(r));}
+})().catch(e=>{console.error(e);process.exitCode=1;});
