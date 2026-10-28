@@ -93,3 +93,17 @@ it.each(['synthetic-auth-canary', 123, true, [], null])
     auth: { mode: 'inlineOnce', username: 'synthetic', password: 'synthetic' } });
   expect(valid.status).toBe(200); expect(capacity.active.size).toBe(0);
 });
+it('forwards operator resource scope separately and rejects caller-injected scope', async () => {
+  const seen=[];
+  const server=await app({verify:async()=>({...principal,resourceOrigins:['https://assets.example.net']}),capture:async(_req,options)=>{seen.push(options);return output;}});
+  expect((await request(server).post('/api/capture/v1').send({url:'https://example.com'})).status).toBe(200);
+  expect(seen[0].allowedOrigins).toEqual(['https://example.com']);
+  expect(seen[0].allowedResourceOrigins).toEqual(['https://assets.example.net']);
+  expect((await request(server).post('/api/capture/v1').send({url:'https://example.com',resourceOrigins:['*']})).status).toBe(400);
+});
+it('withholds result if operator resource permission is revoked before disclosure', async () => {
+  let n=0;
+  const server=await app({verify:async()=>({...principal,resourceOrigins:++n===1?['https://assets.example.net']:[]})});
+  const result=await request(server).post('/api/capture/v1').send({url:'https://example.com'});
+  expect(result.status).toBe(403);expect(result.body).not.toHaveProperty('markdown');
+});

@@ -135,3 +135,13 @@ reviewed rendered controller explicitly, and dispatch a release when changing a
 workflow requires verification.
 
 Verified 26 October 2026: [production workflow 40371305787](https://github.com/traylinx/2md/actions/runs/40371305787) succeeded. Legacy, capture and egress report runtime source `2904d336bbf1262ab347fdf861d3d628b7fc2ad9`; capture/egress use the same pinned private image. A bounded owned-origin Sentinel smoke obtained a fresh proof, returned Markdown, and rejected an invalid proof with HTTP 401. This is not a performance or external-login qualification. Subsequent delivery-controller and documentation commits do not rebuild application images.
+
+### Optional public resource permissions
+
+Caller grants may separately specify `resourceOrigins` for exact public HTTPS
+CDN origins used by scripts/stylesheets. See
+[resource permission semantics](../../docs/sentinel-integration.md#public-pages-with-cdn-hosted-application-code).
+This does not expand target navigation or authenticated recipes. Do not put the
+CDN into `origins` merely to load its scripts, and do not accept a caller-provided
+wildcard. Apply through the existing operator grant/reload process after the new
+runtime is deployed; old runtimes do not implement this field.

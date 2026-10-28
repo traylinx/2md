@@ -8,10 +8,10 @@ const root = path.resolve(__dirname, '..');
 if (process.platform !== 'darwin' || !fs.existsSync('/usr/bin/sandbox-exec')) {
   throw new Error('Compatibility lab requires macOS sandbox-exec. No unsandboxed fallback.');
 }
-const selected = { '--sentinel': ['tests/capture/sentinel.test.js', 'tests/capture/verifierTokens.test.js'],
+const selected = { '--resource-scope': ['tests/capture/route.test.js', 'tests/capture/sentinel.test.js', 'tests/capture/lifecycle.test.js'], '--sentinel': ['tests/capture/sentinel.test.js', 'tests/capture/verifierTokens.test.js'],
   '--sentinel-profile': ['tests/capture/verifierProfile.test.js'] };
 const targeted = process.argv.length === 3 && Object.hasOwn(selected, process.argv[2]);
-if (process.argv.length > 2 && !targeted) throw new Error('Only --sentinel or --sentinel-profile is supported; no golden updates.');
+if (process.argv.length > 2 && !targeted) throw new Error('Only --resource-scope, --sentinel or --sentinel-profile is supported; no golden updates.');
 const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), '2md-compat-')));
 const env = {
   PATH: `${path.dirname(process.execPath)}:/usr/bin:/bin`, HOME: tmp, TMPDIR: tmp,

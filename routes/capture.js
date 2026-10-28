@@ -5,6 +5,7 @@ const { CaptureError, publicError } = require('../lib/capture/errors');
 const { readBody } = require('../lib/capture/readBody');
 const { validateRequest } = require('../lib/capture/requestContract');
 const { assertScope } = require('../lib/capture/principal');
+const { resourceOrigins } = require('../lib/capture/resourceScope');
 const { freezeRecipe } = require('../lib/capture/recipe');
 const { Capacity } = require('../lib/capture/capacity');
 const { captureCredentials } = require('../lib/capture/sentinelPrincipal');
@@ -35,10 +36,12 @@ function registerCapture(app, { publicEnabled = false, privateEnabled = false,
         assertScope(principal, request, privateMode);
         const recipe = privateMode ? freezeRecipe(request) : undefined;
         if (!release) release = await capacity.acquire(principal.id, deadline);
-        const result = await capture(request, { deadline, recipe, requestId, allowedOrigins: principal.origins });
+        const allowedResourceOrigins = privateMode ? [] : resourceOrigins(principal);
+        const result = await capture(request, { deadline, recipe, requestId, allowedOrigins: principal.origins, allowedResourceOrigins });
         const current = await verify(credentials.authorization, deadline, credentials);
         if (current.id !== principal.id) throw new CaptureError('FORBIDDEN');
         assertScope(current, request, privateMode);
+        if (allowedResourceOrigins.some(origin => !resourceOrigins(current).includes(origin))) throw new CaptureError('FORBIDDEN');
         deadline.remaining();
         if (!res.destroyed) res.json(result);
       } catch (error) {

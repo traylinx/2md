@@ -164,3 +164,41 @@ Current evidence and next action live in the workspace
 hold remain preserved; the 26 October owner GO supersedes that hold only for the
 bounded implementation-first consumer release. Public npm/docs-site publication
 is separate from deployed private-image state.
+
+## Public pages with CDN-hosted application code
+
+A page origin and its asset origin are different permissions. If a public page
+loads its JavaScript or CSS from a separate CDN, granting only the page origin
+can leave the capture with an unrendered shell. Waiting longer cannot repair a
+blocked application bundle.
+
+Operators can add an optional `resourceOrigins` list to the existing caller grant:
+
+```json
+{
+  "operations": ["capture:public"],
+  "origins": ["https://site.example.com"],
+  "resourceOrigins": ["https://assets.example.net"]
+}
+```
+
+This permission permits only GET/HEAD script and stylesheet requests to up to 16
+exact public HTTPS origins. It does not permit navigating to those origins,
+fetch/XHR API access, POST requests, frames, workers or private-network access.
+Each destination still passes scope and DNS checks. Redirect destinations must
+also satisfy policy. There is no wildcard or automatic CDN discovery grant.
+Caller request bodies cannot supply this permission. Authenticated capture
+recipes retain their existing same-origin restriction and do not inherit it.
+If the permission is removed before result disclosure, the result is withheld.
+Existing grants without this field behave exactly as before.
+
+Select asset origins from an observed dependency, not a website-specific code
+recipe. This fixes CDN-dependent hydration as a class; it does not promise that
+all sites work. Sites requiring denied API writes, logins or human challenges
+remain subject to those controls. Quality warnings remain visible.
+
+Implementation qualification (28 October 2026): 81 targeted capture/auth/route
+checks, six resource-policy checks and an isolated owned Chromium regression
+passed. A separate credential-free public probe returned the MiniMax plan names
+and pricing with the CDN resource grant; malformed-table and blocked-resource
+warnings remained. These are implementation results, not a deployment claim.

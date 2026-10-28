@@ -19,7 +19,7 @@ let used = false;
 process.on('message', async message => {
   if (used || message?.type !== 'capture') return;
   used = true;
-  const { request, recipe, allowedOrigins, proxyUrl, profile, budgetMs } = message;
+  const { request, recipe, allowedOrigins, allowedResourceOrigins, proxyUrl, profile, budgetMs } = message;
   const deadline = new Deadline(Math.max(1, budgetMs - 1000));
   let browser, result, failure;
   try {
@@ -35,7 +35,7 @@ process.on('message', async message => {
         `--proxy-server=${proxyUrl}`, '--proxy-bypass-list=<-loopback>',
         `--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE ${new URL(proxyUrl).hostname}`],
     }));
-    result = await captureWithBrowser(browser, request, { deadline, recipe, allowedOrigins });
+    result = await captureWithBrowser(browser, request, { deadline, recipe, allowedOrigins, allowedResourceOrigins });
   } catch (error) { failure = error instanceof CaptureError ? error.code : 'UPSTREAM_FAILED'; }
   finally {
     deadline.close();

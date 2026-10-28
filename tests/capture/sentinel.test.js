@@ -218,7 +218,7 @@ it('scope restrictions prevent capture and never send platform headers to worker
 });
 it('revocation during capture withholds content and sanitizes errors', async () => {
   const s = await route({ capture: async (input, options) => {
-    expect(Object.keys(options).sort()).toEqual(['allowedOrigins', 'deadline', 'recipe', 'requestId']);
+    expect(Object.keys(options).sort()).toEqual(['allowedOrigins', 'allowedResourceOrigins', 'deadline', 'recipe', 'requestId']);
     expect(JSON.stringify(input)).not.toContain('synthetic-caller-pass');
     behavior.result = { active: false };
     return { markdown: 'PRIVATE_CONTENT_CANARY' };
@@ -411,4 +411,9 @@ it('disabled verifier at final proof withholds content after one bounded safe re
   const res = await request(s).post('/api/capture/v1').set(custom).send({ url: 'https://example.com' });
   expect(res.status).toBe(503); expect(JSON.stringify(res.body)).not.toContain('PRIVATE_CANARY');
   expect(exchanges).toBe(2); expect(calls.filter(c => c.url === '/oauth/agent/introspect')).toHaveLength(3);
+});
+it('carries explicit resource scope without silently expanding navigation grants', async () => {
+  const resources=['https://assets.example.net'];
+  expect(await verify({grants:{[id]:{...grant,resourceOrigins:resources}}})).toEqual({id:`agent:${id}`,...grant,resourceOrigins:resources});
+  await expect(verify({grants:{[id]:{...grant,resourceOrigins:['*']}}})).rejects.toMatchObject({code:'FORBIDDEN'});
 });
