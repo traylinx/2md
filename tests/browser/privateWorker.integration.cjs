@@ -42,13 +42,13 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
  const login=await runtime.manager.execute(bound,'browser_authenticate',request);assert.equal(login.state,'succeeded',JSON.stringify(login));assert.equal(login.output.state,'login_submitted');
  assert.deepEqual(await runtime.manager.execute(bound,'browser_authenticate',request),login);assert.equal(posts,1);assert.equal(new URLSearchParams(body).get('password'),'SYNTHETIC_WORKER_PASSWORD');
  const extracted=await runtime.manager.query(bound,'browser_extract',{sessionId});assert.equal(extracted.source.privacy,'private');assert.match(extracted.markdown,/Owned organization/);assert.doesNotMatch(JSON.stringify(extracted),/SYNTHETIC_WORKER_PASSWORD/);assert.equal(posts,1);
- const snapshot=await runtime.manager.query(bound,'browser_observe',{sessionId});const regionRef=snapshot.regions.find(r=>r.role==='main').ref;
+ const snapshot=await runtime.manager.query(bound,'browser_observe',{sessionId});assert.doesNotMatch(JSON.stringify(snapshot),/HIDDEN_REGION|INPUT_REGION|SYNTHETIC_WORKER_PASSWORD/);const regionRef=snapshot.regions.find(r=>r.role==='main').ref;
  const region=await runtime.manager.query(bound,'browser_extract',{sessionId,regionRef});assert.match(region.markdown,/Owned organization/);assert.doesNotMatch(region.markdown,/OUTSIDE_REGION|HIDDEN_REGION|INPUT_REGION|SYNTHETIC_WORKER_PASSWORD/);assert.equal(region.source.privacy,'private');assert.equal(posts,1);
  // Discover links from observations, retain the same private cookie session.
  let messageText='';
  for(const [index,label] of ['Messages','Older messages'].entries()){
   const view=await runtime.manager.query(bound,'browser_observe',{sessionId});
-  const link=view.links.find(l=>l.name===label);assert.ok(link,JSON.stringify(view.links));
+  assert.doesNotMatch(JSON.stringify(view),/HIDDEN_MESSAGE/);const link=view.links.find(l=>l.name===label);assert.ok(link,JSON.stringify(view.links));
   const action={runtimeEpoch:'e1',sessionId,actionId:'messages'+index,observationId:view.observationId,action:{type:'click',ref:link.ref}};
   const receipt=await runtime.manager.execute(bound,'browser_act',action);assert.equal(receipt.state,'succeeded',JSON.stringify(receipt));
   assert.deepEqual(await runtime.manager.execute(bound,'browser_act',action),receipt);
