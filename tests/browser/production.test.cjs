@@ -49,3 +49,19 @@ test('missing database schema fails startup and closes clients before binding li
  let closed=0;const service=createProductionBrowser(env,{loadSdk:()=>({TraylinxAuthClient:class{}}),clientsFactory:()=>({pool:{query:async()=>{throw Error('schema missing');}},open:async()=>{},close:async()=>{closed++;}}),runtimeFactory:()=>{throw Error('must not construct');}});
  await assert.rejects(service.start(),{code:'UNAVAILABLE'});assert.equal(closed,1);
 });
+test('enrollment boot uses separate scoped writer and passes both authority boundaries',async()=>{
+ const r={role:'reader',database:'web',readable:true,insertable:false,writable:false,revocable:false,deletable:false,truncatable:false,other_update:false};
+ const w={...r,role:'writer',insertable:true,writable:true,revocable:true};
+ let writerClosed=0,readerClosed=0,deps;
+ const configured={...env,BROWSER_ENROLLMENT_ENABLED:'1',BROWSER_POSTGRES_URL:'postgres://reader@fixture/web',BROWSER_ENROLLMENT_POSTGRES_URL:'postgres://writer@fixture/web',BROWSER_PROJECT_ACCESS_URL:'https://auth.example.org/project'};
+ assert.throws(()=>configuration({...configured,BROWSER_ENROLLMENT_POSTGRES_URL:''}));
+ const server={once(n,fn){if(n==='listening')queueMicrotask(fn);},closeAllConnections(){},close(fn){fn();}};
+ const service=createProductionBrowser(configured,{
+  loadSdk:()=>({TraylinxAuthClient:class{getAgentRequestHeaders(){return sdk.getAgentRequestHeaders();}}}),
+  clientsFactory:()=>({pool:{query:async()=>({rows:[r]})},redis:{set:async()=> 'OK'},open:async()=>{},close:async()=>{readerClosed++;}}),
+  enrollmentPoolFactory:url=>{assert.equal(url,configured.BROWSER_ENROLLMENT_POSTGRES_URL);return {query:async()=>({rows:[w]}),end:async()=>{writerClosed++;}};},
+  runtimeFactory:input=>{deps=input;return {app:{listen:()=>server},stop:async()=>{}};},
+ });
+ await service.start();assert.ok(deps.enrollment);assert.equal(typeof deps.resolveEnrollmentPrincipal,'function');assert.equal(typeof deps.resolveHuman,'function');assert.equal(deps.privateEnabled,false);
+ await service.stop();assert.equal(writerClosed,1);assert.equal(readerClosed,1);
+});
