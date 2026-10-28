@@ -38,9 +38,9 @@ process.on('message',async message=>{
           '--disable-crash-reporter','--disable-component-update','--disable-sync','--no-first-run','--disable-quic',
           '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',`--proxy-server=${input.proxyUrl}`,
           '--proxy-bypass-list=<-loopback>',`--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE ${new URL(input.proxyUrl).hostname}`]}));
-      const protectedInput=input.mode==='login_read'?{getAuthDecision:(...args)=>bridge.provider.getAuthDecision(...args),verifyDecision:(...args)=>bridge.provider.verifyDecision(...args),requestDecision:(...args)=>bridge.provider.requestDecision(...args),credentialAccess:(...args)=>bridge.provider.credentialAccess(...args)}:undefined;
+      const protectedInput=(input.mode==='login_read'||input.interventionsEnabled===true)?{getAuthDecision:(...args)=>bridge.provider.getAuthDecision(...args),verifyDecision:(...args)=>bridge.provider.verifyDecision(...args),requestDecision:(...args)=>bridge.provider.requestDecision(...args),credentialAccess:(...args)=>bridge.provider.credentialAccess(...args)}:undefined;
       bridge=createChildBridge({send:message=>process.send?.(message),requestId,signal:deadline.signal,actionDeadline:deadline});
-      engine=await deadline.run(()=>createPublicSession(browser,input,lifetime,{protectedInput}));respond('result',{ready:true});
+      engine=await deadline.run(()=>createPublicSession(browser,input,lifetime,{protectedInput,initialDeadline:deadline}));respond('result',{ready:true});
     }else{
       if(!engine||!lifetime)c.deny('UNAVAILABLE');
       deadline=new ActionDeadline(limits.actionMs,lifetime.signal);

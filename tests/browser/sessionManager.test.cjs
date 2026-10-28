@@ -131,3 +131,17 @@ test('closing a paused action discards intervention output and never permits res
  const receipt=await f.manager.status(bound,{runtimeEpoch:'e1',actionId:input.actionId});assert.equal(receipt.state,'outcome_unknown');assert.equal(receipt.output,undefined);
  }finally{await f.manager.shutdown();}
 });
+test('initial browser creation can pause and recover by original open ID without duplicate worker',async()=>{
+ let f,starts=0,release;
+ f=fixture({createWorker:async(input)=>{
+  starts++;await f.manager.suspend(bound,{sessionId:input.sessionId,interventionId:'initial1',reason:'operation_consent',expiresAt:Date.now()+30000});
+  await new Promise(r=>{release=r;});return {execute:async()=>({state:'active'}),dispose:async()=>{}};
+ }});
+ try{
+ const pending=await f.manager.open(bound,opening);assert.equal(pending.state,'needs_input');
+ assert.deepEqual(await f.manager.status(bound,{runtimeEpoch:'e1',actionId:'open1'}),pending);assert.deepEqual(await f.manager.open(bound,opening),pending);assert.equal(starts,1);
+ await f.manager.resume(bound,{sessionId:pending.sessionId,interventionId:'initial1'});release();
+ for(let i=0;i<20;i++){const status=await f.manager.status(bound,{runtimeEpoch:'e1',actionId:'open1'});if(status.state==='succeeded')return;await new Promise(r=>setImmediate(r));}
+ assert.fail('open did not finish');
+ }finally{release?.();await f.manager.shutdown();}
+});

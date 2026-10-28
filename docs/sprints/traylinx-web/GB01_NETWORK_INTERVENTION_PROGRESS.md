@@ -61,3 +61,18 @@ waits use the active action/session deadline instead of an independent wall-cloc
 Puppeteer timeout, so a trusted pause is not defeated by a five-second timeout.
 These browser timing changes still require the next real Chromium long-pause check.
 Public/initial-navigation intervention handling remains pending.
+
+## Initial/public navigation and real Chromium wait
+
+Initial browser creation now owns a recoverable pausable action receipt. A pending
+page request returns needs_input under the original browser_open ID; approval finishes
+that same creation without launching another worker. Public sessions receive only the
+operation channel when host interventions are enabled; they do not gain login methods.
+Initial navigation also uses the active action deadline and waits for page requests.
+
+OPERATION_WAIT_CHROMIUM.txt: real Chromium on traylinx-ci held an initial public data
+POST for a six-second synthetic owner wait despite a three-second active-action budget.
+The fixture verified zero transmissions before approval, exactly one afterward, and
+extracted the resulting loaded content. Authority was a fixture, not a customer login
+or full runtime/child IPC integration. Owned remote scratch removed. Legacy capture
+APIs and deadline implementation are unchanged.
