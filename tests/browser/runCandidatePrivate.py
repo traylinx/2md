@@ -11,6 +11,8 @@ if not image.startswith('sha256:') or len(image) != 71:
 fixture = sys.argv[2] if len(sys.argv) > 2 else 'privateWorker.integration.cjs'
 if fixture not in {'privateWorker.integration.cjs', 'dynamicJourney.integration.cjs', 'spaWorker.integration.cjs'}:
     raise SystemExit('Unsupported owned fixture')
+if len(sys.argv) > 4 or (len(sys.argv) > 3 and sys.argv[3] not in {'--rpc', '--reject', '--crash'}):
+    raise SystemExit('Unsupported owned fixture mode')
 rpc = len(sys.argv) > 3 and sys.argv[3] == '--rpc'
 tests = pathlib.Path(__file__).resolve().parent
 with tempfile.TemporaryDirectory(prefix='gb01-private-owned-') as directory:
@@ -39,6 +41,10 @@ with tempfile.TemporaryDirectory(prefix='gb01-private-owned-') as directory:
         if fixture!='privateWorker.integration.cjs':
             raise SystemExit('Rejection mode requires private fixture')
         args[2:2]=['-e','FIXTURE_LOGIN_OUTCOME=reject']
+    if len(sys.argv)>3 and sys.argv[3]=='--crash':
+        if fixture!='privateWorker.integration.cjs':
+            raise SystemExit('Crash mode requires private fixture')
+        args[2:2]=['-e','FIXTURE_WORKER_CRASH=1']
     if rpc:
         args[2:2] = ['-i', '-e', 'FIXTURE_RPC=1']
     try:

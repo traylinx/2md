@@ -51,6 +51,24 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
  }
  assert.equal(login.output.state,'login_submitted');assert.equal(login.output.accountLabel,undefined);assert.deepEqual(login.output.evidenceIds,[]);
  assert.deepEqual(await runtime.manager.execute(bound,'browser_authenticate',request),login);assert.equal(posts,1);assert.equal(new URLSearchParams(body).get('password'),'SYNTHETIC_WORKER_PASSWORD');
+ if(process.env.FIXTURE_WORKER_CRASH==='1'){
+  const children=fs.readFileSync(`/proc/${process.pid}/task/${process.pid}/children`,'utf8').trim().split(/\s+/).filter(Boolean).map(Number);
+  assert.equal(children.length,1,'exactly one owned worker');const pid=children[0];
+  const members=()=>fs.readdirSync('/proc').filter(x=>/^\d+$/.test(x)).flatMap(x=>{try{const stat=fs.readFileSync(`/proc/${x}/stat`,'utf8');const fields=stat.slice(stat.lastIndexOf(')')+2).split(' ');return Number(fields[2])===pid&&fields[0]!=='Z'?[Number(x)]:[];}catch{return [];}});
+  assert.ok(members().length>1,'worker plus actual Chromium process group exists');
+  process.kill(pid,'SIGKILL');
+  for(let n=0;n<100&&releases===0;n++)await new Promise(r=>setTimeout(r,20));
+  assert.equal(releases,1,'cleanup without a later client command');
+  await assert.rejects(runtime.manager.query(bound,'browser_observe',{sessionId}));
+  for(let n=0;n<100&&members().length;n++)await new Promise(r=>setTimeout(r,20));
+  assert.deepEqual(members(),[],'no live owned browser process group');
+  assert.equal(releases,1);assert.deepEqual(fs.readdirSync(tempRoot),[]);assert.equal(runtime.manager.diagnostics().active,0);assert.equal(posts,1);
+  const recovery=await runtime.manager.status(bound,{runtimeEpoch:'e1',sessionId,actionId:'login1'});
+  assert.equal(recovery.output,undefined,'closed session retains no private output');
+  await assert.rejects(runtime.broker.inspect(bound,record.interventionId));
+  await assert.rejects(runtime.manager.query(bound,'browser_extract',{sessionId}));
+  console.log('PASS: exact-image worker SIGKILL after one login; next command fails closed; Chromium group, profile and proxy cleaned; no credential reuse/private receipt or duplicate login');return;
+ }
  const extracted=await runtime.manager.query(bound,'browser_extract',{sessionId});assert.equal(extracted.source.privacy,'private');assert.match(extracted.markdown,/Owned organization/);assert.doesNotMatch(JSON.stringify(extracted),/SYNTHETIC_WORKER_PASSWORD/);assert.equal(posts,1);
  const snapshot=await runtime.manager.query(bound,'browser_observe',{sessionId});assert.doesNotMatch(JSON.stringify(snapshot),/HIDDEN_REGION|INPUT_REGION|SYNTHETIC_WORKER_PASSWORD/);const regionRef=snapshot.regions.find(r=>r.role==='main').ref;
  const region=await runtime.manager.query(bound,'browser_extract',{sessionId,regionRef});assert.match(region.markdown,/Owned organization/);assert.doesNotMatch(region.markdown,/OUTSIDE_REGION|HIDDEN_REGION|INPUT_REGION|SYNTHETIC_WORKER_PASSWORD/);assert.equal(region.source.privacy,'private');assert.equal(posts,1);

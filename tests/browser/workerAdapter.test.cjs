@@ -37,3 +37,11 @@ test('real child protected requests bind active action and transfer credentials 
  assert.deepEqual(result,{consumed:true,wiped:true});assert.equal(consumed,1);assert.doesNotMatch(JSON.stringify(result),/OWNED_SYNTHETIC/);
  await worker.dispose();assert.deepEqual(fs.readdirSync(tempRoot),[]);
 });
+
+test('unexpected child exit cleans profile and lease without a later client command',async t=>{
+ const f=await fixture(t);await assert.rejects(f.worker.execute('crash',{}));
+ for(let n=0;n<50&&f.releases()===0;n++)await new Promise(r=>setTimeout(r,10));
+ assert.equal(f.releases(),1);assert.deepEqual(fs.readdirSync(f.tempRoot),[]);
+ await assert.rejects(async()=>f.worker.execute('observe',{}),e=>e.code==='SESSION_LOST');
+ await f.worker.dispose();assert.equal(f.releases(),1);
+});
