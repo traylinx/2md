@@ -171,3 +171,24 @@ sessions best-effort within five seconds; a late open result after disconnect is
 also closed. If delivery fails, server-side expiry remains authoritative. No
 browser host adapter is constructed when the optional connection is absent, so
 legacy stdio tool exposure remains unchanged.
+
+### Owner pairing transport
+
+Private runtime exposes signed host-only `pair-begin`, `pair-exchange` and
+`owner-check` routes. `createProtectedHost` composes these with the local PKCE
+session and protected credential form. Pairing IDs have a stable alphabetic prefix
+so random base64url bytes cannot violate the public ID grammar.
+
+Human approval is a separate bearer-authenticated boundary at
+`POST /api/browser/control/v1/pairings/:pairingId/approve`, with organization/project
+query scope and empty JSON body. It rejects agent headers, ambient cookies and
+Origin. A trusted Workspace backend must call it; it is not a model approval tool
+or a cross-origin browser form action. Only the current original approving owner
+can approve; the result contains the one-time callback destination for that owner.
+The pairing-only runtime mount does not expose grant creation/revocation.
+
+Private production startup additionally requires `BROWSER_PROJECT_ACCESS_URL` for
+the existing human project authority resolver. Grant enrollment/Workspace setup UI,
+actual stdio protected-host presentation and scoped pending-operation consent still
+need integration. Owned transport tests exercise real signatures and loopback HTTP
+with synthetic human/current-agent authority, not a live Workspace session.
