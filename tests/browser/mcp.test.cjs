@@ -15,3 +15,15 @@ test('official MCP protocol advertises additive browser tools and actionable err
  const invalid=await client.callTool({name:'browser_credentials',arguments:{sessionId:'s1',origin:'https://example.org',purpose:'Login',password:'must-not-echo'}});assert.equal(invalid.isError,true);assert.doesNotMatch(JSON.stringify(invalid),/must-not-echo/);
  }finally{await client.close();await server.close();}
 });
+test('negotiated URL elicitation preserves protected pending state after client acceptance',async()=>{
+ const pending={state:'needs_input',interventionId:'input1',reason:'credentials',expiresAt:Date.now()+60000,inputUrl:'http://127.0.0.1:1234/credentials/input1'};let calls=0,offers=0;
+ const browserAgent=createBrowserMcpAgent({backend:{call:async name=>{assert.equal(name,'browser_credentials');calls++;return pending;}}});
+ const server=createAgentMcpServer({backend:{plan:async()=>{},read:async()=>{}},browserAgent});
+ const client=new Client({name:'independent-url-client',version:'1'},{capabilities:{elicitation:{url:{}}}}),[a,b]=InMemoryTransport.createLinkedPair();
+ client.setRequestHandler(require('../../deploy/web-agent/node_modules/@modelcontextprotocol/sdk/dist/cjs/types.js').ElicitRequestSchema,async request=>{offers++;assert.equal(request.params.mode,'url');assert.equal(request.params.url,pending.inputUrl);return {action:'accept'};});
+ try{
+  await server.connect(a);await client.connect(b);
+  for(let i=0;i<2;i++){const reply=await client.callTool({name:'browser_credentials',arguments:{sessionId:'s1',origin:'https://example.org',purpose:'Read account'}});assert.equal(reply.isError,false);assert.deepEqual(reply.structuredContent,pending);}
+  assert.equal(calls,2);assert.equal(offers,1);
+ }finally{await client.close();await server.close();}
+});

@@ -43,3 +43,18 @@ stateful tools read-only or disable global approval controls to make a test pass
 Record an approval denial as a denied journey, not extraction success. Claude
 public fixture journey has passed; Codex noninteractive approval remains unresolved.
 Private-input, preview and released-service journeys remain distinct acceptance.
+
+Candidate client follow-up: Codex 0.165.0 completed the public journey with a
+required fixture MCP server and explicit per-tool `approval_mode="approve"` for
+that fixture's open/act/navigate/close tools. `auto` did not preapprove those calls.
+The host remained read-only; no global or production permission changes were made.
+This is an acceptance harness setting, not a recommendation to preapprove arbitrary
+production operations. Claude 2.1.312 also respected preview-only mode and correctly
+reported unavailable private input. Successful private-client journeys remain open.
+
+The MCP adapter now negotiates URL elicitation when clients advertise that capability.
+It offers the existing protected loopback input link once per intervention, with a
+bounded presentation timeout. Unsupported clients retain the link fallback. An
+elicitation `accept` never grants ownership, supplies secrets or executes approval;
+the protected input page remains authoritative. Protocol checks passed; real-client
+credential-entry UX is not certified by those checks alone.
