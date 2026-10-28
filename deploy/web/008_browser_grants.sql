@@ -4,6 +4,8 @@
 BEGIN;
 SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='30s';
+CREATE ROLE web_browser_runtime NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
+CREATE ROLE web_browser_control NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 CREATE SCHEMA web_browser;
 REVOKE ALL ON SCHEMA web_browser FROM PUBLIC;
 CREATE TABLE web_browser.grants (
@@ -28,8 +30,8 @@ CREATE TABLE web_browser.grants (
 CREATE INDEX browser_grants_active_host ON web_browser.grants
   (organization_id,project_id,agent_subject,host_id) WHERE NOT revoked;
 REVOKE ALL ON web_browser.grants FROM PUBLIC;
-GRANT USAGE ON SCHEMA web_browser TO web_read_runtime,web_read_control;
-GRANT SELECT ON web_browser.grants TO web_read_runtime,web_read_control;
-GRANT INSERT ON web_browser.grants TO web_read_control;
-GRANT UPDATE(revoked) ON web_browser.grants TO web_read_control;
+GRANT USAGE ON SCHEMA web_browser TO web_browser_runtime,web_browser_control;
+GRANT SELECT ON web_browser.grants TO web_browser_runtime,web_browser_control;
+GRANT INSERT ON web_browser.grants TO web_browser_control;
+GRANT UPDATE(revoked) ON web_browser.grants TO web_browser_control;
 COMMIT;
