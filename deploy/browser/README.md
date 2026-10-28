@@ -127,3 +127,20 @@ branch feat/gb01-browser-service-pin, not deployed. Its optional WEB_BROWSER_AGE
 pin must match the dedicated runtime service identity; READ/control pins are not
 permission to share credentials. Retain the gate for rollback before
 stopping the new runtime. Schema/grant records must remain intact.
+
+## Dedicated nonce identity
+
+`nonce-acl.py` defaults to a nonsecret inert policy summary. Its explicitly protected
+output mode reads a password only from stdin and renders a hashed ACL line for
+`browser-nonces-v1`: only SET on `browser-v1:nonce:*`, INFO and PING. It never
+contacts a server, applies ACLs, changes global policy or generates credentials.
+Never send protected output to terminal/logs. Applying it still requires guarded
+configuration persistence, existing-user preservation and scoped verification.
+No production ACL has been installed by this renderer.
+
+Read-only traylinx-db inspection29October confirmed noeviction, appendonly=yes,
+maxmemory=0. This is persistence configuration evidence, not capacity qualification.
+Dedicated browser service8f839393-2f4f-438e-99dc-270a95f9dae3 was created through the
+owner API with persisted idempotency intent and protected response. Bounded OAuth
+identity check confirms active agent binding. No service credentials are in Git.
+Workspace pin and browser runtime bindings are not activated yet.
