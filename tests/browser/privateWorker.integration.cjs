@@ -36,6 +36,15 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
  const pending=await runtime.broker.request({bound,input:{sessionId,origin,purpose:'Owned synthetic account'}}),record=await runtime.broker.inspect(bound,pending.interventionId);
  const signer=createCompletionSigner({bound,grantId:g.grantId,privateKey,verifyOwner:async()=>owner});
  await runtime.broker.supply(bound,{interventionId:record.interventionId,username:'owned',password:'SYNTHETIC_WORKER_PASSWORD',proof:await signer(record,{})});
+ if(process.env.FIXTURE_WORKER_CRASH==='before-auth'){
+  const children=fs.readFileSync(`/proc/${process.pid}/task/${process.pid}/children`,'utf8').trim().split(/\s+/).filter(Boolean).map(Number);
+  assert.equal(children.length,1);process.kill(children[0],'SIGKILL');
+  for(let n=0;n<100&&(releases===0||runtime.manager.diagnostics().active!==0);n++)await new Promise(r=>setTimeout(r,20));
+  assert.equal(releases,1);assert.equal(runtime.manager.diagnostics().active,0,'worker loss must release session admission without a caller command');
+  await assert.rejects(runtime.broker.inspect(bound,record.interventionId),{code:'SESSION_LOST'});
+  assert.deepEqual(fs.readdirSync(tempRoot),[]);assert.equal(posts,0);
+  console.log('PASS: worker crash while credential awaits use closes session, discards protected input and frees admission without another caller command');return;
+ }
  const request={runtimeEpoch:'e1',sessionId,actionId:'login1',observationId:observed.observationId,credentialRef:record.interventionId,fields:{usernameRef:ref('Username'),passwordRef:ref('Password')},submitRef:ref('Log in')};
  const decision={sessionId,operationId:'login1',operationDigest:c.digest(request),recipients:[origin],expiresAt:Date.now()+30000,nonce:'auth1'};
  const payload=Buffer.from(JSON.stringify({version:1,audience:AUDIENCE,grantId:g.grantId,principalScope:c.scope(bound),hostId:bound.hostId,...decision,issuedAt:Date.now()})).toString('base64url');
