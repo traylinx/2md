@@ -1,3 +1,19 @@
+## Capture fidelity and authenticated MCP — deployed, 28 October 2026
+
+Runtime `4e907b8e83c5e8fdb44180e6136b242490f2447b` is deployed on capture/egress:
+`ghcr.io/traylinx/2md-capture@sha256:3d014ddfc1b43ad3cd16e64694ae7219c369cbb72772e3fb689c4dac372a203a`.
+Public MCP extraction now retains price-card names and comparison checkmarks.
+The configured host exposes twelve tools including credential-free login inspection
+and one-attempt private reads; reconnect existing MCP sessions.
+
+Native/XHR login passes owned isolated tests. The actual Traylinx organization
+read is **not verified**: fresh sessions require beta access before a password form.
+Inspection reports that prerequisite; no bypass or second password attempt occurred.
+See [current release evidence](../../evidence/private-read/RELEASE.md).
+Legacy, AUTH/USERS, READ/control and database deployments remain unchanged.
+
+---
+
 ## Web Agent standing permission — deployed and live verified, 28 October 2026
 
 READ/control runtime `1601587` and additive migration007 deployed. Registered MCP

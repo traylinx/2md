@@ -34,12 +34,12 @@ For the deployed, explicitly granted Sentinel-agent extension, see the
 [installation, verifier configuration and grant guide](../../docs/sentinel-integration.md).
 The renderer keeps agent support off by default; it does not provision a verifier
 identity or secret. The approved SDK is installed in an isolated dependency tree. Capture images are
-published privately under `ghcr.io/makakoo/sentinel-html2md-runtime`; use the existing
+published privately under `ghcr.io/traylinx/2md-capture`; use the existing
 `registry-ghcr` image-pull Secret. Do not publish to the public legacy `traylinx/2md`
 package or restart the legacy deployment for this extension.
 
 - `HTML2MD_ENHANCED_CAPTURE=1` enables public capture.
-- `HTML2MD_AUTHENTICATED_CAPTURE=1` enables request-scoped form login.
+- `HTML2MD_AUTHENTICATED_CAPTURE=1` enables request-scoped native/XHR login and credential-free login inspection.
 - `CAPTURE_CONTAINMENT=isolated-proxy-v1` is an operator attestation after actual
   isolation tests, not a bypass a caller can supply.
 - `CAPTURE_AUTH_URL=https://sentinel.traylinx.com/oauth/token/info` uses the
@@ -51,21 +51,40 @@ package or restart the legacy deployment for this extension.
   changed grant; editing the ConfigMap alone is not immediate revocation.
 - Login instructions arrive in the authenticated request's `login` object. There
   is no server-side website catalogue or saved strategy. Agent-provided fields,
-  one submission path, read/resource paths and account proof are validated and
-  frozen for this operation only. No caller JavaScript is executed.
+  native submission path or bounded XHR authentication endpoints, read/resource
+  paths and account proof are validated and frozen for this operation only. No
+  caller JavaScript is executed. XHR additionally requires exact operator-granted
+  `loginPostUrls` and all endpoint origins. Optional `authenticatedUntil` is an
+  epoch-millisecond private-grant expiry, checked before work and content release.
 - `CAPTURE_PROXY_CONTROL_URL` and `CAPTURE_PROXY_TOKEN` address/authenticate the
   internal proxy lease service. These are platform credentials, not site passwords.
 
 ## Credential custody and limitations
 
-Only `inlineOnce` username/password form POST is supported. No saved connection,
-cookie import, SSO, OAuth, MFA completion or automatic credential retries.
-Private overload rejects before reading the request body; it never queues secrets.
-One request-scoped login POST is allowed, then GET/HEAD within the request scope.
-Cross-origin resources, service workers, popups, frames, sockets, downloads and
-other POST/PUT/PATCH/DELETE requests are denied. The caller must select an actual
-login endpoint and read-only targets: HTTP methods cannot prove business semantics
-(including side effects in GET). The current form mode requires full-page navigation.
+Only `inlineOnce` username/password is accepted by the server. The optional MCP
+host can keep caller-owned connections in a protected local file; the capture
+server never saves those connections or browser profiles. No cookie import, popup
+SSO, MFA/invitation completion or automatic credential retries are supported.
+Private overload rejects before reading the body; it never queues secrets.
+
+Native form mode permits one same-origin form POST and full-page navigation.
+XHR mode permits at most three exact ordered authentication POSTs, then only
+explicit GET/HEAD API URLs and page paths. CORS preflight is scoped to those exact
+endpoints. Every authentication POST also needs a server `loginPostUrls` grant.
+Scripts/styles are scoped separately; sockets, workers, frames, downloads and
+other writes remain blocked. HTTP methods cannot establish business semantics,
+including side effects in GET; scope login endpoints and read targets carefully.
+
+`/api/capture/v1/login-inspection` is an additional exact ingress path. It requires
+private-capture permission but accepts no website credentials. It returns visible
+form selectors and limited credential-free page diagnostics in a fresh context.
+`accessGate` signals an observed invitation/MFA/human-verification prerequisite.
+Detected gates stop login with `HUMAN_REQUIRED`, without submitting the password.
+
+A denied stylesheet GET is replaced locally with empty CSS, retaining
+`RESOURCE_BLOCKED` / `STYLESHEET_OMITTED` warnings. This prevents a blocked nested
+font import from aborting an entire lazy SPA. It does not fetch the denied
+resource, grant new origins, or bypass document/script/write restrictions.
 
 Temporary browser files may contain session data on the memory-backed volume.
 Cleanup is required before content release. Dropping JavaScript references is

@@ -1,3 +1,17 @@
+## Latest: private-read adapter and capture fidelity, 28 October 2026
+
+The configured MCP host now exposes twelve tools: the existing eight public-read
+tools plus four optional authenticated-read tools. Restart/reconnect an existing
+host to refresh its tool catalogue. See [authenticated reads](#authenticated-website-reads-optional-client-connection).
+
+Price-card headings and accessible comparison checkmarks are preserved. Public
+extraction is live verified. Native/XHR login and isolation pass owned-browser
+tests, but the real Traylinx organization-read test is **not complete**: a fresh
+session requires a beta invitation before the password form. The agent reports
+that prerequisite and does not bypass it. See [release evidence](evidence/private-read/RELEASE.md).
+
+---
+
 ## Release verified, 28 October 2026
 
 READ/control source `1601587` is deployed. The actual registered MCP completed a
