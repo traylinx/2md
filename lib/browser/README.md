@@ -269,3 +269,21 @@ These components are tested with repository/current-authority fixtures and owned
 local files. Enrollment HTTP proof-of-possession, frontend approval mode and actual
 installer/stdIO activation are not yet connected. No production grant or host file
 was created by these tests.
+
+### Enrollment HTTP and owner preview
+
+`browserEnrollment` implements `/api/browser/enrollment/v1/identity`, `/begin` and
+`/exchange`. Current Sentinel identity is resolved before bounded payload reads.
+Begin/exchange require a distinct enrollment-audience Ed25519 proof over exact path,
+body, principal/host scope and short-lived single-use nonce. The public key proves
+possession only, not owner permission. Exchange reuses the key retained by the
+pending request, never a replacement supplied during callback.
+
+Human `/api/browser/control/v1/enrollments/:id/inspect|approve` uses the same strict
+owner/project boundary as pairing. The Traylinx page accepts enrollmentId links and
+shows actual requested operations, public-HTTPS ceiling and grant expiry before
+approval. Inspection does not create a grant. Callback remains loopback/PKCE-only.
+
+Owned HTTP tests exercise both boundaries and signature/replay/substitution checks.
+The production enrollment listener/control-writer credentials and installer client
+are still unconnected. Do not advertise a completed first-install flow yet.
