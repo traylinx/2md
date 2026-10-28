@@ -87,3 +87,17 @@ the role-specific credentials and trust pins. A bounded live SDK check verified
 all four proofs as active. AUTH pins the Workspace verifier; capture grants the
 SEARCH service public capture only for the selected pilot origins. New web routes
 remain closed pending the Workspace release and full approved agent journey.
+
+Release update28 October2026: SEARCH, READ, control and corrected Workspace are
+running; the four additive web routes are open with authorization enforced.
+Workspace51195aa discards AUTH token-info credential/profile attributes before
+identity validation (44 focused checks, 290 assertions; exact image boot passed).
+The existing customer search-agent uses authenticated `/me` onboarding and an
+owner-granted project-only MEMBER role; VIEWER cannot execute. No organization
+membership or owner impersonation is required.
+
+The first real plan/owner approval/run admission succeeded, but dispatch stopped
+with `needs_reconciliation` before consuming its single-use capture grant. Both
+directions of service-proof verification pass. Capture/comparison is **not yet
+live-verified**; do not replay the uncertain run automatically. Current evidence
+and exact continuation are in the workspace `docs/sprints/CURRENT_STATUS.md`.
