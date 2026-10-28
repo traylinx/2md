@@ -124,3 +124,35 @@ Owned runtime composition tests exercise signed HTTP, session dispatch, completi
 consent, consume-once private delivery and shutdown using a worker fixture. Actual
 Sentinel/PostgreSQL boot wiring and real Chromium-through-IPC release qualification
 remain required; this module alone is not a production release.
+
+### Dedicated startup and authority (not released)
+
+`scripts/browser-server.js` is the opt-in entrypoint. `BROWSER_ENABLED` defaults to
+`0`; `BROWSER_PRIVATE_ENABLED` defaults to `0` and cannot enable a disabled server.
+The service is separate from legacy capture and READ. Default listener is
+`127.0.0.1:8292`; deployment must explicitly configure the container binding.
+
+Required when enabled:
+
+- `BROWSER_CONTAINMENT=isolated-proxy-v1`, only after actual containment qualification.
+- `BROWSER_POSTGRES_URL`, `BROWSER_REDIS_URL`: protected deployment configuration.
+- `BROWSER_AGENT_ACCESS_URL`: existing current Sentinel caller access endpoint.
+- `BROWSER_OWNER_ACCESS_URL`: existing service-authenticated current authority endpoint.
+- `BROWSER_SENTINEL_URL`, `BROWSER_SENTINEL_CLIENT_ID`,
+  `BROWSER_SENTINEL_CLIENT_SECRET`, `BROWSER_AGENT_ID`: operator service identity.
+- `BROWSER_PROXY_CONTROL_URL`, `BROWSER_PROXY_TOKEN`: dedicated browser egress lease.
+- Optional `PUPPETEER_EXECUTABLE_PATH`, `BROWSER_HOST`, `BROWSER_PORT`.
+
+Startup checks the separately applied `web_browser.grants` schema; it performs no
+DDL. Runtime bindings retain the exact authenticated grant ID. Background checks
+send only the original token-generation reference through the service identity,
+not a retained customer token. Foreign identities/generations, revocation and
+expired authority fail closed. Redis uses atomic `SET NX PX` under the separate
+`browser-v1:nonce:` prefix with hashed identifiers and at most 120-second TTL.
+Deployment must verify this namespace cannot be evicted or cleared while proofs
+remain valid; restarting the browser must not reset replay protection.
+
+Focused tests use database/Redis doubles and synthetic service responses. No real
+database connectivity, migration, Redis policy, service entitlement or deployed
+browser readiness is implied. Those remain release gates, alongside the container
+packaging and actual protected host setup.
