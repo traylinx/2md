@@ -136,7 +136,7 @@ if args.ingress:
     ingress = resource('Ingress', 'html2md-capture-ingress', {
         'ingressClassName': 'kong', 'rules': [{'host': 'api.2md.traylinx.com', 'http': {'paths': [
             {'path': p, 'pathType': 'Exact', 'backend': {'service': {'name': 'html2md-capture', 'port': {'number': 8270}}}}
-            for p in ('/api/capture/v1', '/api/capture/v1/authenticated')
+            for p in ('/api/capture/v1', '/api/capture/v1/authenticated', '/api/capture/v1/login-inspection')
         ]}}], 'tls': [{'hosts': ['api.2md.traylinx.com'], 'secretName': 'api-2md-traylinx-com-tls'}]})
     ingress['metadata']['annotations'] = {
         'konghq.com/strip-path': 'false', 'konghq.com/preserve-host': 'false',

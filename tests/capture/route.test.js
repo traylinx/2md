@@ -107,3 +107,10 @@ it('withholds result if operator resource permission is revoked before disclosur
   const result=await request(server).post('/api/capture/v1').send({url:'https://example.com'});
   expect(result.status).toBe(403);expect(result.body).not.toHaveProperty('markdown');
 });
+it('login inspection has private scope but accepts no website credentials or executable instructions', async()=>{
+ let calls=0;const server=await app({privateEnabled:true,capture:async(body,options)=>{calls++;expect(body.inspectLogin).toBe(true);expect(body.auth).toBeUndefined();expect(options.recipe).toBeUndefined();return {success:true,markdown:'',kind:'login-inspection',inspection:{forms:[]}};}});
+ const ok=await request(server).post('/api/capture/v1/login-inspection').send({url:'https://example.com/login'});expect(ok.status).toBe(200);expect(ok.headers['cache-control']).toBe('no-store');
+ expect((await request(server).post('/api/capture/v1/login-inspection').send({url:'https://example.com/login',auth:{password:'synthetic-canary'}})).status).toBe(400);
+ const denied=await app({privateEnabled:true,verify:async()=>({...principal,operations:['capture:public']}),capture:async()=>{calls++;}});
+ expect((await request(denied).post('/api/capture/v1/login-inspection').send({url:'https://example.com/login'})).status).toBe(403);expect(calls).toBe(1);
+});

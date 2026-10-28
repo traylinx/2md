@@ -17,20 +17,22 @@ const server=https.createServer({key:fs.readFileSync('/fixtures/key.pem'),cert:f
  res.end('Denied fixture path');
 });
 const resolver=async value=>{const url=new URL(value);assert.ok([origin,api].includes(url.origin));return {url,addresses:[{address:'127.0.0.1',family:4}]};};
-async function operation(password){
+async function operation(password,inspect=false){
  const deadline=new Deadline(20000),proxy=createEgressProxy({deadline,resolve:resolver,connect:o=>net.connect({...o,port:server.address().port})});await new Promise(r=>proxy.server.listen(0,'127.0.0.1',r));
  const profile=fs.mkdtempSync('/tmp/xhr-browser-fixture-');let browser;
  try{
  browser=await puppeteer.launch({executablePath:'/usr/bin/chromium',headless:true,pipe:true,userDataDir:profile,args:['--no-sandbox','--disable-dev-shm-usage','--disable-quic','--ignore-certificate-errors',`--proxy-server=http://127.0.0.1:${proxy.server.address().port}`,'--proxy-bypass-list=<-loopback>']});
  const request={url:origin+'/report',loginUrl:origin+'/login',auth:{mode:'inlineOnce',username:'fixture-user',password},login:{mode:'xhr',postUrls:[api+'/bootstrap',api+'/token'],readUrls:[api+'/organizations'],readPaths:['/report'],fields:{form:'form',username:'#username',password:'#password',submit:'button'},proof:{url:api+'/token',path:['data','email']}}};
- const result=await captureWithBrowser(browser,request,{deadline,resolver,recipe:freezeRecipe(request),allowedOrigins:[origin,api]});assert.equal(browser.browserContexts().length,1);return result;
+ if(inspect){request.url=origin+'/login';request.inspectLogin=true;delete request.auth;delete request.login;}
+ const result=await captureWithBrowser(browser,request,{deadline,resolver,recipe:inspect?undefined:freezeRecipe(request),allowedOrigins:[origin,api]});assert.equal(browser.browserContexts().length,1);return result;
  }finally{await browser?.close();await proxy.close();deadline.close();fs.rmSync(profile,{recursive:true,force:true});}
 }
 (async()=>{
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ const inspected=await operation(undefined,true);assert.equal(inspected.kind,'login-inspection');assert.equal(inspected.inspection.forms.length,1);assert.ok(!JSON.stringify(inspected).includes('fixture-password'));assert.equal(traffic.filter(t=>t.method==='POST').length,0);
  const r=await operation('fixture-password');assert.match(r.markdown,/Fixture organization/);assert.match(r.markdown,/Test plan/);assert.doesNotMatch(JSON.stringify(r),/fixture-password|fixture-access-token/);
  assert.deepEqual(traffic.filter(t=>t.method==='POST').map(t=>t.path),['/bootstrap','/token']);assert.ok(traffic.some(t=>t.method==='OPTIONS'));
  await assert.rejects(operation('wrong-fixture-password'),{code:'TARGET_UNVERIFIED'});
  assert.equal(traffic.filter(t=>t.path==='/delete').length,0);
- console.log(JSON.stringify({suite:'isolated real Chromium XHR login',passed:4,assertions:['cross-origin two-stage login + organization read','CORS and exact ordered POST allowance','business writes and token refresh blocked','wrong identity refused; isolated contexts closed']}));
+ console.log(JSON.stringify({suite:'isolated real Chromium XHR login',passed:5,assertions:['credential-free login inspection','cross-origin two-stage login + organization read','CORS and exact ordered POST allowance','business writes and token refresh blocked','wrong identity refused; isolated contexts closed']}));
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>{server.closeAllConnections();server.close();});

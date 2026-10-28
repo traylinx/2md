@@ -48,7 +48,7 @@ test('official MCP client discovers and executes private read without plaintext 
  const {agent}=setup(async()=>({success:true,markdown:'Verified organization evidence'}));
  const server=createAgentMcpServer({backend:{plan:async()=>{},read:async()=>{}},privateReads:agent});const client=new Client({name:'private-fixture',version:'1'});const [a,b]=InMemoryTransport.createLinkedPair();
  try{
- await server.connect(a);await client.connect(b);assert.equal((await client.listTools()).tools.length,11);
+ await server.connect(a);await client.connect(b);assert.equal((await client.listTools()).tools.length,12);
  assert.match(client.getInstructions(),/propose_authenticated_read/);
  const invoke=async(name,args)=>JSON.parse((await client.callTool({name,arguments:args})).content[0].text);
  const p=await invoke('propose_authenticated_read',{connectionId:'site',url:origin+'/report'});assert.equal(p.state,'prepared');assert.doesNotMatch(JSON.stringify(p),/synthetic-password/);

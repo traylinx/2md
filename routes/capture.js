@@ -14,7 +14,8 @@ const { captureCredentials } = require('../lib/capture/sentinelPrincipal');
 // bodies here; legacy middleware, serializers and admission remain untouched.
 function registerCapture(app, { publicEnabled = false, privateEnabled = false,
   verify, capture, capacity = new Capacity() } = {}) {
-  function handler(privateMode) {
+  function handler(privateMode, inspectLogin = false) {
+    const privateScope = privateMode || inspectLogin;
     return async (req, res) => {
       const requestId = randomUUID(), controller = new AbortController();
       const deadline = new Deadline(privateMode ? 60000 : 30000, controller.signal);
@@ -26,21 +27,22 @@ function registerCapture(app, { publicEnabled = false, privateEnabled = false,
         if (!verify || !capture) throw new CaptureError('UNAVAILABLE');
         const credentials = captureCredentials(req);
         const principal = await verify(credentials.authorization, deadline, credentials);
-        if (!principal.operations.includes(privateMode ? 'capture:authenticated' : 'capture:public')) throw new CaptureError('FORBIDDEN');
+        if (!principal.operations.includes(privateScope ? 'capture:authenticated' : 'capture:public')) throw new CaptureError('FORBIDDEN');
         // Private credentials are not read until an immediate slot is reserved.
-        if (privateMode) release = await capacity.acquire(principal.id, deadline, true);
+        if (privateScope) release = await capacity.acquire(principal.id, deadline, true);
         raw = await readBody(req, privateMode ? 32768 : 16384, deadline);
         request = validateRequest(raw, privateMode);
+        if (inspectLogin) request.inspectLogin = true;
         raw = null;
         deadline.tighten(request.budgetMs);
-        assertScope(principal, request, privateMode);
+        assertScope(principal, request, privateScope);
         const recipe = privateMode ? freezeRecipe(request) : undefined;
         if (!release) release = await capacity.acquire(principal.id, deadline);
-        const allowedResourceOrigins = privateMode ? [] : resourceOrigins(principal);
+        const allowedResourceOrigins = privateScope ? [] : resourceOrigins(principal);
         const result = await capture(request, { deadline, recipe, requestId, allowedOrigins: principal.origins, allowedResourceOrigins });
         const current = await verify(credentials.authorization, deadline, credentials);
         if (current.id !== principal.id) throw new CaptureError('FORBIDDEN');
-        assertScope(current, request, privateMode);
+        assertScope(current, request, privateScope);
         if (allowedResourceOrigins.some(origin => !resourceOrigins(current).includes(origin))) throw new CaptureError('FORBIDDEN');
         deadline.remaining();
         if (!res.destroyed) res.json(result);
@@ -64,7 +66,10 @@ function registerCapture(app, { publicEnabled = false, privateEnabled = false,
     };
   }
   if (publicEnabled) app.post('/api/capture/v1', handler(false));
-  if (privateEnabled) app.post('/api/capture/v1/authenticated', handler(true));
+  if (privateEnabled) {
+    app.post('/api/capture/v1/authenticated', handler(true));
+    app.post('/api/capture/v1/login-inspection', handler(false,true));
+  }
   return { stop: () => capacity.stop(), capacity };
 }
 

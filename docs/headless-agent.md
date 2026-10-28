@@ -347,13 +347,16 @@ public-read grant as permission to log in. The capture service needs an explicit
 approved `loginPostUrls`; an optional `authenticatedUntil` is an epoch-millisecond
 expiry checked before execution and again before returning content.
 
-The MCP host offers three additional tools when configured:
+The MCP host offers four additional tools when configured:
 
 1. `list_login_connections`: discover connection labels and non-secret login hints.
-2. `propose_authenticated_read`: prepare a read using an opaque `connectionId` and
+2. `inspect_login_page`: discover visible form selectors and blocked resource paths
+   in a fresh credential-free browser. This does not submit credentials or infer
+   authentication endpoints.
+3. `propose_authenticated_read`: prepare a read using an opaque `connectionId` and
    target `url`. The agent may supply request-scoped `loginUrl` and `login`
    instructions or use caller-provided hints. No password is a tool argument.
-3. `run_authenticated_read`: execute once and return the extracted evidence
+4. `run_authenticated_read`: execute once and return the extracted evidence
    directly. Do not poll the public-run tools for this private operation.
 
 A user can say: **“Use the Web Agent to log in with my configured test connection
