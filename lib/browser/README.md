@@ -192,3 +192,22 @@ the existing human project authority resolver. Grant enrollment/Workspace setup 
 actual stdio protected-host presentation and scoped pending-operation consent still
 need integration. Owned transport tests exercise real signatures and loopback HTTP
 with synthetic human/current-agent authority, not a live Workspace session.
+
+### Exact authentication decision delivery
+
+The protected host wrapper now returns a bounded loopback `inputUrl` for credential
+and authentication-decision input. `browser_authenticate` first checks the original
+server action receipt. A new action creates one short-lived local decision, showing
+the site, recipients, purpose and exact field/submit references to the paired owner.
+The CSRF-protected form signs only that action digest and sends `input-prepare`
+through the host channel. It does not click the website or execute the login.
+
+After approval, the calling application continues the same original authentication
+request. Existing receipts retain server idempotency checks; changed bytes conflict,
+and known uncertain outcomes are not automatically re-executed. No password,
+signature, arbitrary script or model-supplied approval boolean enters MCP arguments.
+Credentials and decisions share the paired local surface but distinct CSRF kinds.
+
+Owned pairing/decision transport tests now reach consent verification and consume-once
+credential delivery using a worker fixture. Actual stdio setup/pairing presentation
+and real Chromium login acceptance are still pending; no deployment is implied.
