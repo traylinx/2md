@@ -37,3 +37,13 @@ test('private grant expiry blocks login; exact non-secret GET query is allowed w
  const p=new RequestPolicy({deadline:{remaining:()=>1000},recipe:r,allowedOrigins:[page,api],resolver:async url=>({url})});
  await p.allow({url:u,method:'GET',type:'xhr'});await assert.rejects(p.allow({url:u+'&extra=true',method:'GET',type:'xhr'}));
 });
+
+test('invitation and MFA prerequisites fail explicitly, not by waiting for a missing password selector',()=>{
+ const {loginGate}=require('../../lib/capture/loginGate');
+ assert.equal(loginGate({password:false,text:'Enter your invitation code and email to access the login.'}),'interactive_access_required');
+ assert.equal(loginGate({password:false,text:'Enter a verification code'}),'interactive_access_required');
+ assert.equal(loginGate({password:true,text:'Password. Optional invitation code.'}),null);
+ assert.equal(loginGate({password:false,text:'Loading application...'}),null);
+ assert.equal(loginGate({password:false,text:'Invitation CodeVerify Access',loginPrompts:['Invitation Code']}),'interactive_access_required');
+ assert.equal(loginGate({password:false,challenge:true,text:''}),'human_verification');
+});
