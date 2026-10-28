@@ -10,7 +10,7 @@ produces an **inert candidate**: two zero-replica deployments, separate8290/8291
 services, no ingress, default-deny ingress/egress and no credentials. It does not apply
 anything. Proposed pilot limits: runtime1 CPU/1GiB, egress250m/192MiB. These are not
 allocated or capacity-approved. Node placement, live endpoint-specific policies,
-readiness for enabled runtime, private registry access and secret references remain
+private registry access and secret references remain
 release work. Do not scale this draft or set a containment marker to bypass that work.
 
 Containment qualification must verify browser bypass attempts, parent credential
@@ -67,3 +67,9 @@ signed host transport, runtime, forked Chromium and session isolation are retain
 This validates agentic private browsing with pre-completed fixture-owner input;
 it does not certify a real human's interactive pairing/elicitation UX or live-site
 login. Never supply production credentials to this harness.
+
+Candidate renderer now binds the disabled runtime configuration to `0.0.0.0:8292`
+and includes startup/readiness checks against its existing `/health` endpoint.
+Both deployments remain zero replicas and deny-all. Health proves listener/runtime
+quarantine state, not successful downstream authentication, database or egress
+requests. Service-link environment injection is disabled. This is not activation.

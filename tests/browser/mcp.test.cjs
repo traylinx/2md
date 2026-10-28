@@ -27,3 +27,29 @@ test('negotiated URL elicitation preserves protected pending state after client 
   assert.equal(calls,2);assert.equal(offers,1);
  }finally{await client.close();await server.close();}
 });
+test('legacy MCP discovery and calls stay unchanged with browser off, enabled and busy',async()=>{
+ const backend={plan:async()=>{},read:async()=>{}};
+ async function connect(browserAgent){
+  const server=createAgentMcpServer({backend,browserAgent});
+  const client=new Client({name:'unchanged-legacy-client',version:'1'}),[a,b]=InMemoryTransport.createLinkedPair();
+  await server.connect(a);await client.connect(b);return {client,server};
+ }
+ const old=await connect();let enabled,release,busy;
+ try{
+  const legacy=(await old.client.listTools()).tools;
+  const baseline=await old.client.callTool({name:'get_read_capabilities',arguments:{}});
+  let entered;const started=new Promise(r=>{entered=r;});
+  const browserAgent=createBrowserMcpAgent({backend:{call:async()=>{entered();await new Promise(r=>{release=r;});return observation();}}});
+  enabled=await connect(browserAgent);
+  const all=(await enabled.client.listTools()).tools;
+  assert.deepEqual(all.filter(t=>legacy.some(x=>x.name===t.name)),legacy);
+  assert.deepEqual(await enabled.client.callTool({name:'get_read_capabilities',arguments:{}}),baseline);
+  busy=enabled.client.callTool({name:'browser_observe',arguments:{sessionId:'s1'}});
+  await started;let timer;
+  try{
+   const during=await Promise.race([enabled.client.callTool({name:'get_read_capabilities',arguments:{}}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('legacy MCP blocked by pending browser command')),2000);})]);
+   assert.deepEqual(during,baseline);
+  }finally{clearTimeout(timer);release();}
+  assert.equal((await busy).isError,false);
+ }finally{release?.();await busy?.catch(()=>{});await old.client.close();await old.server.close();await enabled?.client.close();await enabled?.server.close();}
+});
