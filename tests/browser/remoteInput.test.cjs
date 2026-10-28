@@ -35,3 +35,30 @@ test('protected HTTP endpoint authenticates/signature-checks before supply and n
  await request(app).post('/api/browser/v1/input-inspect').set('Origin','https://hostile.example.org').send({interventionId:entry.interventionId}).expect(403);assert.equal(proofs,1);
  }finally{broker.close();}
 });
+test('email-first sends username only, then consumes password once under a new exact decision',async()=>{
+ const {broker}=fixture();try{
+ const pending=await broker.request({bound,input}),id=pending.interventionId;
+ await broker.supply(bound,{interventionId:id,username:'fixture-user',password:'SYNTHETIC',proof:'owner-completed'});
+ const provider=broker.provider(bound),binding={credentialRef:id,sessionId:'s1',origin:input.origin,recipients:[input.origin]};
+ async function prepare(actionId,fields){
+  const request={sessionId:'s1',runtimeEpoch:'e1',actionId,observationId:'o1',credentialRef:id,fields,submitRef:'b1'};
+  const decision={sessionId:'s1',operationId:actionId,operationDigest:c.digest(request),recipients:[input.origin],nonce:actionId,expiresAt:Date.now()+30000};
+  await broker.prepare(bound,{request,proof:'signed',decision,recipients:decision.recipients});await provider.verifyDecision('signed',decision);
+ }
+ await prepare('email',{usernameRef:'u1'});let first;
+ await provider.credentialAccess(binding,async secret=>{first=secret.username;assert.equal(first.toString(),'fixture-user');assert.equal(secret.password.length,0);});assert.ok(first.every(b=>b===0));
+ assert.equal((await broker.request({bound,input})).credentialRef,id);
+ await prepare('password',{passwordRef:'p1'});let second;
+ await provider.credentialAccess(binding,async secret=>{second=secret.password;assert.equal(second.toString(),'SYNTHETIC');});assert.ok(second.every(b=>b===0));
+ await assert.rejects(provider.credentialAccess(binding,()=>{}),{code:'SESSION_LOST'});
+ }finally{broker.close();}
+});
+test('email-first transport failure erases retained password rather than permitting an uncertain retry',async()=>{
+ const {broker}=fixture();try{
+ const id=(await broker.request({bound,input})).interventionId;await broker.supply(bound,{interventionId:id,username:'u',password:'SYNTHETIC',proof:'owner-completed'});
+ const request={sessionId:'s1',runtimeEpoch:'e1',actionId:'email',observationId:'o1',credentialRef:id,fields:{usernameRef:'u1'},submitRef:'b1'},decision={sessionId:'s1',operationId:'email',operationDigest:c.digest(request),recipients:[input.origin],nonce:'email',expiresAt:Date.now()+30000};
+ await broker.prepare(bound,{request,proof:'signed',decision,recipients:decision.recipients});const provider=broker.provider(bound);await provider.verifyDecision('signed',decision);
+ await assert.rejects(provider.credentialAccess({credentialRef:id,sessionId:'s1',origin:input.origin,recipients:[input.origin]},async()=>{throw Error('interrupted');}));
+ await assert.rejects(broker.inspect(bound,id),{code:'SESSION_LOST'});
+ }finally{broker.close();}
+});
