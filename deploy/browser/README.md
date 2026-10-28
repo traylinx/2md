@@ -26,3 +26,20 @@ in local Docker, which can build this additive candidate without a browser/load 
 Release rollback: disable new ingress/capability and admission, close owned sessions,
 scale only new deployments down, revert only changed adapter/routes if needed. Retain
 browser grant schema/audit records. Never DROP the table or alter existing grants.
+
+## Owned real-client qualification
+
+`tests/browser/clientCandidateMcp.cjs <exact-local-image-id>` is a **test-only**
+stdio entrypoint. It starts the network-isolated synthetic public fixture through
+Docker, using the real runtime/worker and MCP server. It does not load production
+Sentinel credentials or provide private input. Do not configure it as the product.
+`clientCandidateTransport.integration.cjs` checks transport plumbing, not agentic
+usability. Real clients must discover and perform the task themselves.
+
+Keep candidate-client MCP configuration temporary and scoped to this fixture.
+Client permissions and server grants are separate: a noninteractive client may
+reject stateful browser tools even when the server grant is valid. Never relabel
+stateful tools read-only or disable global approval controls to make a test pass.
+Record an approval denial as a denied journey, not extraction success. Claude
+public fixture journey has passed; Codex noninteractive approval remains unresolved.
+Private-input, preview and released-service journeys remain distinct acceptance.
