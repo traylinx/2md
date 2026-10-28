@@ -211,3 +211,18 @@ Credentials and decisions share the paired local surface but distinct CSRF kinds
 Owned pairing/decision transport tests now reach consent verification and consume-once
 credential delivery using a worker fixture. Actual stdio setup/pairing presentation
 and real Chromium login acceptance are still pending; no deployment is implied.
+
+### Routine login UX correction
+
+The paired credential form now explicitly approves one login attempt for the shown
+session/recipients. Successful submission records only short-lived approval metadata
+in the host, not a local password copy. When the calling agent selects the exact
+observed login action, the host revalidates owner and recipient/session binding,
+consumes that approval once, and signs the exact operation. No second routine
+approval page is required. A separately supplied credential without this local
+owner approval, or a new recipient, cannot silently acquire that authority.
+The explicit decision surface remains for cases requiring a genuinely new decision.
+
+The signed pairing transport fixture now verifies this single-input journey, original
+receipt recovery and changed-action rejection. This corrects the earlier extra-step
+UX; actual stdio setup presentation and multi-step browser acceptance remain pending.

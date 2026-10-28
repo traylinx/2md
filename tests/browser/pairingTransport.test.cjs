@@ -28,12 +28,7 @@ test('signed pairing transport, human-only approval and protected local callback
   const supplied=await fetch(url,{method:'POST',headers:{Cookie:cookie,Origin:new URL(url).origin,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrf,username:'SYNTHETIC_USER',password:'SYNTHETIC_PASSWORD'})});assert.equal(supplied.status,200);assert.doesNotMatch(await supplied.text(),/SYNTHETIC/);
   const ready=await host.call('browser_credentials',input);assert.equal(ready.state,'ready');
   const action={sessionId:opened.sessionId,runtimeEpoch:'e1',actionId:'login1',observationId:'o1',credentialRef:ready.credentialRef,fields:{passwordRef:'p1'},submitRef:'b1'};
-  const decision=await host.call('browser_authenticate',action);assert.equal(decision.state,'needs_input');assert.equal(decision.output.reason,'operation_consent');
-  const decisionUrl=decision.output.inputUrl;assert.equal((await fetch(decisionUrl)).status,403);
-  const decisionPage=await fetch(decisionUrl,{headers:{Cookie:cookie}}),decisionHtml=await decisionPage.text();assert.equal(decisionPage.status,200);assert.match(decisionHtml,/login1/);assert.match(decisionHtml,/example.org/);
-  const decisionCsrf=/name="csrf" value="([^"]+)"/.exec(decisionHtml)[1];
-  const approvedStep=await fetch(decisionUrl,{method:'POST',headers:{Cookie:cookie,Origin:new URL(decisionUrl).origin,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrf:decisionCsrf,decision:'approve'})});assert.equal(approvedStep.status,200);assert.match(await approvedStep.text(),/not executed/);
-  const executed=await host.call('browser_authenticate',action);assert.equal(executed.state,'succeeded');assert.equal(executed.output.state,'login_submitted');
+  const executed=await host.call('browser_authenticate',action);assert.equal(executed.state,'succeeded');assert.equal(executed.output.inputUrl,undefined);assert.equal(executed.output.state,'login_submitted');
   assert.deepEqual(await host.call('browser_authenticate',action),executed);
   await assert.rejects(host.call('browser_authenticate',{...action,submitRef:'different'}),{code:'IDEMPOTENCY_CONFLICT'});
   const next=await host.call('browser_credentials',input);assert.match(next.inputUrl,/^http:\/\/127\.0\.0\.1:/);
