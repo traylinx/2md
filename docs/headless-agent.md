@@ -241,3 +241,13 @@ Capture status and comparison status are distinct: a successful HTTP capture may
 produce a partial comparison. Inspect `comparison.state`, every record and field,
 not merely the run's `completed` state. Evidence remains within the existing
 transient encrypted result retention; no new persistent content store is added.
+
+## Legacy dependency isolation
+
+The web runtime uses `deploy/web/runtime/package-lock.json` (including its pinned
+PostgreSQL client), not extra dependencies in the legacy root package. The root
+package/lockfile remain exactly the qualified legacy production versions. Build
+and run the separate web image, or use the isolated runtime dependency directory
+with an explicit module path for local development; do not reinstall legacy
+dependencies to start the agent. Source-only branch synchronization does not
+rebuild/redeploy legacy conversion or publish the documentation site.
