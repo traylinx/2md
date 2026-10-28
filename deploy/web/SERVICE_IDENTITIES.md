@@ -101,3 +101,11 @@ with `needs_reconciliation` before consuming its single-use capture grant. Both
 directions of service-proof verification pass. Capture/comparison is **not yet
 live-verified**; do not replay the uncertain run automatically. Current evidence
 and exact continuation are in the workspace `docs/sprints/CURRENT_STATUS.md`.
+
+Pilot02 update28 October2026: a new independently approved run completed capture,
+result retrieval and comparison retrieval. Its comparison is partial: MiniMax
+returned a shell and capture quality was degraded. This does not establish a
+root cause for the earlier dispatch failure; transient status503s are retained.
+Workspace9568853 now maps AUTH's recognized invalid-subject400 errors to401,
+verified live. Unknown/service failures remain503. Main/production release
+alignment and extraction/availability limitations remain separate closeout work.

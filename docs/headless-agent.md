@@ -1,4 +1,38 @@
-# Headless Web Agent (development preview)
+# Headless Web Agent (controlled pilot)
+
+## Live status — 28 October 2026
+
+The headless APIs and separate approval service are deployed. A real customer
+Sentinel pass completed proposal, human-owner approval, durable admission,
+SEARCH/capture dispatch, encrypted result retrieval and comparison retrieval.
+The stdio MCP package is tested, but this does not certify installation in every
+Claude/Codex host. No dedicated UI is required.
+
+Pilot scope is the configured organization/project and explicit source-origin
+allowlist. A valid pass alone does not grant project access: first use the
+existing authenticated Workspace `/me` onboarding, then have a project OWNER or
+ADMIN add that agent as a **project-only MEMBER**. VIEWER can inspect but cannot
+execute. Do not create raw database rows or substitute the human owner's identity.
+
+`completed` describes the execution lifecycle, and result `complete` means every
+requested URL produced a page. Neither guarantees complete source content or a
+complete comparison. The verified two-source run returned a **partial comparison**:
+MiniMax contained only its page shell, and capture protections reported degraded
+quality. Unknown fields stay unknown; no unsupported product claims were inferred.
+This is a functioning conservative comparison pipeline, not universal extraction.
+
+An earlier run ended `needs_reconciliation` before its capture grant was consumed.
+It was preserved, not replayed. The new independently approved run succeeded;
+the earlier failure's root cause is not established. Status polling also observed
+transient 503 responses. Treat those as unavailable/unknown, not permission denial
+or permission to start another run. Failure-stage diagnostics are now deployed.
+Recognized invalid-pass errors now return HTTP401; service failures remain503.
+This mapping is deployed and verified. Full release
+closeout and main/production branch alignment remain pending.
+
+The sections below describe the interfaces; dated pre-deployment verification
+statements are superseded by this live-status section.
+
 
 Run `node scripts/web-agent-mcp.js` as a stdio MCP server from your agent host.
 The server uses the pinned official MCP SDK 1.32.2. Install its isolated runtime
@@ -29,15 +63,15 @@ Available tools:
 
 There is no model-callable approval, signing, admission, arbitrary fetch or shell
 tool. Host-controlled approval and background authorization are implemented and tested
-in isolation. Production activation remains pending. This is not yet the complete
-comparison agent.
+in isolation. Production APIs are active for the configured pilot. Comparison limitations and
+remaining release gates are stated above.
 
 Verified locally: official MCP client initialization/list/call over in-memory
 transport, HTTP adapter boundaries using synthetic responses, and real stdio
 subprocess initialization/tool listing using synthetic credentials without remote
-authentication. A real Claude/Codex credentialed run and production deployment
-have **not** been performed. READ and Workspace agent-access routes must be
-qualified/configured before remote proposal/result calls can work.
+authentication. Production API deployment and a credentialed API journey are verified. A real
+Claude/Codex client installation has not been separately exercised; keep its
+protected host configuration and user-control boundary intact.
 
 Protocol references: [stdio transport](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports)
 and [tools](https://modelcontextprotocol.io/specification/2025-03-26/server/tools).
@@ -73,8 +107,8 @@ change `approved_by`.
 
 Implementation tests use synthetic authorization/database adapters plus isolated
 real PostgreSQL audit/role checks. Control-service composition, background authorization and admission are implemented
-and tested in isolation. Actual interactive credentialed approval and production
-activation remain pending. No web login/UI is required by this API/command.
+and tested in isolation. Credentialed control-API approval and production activation are verified; the
+interactive terminal command was not used for that live pilot. No web login/UI is required by this API/command.
 
 ## Saved authorization reference
 
