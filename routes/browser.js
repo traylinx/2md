@@ -8,20 +8,21 @@ const {captureCredentials} = require('../lib/capture/sentinelPrincipal');
 
 // Mount only on a dedicated browser listener, before body parsers. Nothing in the
 // legacy server imports this module. The caller resolver MUST verify both current
-// Sentinel/project identity and possession of the enrolled host key.
+// Sentinel/project identity. verifyHost checks enrolled key possession over the
+// exact parsed body once; the fresh resolver call must not consume its nonce again.
 const ROUTES = Object.freeze({
   '/capabilities':'get_browser_capabilities', '/sessions':'browser_open',
   '/observe':'browser_observe', '/navigate':'browser_navigate', '/act':'browser_act',
   '/credentials':'browser_credentials', '/authenticate':'browser_authenticate',
   '/extract':'browser_extract', '/action-status':'browser_action_status', '/close':'browser_close',
 });
-function createBrowserRouter({enabled=false,resolveCaller,service}={}) {
+function createBrowserRouter({enabled=false,resolveCaller,verifyHost,service}={}) {
   const router=express.Router();
   router.use((_req,res,next)=>{res.set({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});next();});
   if (enabled!==true) {
     router.use((_req,res)=>res.status(404).json({error:'NOT_FOUND'})); return router;
   }
-  if (typeof resolveCaller!=='function' || typeof service?.call!=='function') c.deny('UNAVAILABLE');
+  if (typeof resolveCaller!=='function' || typeof verifyHost!=='function' || typeof service?.call!=='function') c.deny('UNAVAILABLE');
   for (const [path,name] of Object.entries(ROUTES)) router.post(path,async(req,res)=>{
     const deadline=new Deadline(35000);
     const closed=()=>{if (!res.writableFinished) deadline.abort();}; res.once('close',closed);
@@ -33,6 +34,7 @@ function createBrowserRouter({enabled=false,resolveCaller,service}={}) {
       const credentials=captureCredentials(req);
       const verified=c.binding(await deadline.run(()=>resolveCaller({credentials,request:req,deadline})));
       const input=c.parseTool(name,await readBody(req,16384,deadline));
+      await deadline.run(()=>verifyHost({bound:verified,request:req,method:'POST',path:'/api/browser/v1'+path,body:input,signal:deadline.signal}));
       const result=await deadline.run(()=>service.call(name,input,verified,{signal:deadline.signal}));
       const current=c.binding(await deadline.run(()=>resolveCaller({credentials,request:req,deadline})));
       if (c.scope(current)!==c.scope(verified)) c.deny('FORBIDDEN');
