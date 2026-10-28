@@ -29,3 +29,20 @@ test('malformed content, foreign targets and invalid digest rejected before publ
  const copy=JSON.parse(JSON.stringify(f.result));edit(copy);assert.throws(()=>readResult(copy,f.plan));
  }
 });
+test('status failures identify their stage without changing error contract',async()=>{
+ const f=setup(),events=[];
+ f.ports.pool.query=async()=>{throw Error('postgres password=CANARY');};
+ const read=createRunReader({...f.ports,diagnose:(component,stage,error)=>events.push({component,stage,kind:error.name})});
+ await assert.rejects(read({...f.input,result:false}),/UNAVAILABLE/);
+ assert.deepEqual(events,[{component:'reader',stage:'lookup',kind:'Error'}]);
+});
+test('status reauthorization failure stays denied even if diagnostics fail',async()=>{
+ const f=setup();let n=0;
+ const read=createRunReader({...f.ports,resolvePrincipal:async()=>++n===1?alice:bob,diagnose:()=>{throw Error('sink');}});
+ await assert.rejects(read({...f.input,result:false}),/FORBIDDEN/);assert.equal(n,2);
+});
+test('status authorization failure reports authorize before database access',async()=>{
+ const f=setup(),events=[];let queries=0;
+ const read=createRunReader({...f.ports,pool:{query:async()=>{queries++;}},resolvePrincipal:async()=>{throw Error('secret');},diagnose:(_component,stage)=>events.push(stage)});
+ await assert.rejects(read({...f.input,result:false}),/UNAVAILABLE/);assert.deepEqual(events,['authorize']);assert.equal(queries,0);
+});

@@ -31,11 +31,23 @@ is protocol only. Inject Sentinel/project configuration through the host's secre
 mechanism. Do not bake secrets into image layers/build arguments. See
 `docs/headless-agent.md` for variables and the supported tools.
 
-Release gates still open: image publication, scoped production database/runtime
-provisioning, coordinated service release and a real owner-approved headless
-journey. Workspace, approval and background authorization are implemented and
-tested in isolation; that is not live deployment evidence. Agent execution is implemented behind a default-off gate, not enabled in production.
-Packaging is not evidence of deployment or full agent readiness.
+Current deployment (28 October): READ, SEARCH, control and Workspace are running;
+the real owner-approved pilot completed capture/result/comparison retrieval.
+Comparison quality remains partial when source content is incomplete. See
+`docs/sprints/traylinx-web/RELEASE_STATUS.md` and the workspace current checkpoint
+for exact releases rather than the historical preparation notes below.
+
+A real stdio MCP client connected to the supplied entrypoint with the customer's
+protected Sentinel configuration, listed all five tools, and read an existing
+production run successfully. Approval/admission are not model-facing tools. This
+qualifies the MCP transport, not installation into every customer's Claude/Codex
+configuration. Secrets remain host-bound; no capture was started by this check.
+
+The READ/control/MCP Docker stage must include the transitive capture helpers,
+including `resourceScope.js`. The source dependency-closure regression checks
+this packaging boundary. Reader failures emit only fixed stage/code diagnostics;
+raw SQL, URLs, proofs and credentials are never emitted. Historical transient
+503s remain unexplained; successful current reads do not retroactively fix them.
 
 ## Database roles (manual migration 005)
 

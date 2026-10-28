@@ -21,7 +21,7 @@ WORKDIR /app
 COPY --from=runtime-deps /app/node_modules /app/node_modules
 COPY --from=sentinel-deps /app/deploy/capture/sentinel-sdk /app/deploy/capture/sentinel-sdk
 COPY lib/web /app/lib/web
-COPY lib/capture/errors.js lib/capture/deadline.js lib/capture/targetPolicy.js lib/capture/sentinelPrincipal.js lib/capture/verifierTokens.js /app/lib/capture/
+COPY lib/capture/errors.js lib/capture/deadline.js lib/capture/targetPolicy.js lib/capture/sentinelPrincipal.js lib/capture/resourceScope.js lib/capture/verifierTokens.js /app/lib/capture/
 COPY scripts/web-read-server.js /app/scripts/web-read-server.js
 USER node
 ENV NODE_ENV=production WEB_READ_ENABLED=0 WEB_READ_HOST=0.0.0.0 WEB_READ_PORT=8081
