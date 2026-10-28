@@ -11,6 +11,9 @@ if not image.startswith('sha256:') or len(image) != 71:
 fixture = sys.argv[2] if len(sys.argv) > 2 else 'privateWorker.integration.cjs'
 if fixture not in {'privateWorker.integration.cjs', 'dynamicJourney.integration.cjs'}:
     raise SystemExit('Unsupported owned fixture')
+rpc = len(sys.argv) > 3 and sys.argv[3] == '--rpc'
+if rpc and fixture != 'dynamicJourney.integration.cjs':
+    raise SystemExit('RPC is public-fixture-only')
 tests = pathlib.Path(__file__).resolve().parent
 with tempfile.TemporaryDirectory(prefix='gb01-private-owned-') as directory:
     root = pathlib.Path(directory)
@@ -34,9 +37,11 @@ with tempfile.TemporaryDirectory(prefix='gb01-private-owned-') as directory:
             '-e', 'FIXTURE_CHROMIUM_WRAPPER=/fixture/chromium', image, 'node', '-e',
             'require("./lib/browser/processProtection").verifyProcessProtection(); require("./tests/browser/' + fixture + '")']
     # Fixture itself owns a bounded lifetime and finally closes browser/proxy.
+    if rpc:
+        args[2:2] = ['-i', '-e', 'FIXTURE_RPC=1']
     try:
-        result = subprocess.run(args, timeout=100)
+        result = subprocess.run(args, timeout=260 if rpc else 100)
     except subprocess.TimeoutExpired:
         subprocess.run(['docker', 'stop', '--time', '2', name], timeout=10, check=False)
-        raise SystemExit('Owned fixture exceeded its 100-second harness deadline')
+        raise SystemExit('Owned fixture exceeded its bounded harness deadline')
     raise SystemExit(result.returncode)
