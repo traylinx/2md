@@ -73,3 +73,17 @@ and includes startup/readiness checks against its existing `/health` endpoint.
 Both deployments remain zero replicas and deny-all. Health proves listener/runtime
 quarantine state, not successful downstream authentication, database or egress
 requests. Service-link environment injection is disabled. This is not activation.
+
+## Scoped network preparation
+
+`python3 deploy/browser/render-network.py --database-ip <verified-tailnet-ip>`
+prints separate additive access policies; it never applies them. The runtime can
+reach only cluster DNS, its dedicated proxy ports, Kong TLS, and the explicit
+DB/Valkey IPv4 on5432/6379. The proxy can reach cluster DNS and public IPv4 web
+ports80/443, excluding non-public ranges. IPv6 remains denied by the default policy.
+No proxy access to the database or shared capture lease ports is granted.
+
+This still requires an enabled deployment's exact dependency URLs/TLS routing,
+CNI enforcement and bypass qualification before activation. Existing policies are
+additive: check for any broad selector granting these pods extra access. A rendered
+policy or kubectl client dry-run is syntax evidence, not enforcement proof.

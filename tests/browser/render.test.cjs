@@ -23,3 +23,17 @@ test('candidate deployment stays inert and isolated with usable enabled listener
 test('renderer refuses mutable image references',()=>{
  assert.notEqual(spawnSync('python3',[script,'--image','ghcr.io/traylinx/browser:latest','--node-name','owned-node']).status,0);
 });
+test('candidate network separates runtime dependencies from public proxy egress',()=>{
+ const network=path.resolve(__dirname,'../../deploy/browser/render-network.py');
+ const args=[network,'--database-ip','100.69.18.112'];
+ const {items}=JSON.parse(execFileSync('python3',args));assert.equal(items.length,2);
+ const runtime=items.find(x=>x.metadata.name.includes('runtime')).spec,egress=items.find(x=>x.metadata.name.includes('egress')).spec;
+ const blocks=spec=>spec.egress.flatMap(rule=>(rule.to||[]).filter(x=>x.ipBlock).map(x=>({block:x.ipBlock,ports:rule.ports})));
+ assert.deepEqual(blocks(runtime),[{block:{cidr:'100.69.18.112/32'},ports:[{protocol:'TCP',port:5432},{protocol:'TCP',port:6379}]}]);
+ assert.equal(blocks(egress).length,1);const publicRule=blocks(egress)[0];
+ assert.equal(publicRule.block.cidr,'0.0.0.0/0');
+ for(const cidr of ['10.0.0.0/8','100.64.0.0/10','127.0.0.0/8','169.254.0.0/16'])assert.ok(publicRule.block.except.includes(cidr));
+ assert.deepEqual(publicRule.ports.map(x=>x.port),[80,443]);
+ assert.deepEqual(egress.ingress[0].from,[{podSelector:{matchLabels:{app:'traylinx-browser-runtime'}}}]);
+ assert.notEqual(spawnSync('python3',[network,'--database-ip','0.0.0.0']).status,0);
+});
