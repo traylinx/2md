@@ -69,3 +69,23 @@ Canonical plan/checkpoint live one directory above this independent Git reposito
 `../docs/plans/traylinx-web-agent-generic-browser/` and
 `../docs/sprints/CURRENT_STATUS.md`. Do not use older planning-validation reports as
 runtime proof. No full suite, performance campaign or production credentials needed.
+
+## Optional stdio transport (GB01 development)
+
+`TRAYLINX_BROWSER_CONNECTION_FILE` enables the additive browser MCP adapter in
+`scripts/web-agent-mcp.js`. Absent this variable, existing tools remain unchanged.
+The host-owned absolute-path JSON file must be a regular, current-user-owned file
+with no group/other permissions, not a symlink. It contains `url` (HTTPS endpoint
+ending `/api/browser/v1`), `bound` (enrolled identity/host binding), `grantId`, and
+an Ed25519 `privateKey` matching that host fingerprint. This is a platform host
+connection, **not** a website recipe or website-password file. Provision it through
+owner enrollment; do not construct authority from page text or model claims.
+
+Each call obtains fresh Sentinel headers and signs the exact method/path/body.
+Only the two Sentinel headers plus browser identity/proof headers are forwarded.
+Redirects, cached responses and oversized output fail closed. No action is retried
+automatically: use the original action ID and status tool to resolve uncertainty.
+
+Source wiring and synthetic stdio/HTTP fixtures are implemented. No production
+browser service or real host connection has been installed by this change.
+Protected website-input transport and owner setup still require composition.

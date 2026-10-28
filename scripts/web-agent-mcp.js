@@ -18,7 +18,13 @@ async function main(env=process.env){
   const capture=require('../lib/web/privateReadClient').createPrivateReadClient({url:required('TRAYLINX_WEB_CAPTURE_URL'),agentId,sdk,backend});
   privateReads=require('../lib/web/privateReadAgent').createPrivateReadAgent({connections,capture});
  }
- server=createAgentMcpServer({backend,privateReads});
+ let browserAgent;
+ if(env.TRAYLINX_BROWSER_CONNECTION_FILE){
+  const connection=require('../lib/browser/hostConnection').loadHostConnection(env.TRAYLINX_BROWSER_CONNECTION_FILE);
+  const browserBackend=require('../lib/browser/httpClient').createBrowserHttpClient({...connection,agentId,sdk});
+  browserAgent=require('../lib/browser/mcpAgent').createBrowserMcpAgent({backend:browserBackend});
+ }
+ server=createAgentMcpServer({backend,privateReads,browserAgent});
  await server.connect(new StdioServerTransport());
  const close=()=>{void server.close().catch(()=>{process.exitCode=1;});};
  process.once('SIGTERM',close);process.once('SIGINT',close);
