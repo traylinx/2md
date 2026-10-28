@@ -48,3 +48,7 @@ Test files mounted read-only; runtime bytes remain the exact image. This scripte
 journey is not a held-out independent layout or a real agentic-client acceptance.
 Remaining client, network/containment, compatibility and release gates still apply.
 No GB01 image published or deployed.
+
+### Worker-exit follow-up 97f630d
+
+Exact candidate77ab84ddcd0a002a3685abb6b517ddef7c294eac134daeac225bb1c1738bb94e passes SIGKILL-after-login cleanup before the next client command: no live owned Chromium group, residual profile/proxy, duplicate login or retained private receipt. WORKER_EXIT_IMAGE_CRASH.txt and WORKER_EXIT_IMAGE_NORMAL.txt pass;27 affected lifecycle checks pass. An idle-exit resource leak was reproduced then fixed by immediate idempotent disposal. No production deployment. This is worker-crash proof, not parent/container-loss, full network containment or wholeA10 certification.
