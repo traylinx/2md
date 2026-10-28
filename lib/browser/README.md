@@ -156,3 +156,18 @@ Focused tests use database/Redis doubles and synthetic service responses. No rea
 database connectivity, migration, Redis policy, service entitlement or deployed
 browser readiness is implied. Those remain release gates, alongside the container
 packaging and actual protected host setup.
+
+### Host liveness
+
+The optional browser stdio adapter now owns session heartbeats automatically.
+`/api/browser/v1/heartbeat` is a signed, current-authority-checked host route, not
+an MCP tool or owner approval. Heartbeats run every 30 seconds; 60 seconds without
+an acknowledgement marks the local session lost, matching the server's host-loss
+ceiling. The server still enforces independent idle/absolute/action limits.
+
+A failed heartbeat never replays a website action. Lost-open recovery can recover
+session tracking through the original action receipt. Disconnect closes tracked
+sessions best-effort within five seconds; a late open result after disconnect is
+also closed. If delivery fails, server-side expiry remains authoritative. No
+browser host adapter is constructed when the optional connection is absent, so
+legacy stdio tool exposure remains unchanged.

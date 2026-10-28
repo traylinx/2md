@@ -34,8 +34,10 @@ test('composed runtime signed routes execute public session and shut down cleanl
  const f=fixture();try{
   const caps=await f.client.call('get_browser_capabilities',{});assert.equal(caps.credentialChannel,'unavailable');
   const opened=await f.client.call('browser_open',open('public'));assert.equal(opened.state,'succeeded');
+  assert.deepEqual(await f.client.protectedCall('heartbeat',{sessionId:opened.sessionId}),{sessionId:opened.sessionId,state:'active'});
   assert.equal((await f.client.call('browser_observe',{sessionId:opened.sessionId})).observationId,'o1');
   await f.client.call('browser_close',{sessionId:opened.sessionId});assert.equal(f.disposed(),1);
+  await assert.rejects(f.client.protectedCall('heartbeat',{sessionId:opened.sessionId}),{code:'SESSION_LOST'});
  }finally{await f.runtime.stop();}
  await request(f.runtime.app).get('/health').expect(503);
 });

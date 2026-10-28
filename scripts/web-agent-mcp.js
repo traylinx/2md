@@ -1,6 +1,6 @@
 'use strict';
 async function main(env=process.env){
- let server;
+ let server,browserHost;
  try{
  env=require('../lib/web/hostCredentials').hostEnvironment(env);
  const c=require('../lib/web/contracts');
@@ -22,13 +22,15 @@ async function main(env=process.env){
  if(env.TRAYLINX_BROWSER_CONNECTION_FILE){
   const connection=require('../lib/browser/hostConnection').loadHostConnection(env.TRAYLINX_BROWSER_CONNECTION_FILE);
   const browserBackend=require('../lib/browser/httpClient').createBrowserHttpClient({...connection,agentId,sdk});
-  browserAgent=require('../lib/browser/mcpAgent').createBrowserMcpAgent({backend:browserBackend});
+  browserHost=require('../lib/browser/hostLifecycle').createHostLifecycle({backend:browserBackend});
+  browserAgent=require('../lib/browser/mcpAgent').createBrowserMcpAgent({backend:browserHost});
  }
  server=createAgentMcpServer({backend,privateReads,browserAgent});
+ server.onclose=()=>{void browserHost?.close().catch(()=>{});};
  await server.connect(new StdioServerTransport());
  const close=()=>{void server.close().catch(()=>{process.exitCode=1;});};
  process.once('SIGTERM',close);process.once('SIGINT',close);
- }catch{process.stderr.write('traylinx-web-agent: configuration unavailable\n');process.exitCode=1;await server?.close().catch(()=>{});}
+ }catch{process.stderr.write('traylinx-web-agent: configuration unavailable\n');process.exitCode=1;await server?.close().catch(()=>{});await browserHost?.close().catch(()=>{});}
 }
 if(require.main===module)void main();
 module.exports={main};
