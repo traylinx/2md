@@ -8,6 +8,9 @@ import uuid
 image = sys.argv[1]
 if not image.startswith('sha256:') or len(image) != 71:
     raise SystemExit('An exact local sha256 image ID is required')
+fixture = sys.argv[2] if len(sys.argv) > 2 else 'privateWorker.integration.cjs'
+if fixture not in {'privateWorker.integration.cjs', 'dynamicJourney.integration.cjs'}:
+    raise SystemExit('Unsupported owned fixture')
 tests = pathlib.Path(__file__).resolve().parent
 with tempfile.TemporaryDirectory(prefix='gb01-private-owned-') as directory:
     root = pathlib.Path(directory)
@@ -29,7 +32,7 @@ with tempfile.TemporaryDirectory(prefix='gb01-private-owned-') as directory:
             '--mount', f'type=bind,src={root},dst=/fixture,readonly',
             '-e', 'FIXTURE_KEY=/fixture/fixture.key', '-e', 'FIXTURE_CERT=/fixture/fixture.crt',
             '-e', 'FIXTURE_CHROMIUM_WRAPPER=/fixture/chromium', image, 'node', '-e',
-            'require("./lib/browser/processProtection").verifyProcessProtection(); require("./tests/browser/privateWorker.integration.cjs")']
+            'require("./lib/browser/processProtection").verifyProcessProtection(); require("./tests/browser/' + fixture + '")']
     # Fixture itself owns a bounded lifetime and finally closes browser/proxy.
     try:
         result = subprocess.run(args, timeout=100)
