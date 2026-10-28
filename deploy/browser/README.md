@@ -107,3 +107,11 @@ a migration, publish an image or enable any flags. No containment qualification
 marker is rendered: supply it only after actual isolation validation. The local
 Docker image ID is not automatically a GHCR manifest digest; use the verified
 published digest for any actual deployment.
+
+`rehearse-network.py --execute --ssh-host <verified-cluster-host> --node <verified-node>
+--image <verified-cached-digest>` is a bounded, explicit live CNI rehearsal in a
+unique disposable namespace. It uses imagePullPolicy Never, synthetic TCP listeners,
+three100m/96Mi caps,180s pod lifetime and UID-guarded namespace deletion. It sends no
+application credentials or production database requests. Requires approved isolated
+cluster testing authority and confirmed cached Node image; do not run as a generic
+production health check. A failure is not permission to retry indefinitely.

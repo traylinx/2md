@@ -52,3 +52,16 @@ No GB01 image published or deployed.
 ### Worker-exit follow-up 97f630d
 
 Exact candidate77ab84ddcd0a002a3685abb6b517ddef7c294eac134daeac225bb1c1738bb94e passes SIGKILL-after-login cleanup before the next client command: no live owned Chromium group, residual profile/proxy, duplicate login or retained private receipt. WORKER_EXIT_IMAGE_CRASH.txt and WORKER_EXIT_IMAGE_NORMAL.txt pass;27 affected lifecycle checks pass. An idle-exit resource leak was reproduced then fixed by immediate idempotent disposal. No production deployment. This is worker-crash proof, not parent/container-loss, full network containment or wholeA10 certification.
+
+### Live CNI rehearsal, isolated namespace
+
+`rehearse-network.py` uses three owned temporary pods, node03,100m/96Mi each,
+180s pod deadline, no application boot/secrets/volumes/service-account token.
+CNI_REHEARSAL_CACHED.json passes runtime-to-proxy, runtime private/direct-public
+denial, proxy private denial/public443allow, each twice after positive baselines.
+Unique namespace deleted with UID guard; cleanup true. Cached READ image runs only
+static Node TCP probes, not browser code. This proves those CNI policy paths, not
+exact candidate HTTP/TLS/PG/Valkey/Chromium end-to-end isolation or all SSRF cases.
+First attempt never reached readiness; CNI_REHEARSAL.json retained as unsuccessful,
+cleanup true. Capture image absent from node03's subsequent cache listing; original
+pod waiting reason was not captured, so registry failure is not a proven diagnosis.
