@@ -104,3 +104,23 @@ The owned composition test uses a real loopback form and Express route, real
 Ed25519 proofs, and synthetic session/owner authority. It does not certify live
 owner setup, PostgreSQL, a deployed private browser or customer-site login.
 Runtime/server setup and authentication-decision delivery remain pending.
+
+### Composed runtime
+
+`createBrowserRuntime` assembles the dedicated Express routes, session manager,
+volatile input broker, signed host/completion/consent verification and persistent
+worker factory. `authorize`, current `resolveCaller`, atomic `consumeNonce` and
+isolated egress `lease` are mandatory operator-side dependencies, not model inputs
+or permissive defaults. Private mode defaults off. Protected input routes precede
+the browser router's terminal 404; the legacy server does not import this runtime.
+
+Session identity is passed only to the parent worker factory as a separate trusted
+context. It is not serialized into Chromium initialization. Worker disposal also
+removes pending credential/decision entries. Worker outputs are validated by
+operation before receipt storage. Owner provenance survives grant validation so
+legitimate credential requests can identify the approving owner.
+
+Owned runtime composition tests exercise signed HTTP, session dispatch, completion,
+consent, consume-once private delivery and shutdown using a worker fixture. Actual
+Sentinel/PostgreSQL boot wiring and real Chromium-through-IPC release qualification
+remain required; this module alone is not a production release.
