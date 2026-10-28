@@ -17,6 +17,7 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
   messageReads++;const second=req.url==='/messages?page=2';
   return res.end('<main><h1>Inbox for owned@example.test</h1><ol>'+messages.slice(second?3:0,second?5:3).map(m=>'<li>'+m+'</li>').join('')+'</ol><p hidden>HIDDEN_MESSAGE</p>'+(second?'':'<a href="/messages?page=2">Older messages</a>')+'</main>');
  }
+ if(req.method==='POST'&&process.env.FIXTURE_LOGIN_OUTCOME==='reject'){posts++;req.resume();return res.end('<main><h1>Sign in</h1><p role="alert">Incorrect username or password</p><label>Password<input type="password"></label></main>');}
  if(req.method==='POST'){res.setHeader('Set-Cookie','owned_session=fixture; Secure; HttpOnly; SameSite=Strict');posts++;req.on('data',b=>{body+=b;});return req.on('end',()=>res.end('<aside>OUTSIDE_REGION</aside><main><h1>Owned organization</h1><p>Private membership details. Echo: SYNTHETIC_WORKER_PASSWORD</p><a href="/messages">Messages</a><p hidden>HIDDEN_REGION</p><input value="INPUT_REGION"></main>'));}
  res.end('<h1>Login</h1><form method="post" action="/account"><label>Username<input name="username"></label><label>Password<input type="password" name="password"></label><button>Log in</button></form>');
 });
@@ -39,7 +40,16 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
  const decision={sessionId,operationId:'login1',operationDigest:c.digest(request),recipients:[origin],expiresAt:Date.now()+30000,nonce:'auth1'};
  const payload=Buffer.from(JSON.stringify({version:1,audience:AUDIENCE,grantId:g.grantId,principalScope:c.scope(bound),hostId:bound.hostId,...decision,issuedAt:Date.now()})).toString('base64url');
  await runtime.broker.prepare(bound,{request,decision,recipients:[origin],proof:payload+'.'+sign(null,Buffer.from(AUDIENCE+'.'+payload),privateKey).toString('base64url')});
- const login=await runtime.manager.execute(bound,'browser_authenticate',request);assert.equal(login.state,'succeeded',JSON.stringify(login));assert.equal(login.output.state,'login_submitted');
+ const login=await runtime.manager.execute(bound,'browser_authenticate',request);assert.equal(login.state,'succeeded',JSON.stringify(login));if(process.env.FIXTURE_LOGIN_OUTCOME==='reject'){
+  assert.equal(login.output.state,'credentials_rejected');assert.equal(login.output.accountLabel,undefined);assert.deepEqual(login.output.evidenceIds,[]);
+  assert.deepEqual(await runtime.manager.execute(bound,'browser_authenticate',request),login);assert.equal(posts,1);
+  const state=await runtime.manager.query(bound,'browser_observe',{sessionId});assert.equal(state.state,'access_required');
+  const rejected=await runtime.manager.query(bound,'browser_extract',{sessionId});assert.equal(rejected.quality,'blocked');assert.match(rejected.markdown,/Incorrect username or password/);
+  await assert.rejects(runtime.broker.inspect(bound,record.interventionId));
+  await runtime.manager.close(bound,sessionId);assert.equal(releases,1);assert.deepEqual(fs.readdirSync(tempRoot),[]);
+  console.log('PASS: real worker wrong-password rejection, one POST, same-action recovery without retry, consumed credential, blocked account extraction and cleanup');return;
+ }
+ assert.equal(login.output.state,'login_submitted');assert.equal(login.output.accountLabel,undefined);assert.deepEqual(login.output.evidenceIds,[]);
  assert.deepEqual(await runtime.manager.execute(bound,'browser_authenticate',request),login);assert.equal(posts,1);assert.equal(new URLSearchParams(body).get('password'),'SYNTHETIC_WORKER_PASSWORD');
  const extracted=await runtime.manager.query(bound,'browser_extract',{sessionId});assert.equal(extracted.source.privacy,'private');assert.match(extracted.markdown,/Owned organization/);assert.doesNotMatch(JSON.stringify(extracted),/SYNTHETIC_WORKER_PASSWORD/);assert.equal(posts,1);
  const snapshot=await runtime.manager.query(bound,'browser_observe',{sessionId});assert.doesNotMatch(JSON.stringify(snapshot),/HIDDEN_REGION|INPUT_REGION|SYNTHETIC_WORKER_PASSWORD/);const regionRef=snapshot.regions.find(r=>r.role==='main').ref;

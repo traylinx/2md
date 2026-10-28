@@ -35,6 +35,10 @@ with tempfile.TemporaryDirectory(prefix='gb01-private-owned-') as directory:
             '-e', 'FIXTURE_CHROMIUM_WRAPPER=/fixture/chromium', image, 'node', '-e',
             'require("./lib/browser/processProtection").verifyProcessProtection(); require("./tests/browser/' + fixture + '")']
     # Fixture itself owns a bounded lifetime and finally closes browser/proxy.
+    if len(sys.argv)>3 and sys.argv[3]=='--reject':
+        if fixture!='privateWorker.integration.cjs':
+            raise SystemExit('Rejection mode requires private fixture')
+        args[2:2]=['-e','FIXTURE_LOGIN_OUTCOME=reject']
     if rpc:
         args[2:2] = ['-i', '-e', 'FIXTURE_RPC=1']
     try:
