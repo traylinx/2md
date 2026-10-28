@@ -1,6 +1,7 @@
 'use strict';
 const childProcess=require('node:child_process');
 const {Deadline}=require('../lib/capture/deadline');
+const {ActionDeadline}=require('../lib/browser/actionDeadline');
 const c=require('../lib/browser/contracts');
 const {createChildBridge}=require('../lib/browser/protectedBridge');
 const {createPublicSession}=require('../lib/browser/publicSession');
@@ -28,7 +29,7 @@ process.on('message',async message=>{
       if(!['public','login_read'].includes(input.mode)||!/^http:\/\/[a-zA-Z0-9.-]+:\d+$/.test(input.proxyUrl))c.deny('UNSUPPORTED');
       lifetime=new Deadline(Math.max(1,Math.min(limits.absoluteMs,input.expiresAt-Date.now())));
       lifetime.signal.addEventListener('abort',terminate,{once:true});
-      deadline=new Deadline(limits.actionMs,lifetime.signal);
+      deadline=new ActionDeadline(limits.actionMs,lifetime.signal);
       browser=await deadline.run(()=>require('puppeteer').launch({executablePath:process.env.PUPPETEER_EXECUTABLE_PATH,
         headless:true,userDataDir:input.profile,pipe:true,dumpio:false,timeout:deadline.remaining(),
         handleSIGINT:false,handleSIGTERM:false,handleSIGHUP:false,
@@ -38,12 +39,12 @@ process.on('message',async message=>{
           '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',`--proxy-server=${input.proxyUrl}`,
           '--proxy-bypass-list=<-loopback>',`--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE ${new URL(input.proxyUrl).hostname}`]}));
       const protectedInput=input.mode==='login_read'?{getAuthDecision:(...args)=>bridge.provider.getAuthDecision(...args),verifyDecision:(...args)=>bridge.provider.verifyDecision(...args),requestDecision:(...args)=>bridge.provider.requestDecision(...args),credentialAccess:(...args)=>bridge.provider.credentialAccess(...args)}:undefined;
-      bridge=createChildBridge({send:message=>process.send?.(message),requestId,signal:deadline.signal});
+      bridge=createChildBridge({send:message=>process.send?.(message),requestId,signal:deadline.signal,actionDeadline:deadline});
       engine=await deadline.run(()=>createPublicSession(browser,input,lifetime,{protectedInput}));respond('result',{ready:true});
     }else{
       if(!engine||!lifetime)c.deny('UNAVAILABLE');
-      deadline=new Deadline(limits.actionMs,lifetime.signal);
-      bridge=createChildBridge({send:message=>process.send?.(message),requestId,signal:deadline.signal});
+      deadline=new ActionDeadline(limits.actionMs,lifetime.signal);
+      bridge=createChildBridge({send:message=>process.send?.(message),requestId,signal:deadline.signal,actionDeadline:deadline});
       const result=await deadline.run(()=>engine.execute(name,input,deadline));
       if(Buffer.byteLength(JSON.stringify(result))>limits.maxResultBytes)c.deny('LIMIT_EXCEEDED');
       respond('result',result);

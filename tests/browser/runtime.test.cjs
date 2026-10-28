@@ -8,12 +8,16 @@ const {createCompletionSigner}=require('../../lib/browser/completionProof');
 const {AUDIENCE}=require('../../lib/browser/consent');
 const {bound,owner,grant,privateKey,observation}=require('./support.cjs');
 const c=require('../../lib/browser/contracts');
-function fixture({privateEnabled=false,badOutput=false}={}){
+function fixture({privateEnabled=false,badOutput=false,operationWait=false}={}){
  const g={...grant(),policyVersion:c.POLICY,hostKeyFingerprint:bound.hostKeyFingerprint,approvedByWorkspaceUserId:owner.workspaceUserId};
  let disposed=0,revoked=false,received;const nonces=new Set();
  const runtime=createBrowserRuntime({privateEnabled,autoSweep:false,runtimeEpoch:'epoch1',authorize:async()=>{if(revoked)c.deny('PERMISSION_REQUIRED');return g;},resolveCaller:async()=>bound,consumeNonce:async({nonce})=>{if(nonces.has(nonce))return false;nonces.add(nonce);return true;},lease:async()=>{},workerFactory:({protectedInputForSession})=>async input=>{
   assert.equal(input.bound,undefined);assert.equal(input.principal,undefined);
   return {dispose:async()=>{disposed++;},execute:async(name,action)=>{
+   if(operationWait&&name==='browser_act'){
+    const provider=protectedInputForSession(input.sessionId),record={sessionId:input.sessionId,operationId:'network1',operationDigest:'a'.repeat(64),recipients:['https://new.example.org'],expiresAt:Date.now()+30000,nonce:'network-nonce',reason:'recipient',method:'GET',origin:'https://new.example.org',type:'fetch',bodyBytes:0};
+    const proof=await provider.requestDecision(record);const {reason,method,origin,type,bodyBytes,...decision}=record;await provider.verifyDecision(proof,decision);return {state:'active'};
+   }
    if(badOutput)return {...observation(),password:'unexpected'};
    if(name==='browser_authenticate'){
     const provider=protectedInputForSession(input.sessionId),prepared=await provider.getAuthDecision(action);
@@ -69,4 +73,21 @@ test('runtime rejects malformed worker output and revocation before more work',a
   }finally{await f.runtime.stop();}
   assert.equal(f.disposed(),1);
  }
+});
+test('signed operation routes expose pending receipt and resume original runtime action',async()=>{
+ const f=fixture({privateEnabled:true,operationWait:true});try{
+ const opened=await f.client.call('browser_open',open('login_read'));
+ const action={runtimeEpoch:'epoch1',sessionId:opened.sessionId,actionId:'click1',observationId:'o1',action:{type:'click',ref:'button1'}};
+ const pending=await f.client.call('browser_act',action);assert.equal(pending.state,'needs_input');assert.equal(pending.output.reason,'recipient_consent');
+ assert.deepEqual(await f.client.call('browser_act',action),pending);
+ const record=await f.client.protectedCall('operation-inspect',{operationId:'network1'});assert.equal(record.ownerId,owner.workspaceUserId);
+ await assert.rejects(f.client.protectedCall('operation-complete',{operationId:'network1',proof:'model-yes'}));
+ const {reason,method,origin,type,bodyBytes,ownerId,...decision}=record;
+ const body={version:1,audience:AUDIENCE,grantId:f.g.grantId,principalScope:c.scope(bound),hostId:bound.hostId,...decision,issuedAt:Date.now()};
+ const payload=Buffer.from(JSON.stringify(body)).toString('base64url'),proof=payload+'.'+sign(null,Buffer.from(AUDIENCE+'.'+payload),privateKey).toString('base64url');
+ await f.client.protectedCall('operation-complete',{operationId:'network1',proof});
+ const status=await f.client.call('browser_action_status',{runtimeEpoch:'epoch1',actionId:'click1',sessionId:opened.sessionId});assert.equal(status.state,'succeeded');
+ assert.deepEqual(await f.client.call('browser_act',action),status);
+ await assert.rejects(f.client.protectedCall('operation-complete',{operationId:'network1',proof}));
+ }finally{await f.runtime.stop();}
 });

@@ -18,3 +18,13 @@ test('bridge drops late protected responses after command cancellation/change',a
  const bridge=createParentBridge({sessionId:'s1',getActive:()=>active,getProvider:async()=>({getAuthDecision:()=>new Promise(r=>{release=r;})}),send:m=>messages.push(m)});
  const pending=bridge.handle({type:'protected_request',requestId:'r1',callId:'c1',method:'decision',input});await new Promise(r=>setImmediate(r));controller.abort();active=null;release({ignored:true});await pending;assert.equal(messages.length,0);
 });
+test('child network decision pauses action clock only until matching protected response',async()=>{
+ const {createChildBridge}=require('../../lib/browser/protectedBridge');let sent;const events=[],controller=new AbortController();
+ const bridge=createChildBridge({requestId:'request1',signal:controller.signal,send:m=>{sent=m;},actionDeadline:{pause:id=>events.push('pause:'+id),resume:id=>events.push('resume:'+id)}});
+ try{
+ const waiting=bridge.provider.requestDecision({sessionId:'s1',operationId:'network1'});assert.deepEqual(events,['pause:network1']);
+ assert.equal(bridge.handle({type:'protected_result',requestId:'foreign',callId:sent.callId,result:'signed'}),false);
+ assert.equal(bridge.handle({type:'protected_result',requestId:'request1',callId:sent.callId,result:'signed'}),true);
+ assert.equal(await waiting,'signed');assert.deepEqual(events,['pause:network1','resume:network1']);
+ }finally{bridge.close();}
+});

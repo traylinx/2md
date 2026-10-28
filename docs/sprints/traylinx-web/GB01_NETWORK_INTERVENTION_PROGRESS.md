@@ -27,3 +27,19 @@ apply. Resume uses the original remaining budget, never a fresh30 seconds.
 OPERATION_WAIT_COMPONENTS.tap:5 focused component tests PASS. These components
 are not mounted yet: session receipts, child/parent IPC pauses, signed host routes
 and owner UI remain the next integration task. No live capability claim.
+
+## Runtime/receipt integration
+
+Session manager now returns `needs_input` for an active operation while retaining
+its original action receipt and worker command. Repeated action ID returns that
+receipt, not another execution. Trusted resume restores the remaining action budget;
+close/revocation discard pending output. Runtime composes broker with current
+consent verifier and signed host-only operation-inspect/complete/cancel routes.
+Child protected IPC pauses its action deadline while awaiting the host decision.
+
+OPERATION_RUNTIME.tap:120 checks PASS, including a signed HTTP runtime fixture
+that rejects model approval, resumes once, and recovers the same successful receipt.
+OPERATION_BRIDGE.tap:3 overlapping targeted checks PASS after adding child pause
+coverage. No real browser intervention yet. Protected owner UI and Puppeteer wait
+behavior across a long pause still require integration/qualification. Public-mode
+and initial-navigation interventions remain separate outstanding coverage.

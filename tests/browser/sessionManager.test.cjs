@@ -104,3 +104,30 @@ test('observation output is withheld when authorization is revoked during query'
  const s=await f.manager.open(bound,opening);
  await assert.rejects(f.manager.query(bound,'browser_extract',{sessionId:s.sessionId}),{code:'PERMISSION_REQUIRED'});await f.manager.shutdown();
 });
+test('trusted intervention returns needs_input without retry, resumes original action once',async()=>{
+ let f,release,started=0;let entered;const entry=new Promise(r=>{entered=r;});
+ f=fixture({createWorker:async()=>({dispose:async()=>{},execute:async(_name,input)=>{
+  started++;entered();await new Promise(r=>{release=r;});return {state:'active'};
+ }})});
+ try{
+ const opened=await f.manager.open(bound,opening),input=click(opened.sessionId);
+ const execution=f.manager.execute(bound,'browser_act',input);await entry;
+ await f.manager.suspend(bound,{sessionId:opened.sessionId,interventionId:'pending1',reason:'operation_consent',expiresAt:Date.now()+30000});
+ const pending=await execution;assert.equal(pending.state,'needs_input');assert.equal(pending.output.interventionId,'pending1');
+ assert.deepEqual(await f.manager.execute(bound,'browser_act',input),pending);assert.equal(started,1);
+ await assert.rejects(f.manager.execute(bound,'browser_act',{...input,actionId:'another'}),{code:'BUSY'});
+ await assert.rejects(f.manager.resume(bound,{sessionId:opened.sessionId,interventionId:'wrong'}),{code:'PERMISSION_REQUIRED'});
+ await f.manager.resume(bound,{sessionId:opened.sessionId,interventionId:'pending1'});release();
+ for(let i=0;i<20;i++){const result=await f.manager.status(bound,{runtimeEpoch:'e1',actionId:input.actionId});if(result.state==='succeeded'){assert.equal(started,1);return;}await new Promise(r=>setImmediate(r));}
+ assert.fail('original action did not complete');
+ }finally{release?.();await f.manager.shutdown();}
+});
+test('closing a paused action discards intervention output and never permits resumption',async()=>{
+ let entered;const entry=new Promise(r=>{entered=r;});const f=fixture({createWorker:async()=>({dispose:async()=>{},execute:async()=>{entered();return new Promise(()=>{});}})});
+ try{
+ const opened=await f.manager.open(bound,opening),input=click(opened.sessionId);const execution=f.manager.execute(bound,'browser_act',input);await entry;
+ await f.manager.suspend(bound,{sessionId:opened.sessionId,interventionId:'pending1',reason:'recipient_consent',expiresAt:Date.now()+30000});assert.equal((await execution).state,'needs_input');
+ await f.manager.close(bound,opened.sessionId);await assert.rejects(f.manager.resume(bound,{sessionId:opened.sessionId,interventionId:'pending1'}));
+ const receipt=await f.manager.status(bound,{runtimeEpoch:'e1',actionId:input.actionId});assert.equal(receipt.state,'outcome_unknown');assert.equal(receipt.output,undefined);
+ }finally{await f.manager.shutdown();}
+});
