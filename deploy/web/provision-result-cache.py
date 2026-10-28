@@ -82,14 +82,14 @@ def atomic_write(path, data, uid, gid, mode, *, absent=False):
             os.unlink(name)
 
 
-def original_config(raw):
+def original_config(raw, extra_includes=()):
     passwords = []
     for line in raw.decode().splitlines():
         parts = shlex.split(line, comments=True)
         if not parts:
             continue
         if parts[0].lower() == 'include':
-            require(parts == ['include', str(SENTINEL_INCLUDE)], 'UNEXPECTED_INCLUDE')
+            require(len(parts) == 2 and parts[1] in {str(SENTINEL_INCLUDE), *(str(p) for p in extra_includes)}, 'UNEXPECTED_INCLUDE')
         require(parts[0].lower() not in ('aclfile', 'user'), 'ACL_MANAGER_CONFLICT')
         if parts[0].lower() == 'requirepass':
             require(len(parts) == 2 and parts[1], 'DEFAULT_PASSWORD')
@@ -139,19 +139,24 @@ def matches(actual, password_hash):
 
 
 def provision(password, expected, apply, *, config=CONFIG, include=INCLUDE, backup=BACKUP,
-              uid=None, gid=None, client=Valkey):
+              uid=None, gid=None, client=Valkey, policy_check=None, scoped_check=None, extra_includes=None):
     require(re.fullmatch(r'[A-Za-z0-9_-]{43,128}', password) is not None, 'PASSWORD_FORMAT')
     require(re.fullmatch(r'[0-9a-f]{64}', expected) is not None, 'PREIMAGE_FORMAT')
     uid = pwd.getpwnam('valkey').pw_uid if uid is None else uid
     gid = pwd.getpwnam('valkey').pw_gid if gid is None else gid
     sentinel_before = read_regular(SENTINEL_INCLUDE, uid, 0o600)
     require(digest(sentinel_before) == SENTINEL_HASH, 'SENTINEL_INCLUDE_DRIFT')
+    preserved_includes = {}
+    for path, expected_hash in (extra_includes or {}).items():
+        content = read_regular(path, uid, 0o600)
+        require(digest(content) == expected_hash, 'EXTRA_INCLUDE_DRIFT')
+        preserved_includes[path] = content
     current = read_regular(config, uid, 0o640)
     original = read_regular(backup, 0, 0o600) if backup.exists() else current
     require(digest(original) == expected, 'CONFIG_PREIMAGE')
     updated = original + (b'' if original.endswith(b'\n') else b'\n') + DIRECTIVE
     require(current in (original, updated), 'CONFIG_DRIFT')
-    admin = client(original_config(original))
+    admin = client(original_config(original, preserved_includes))
     password_hash = digest(password.encode())
     payload = ('user ' + USER + ' ' + ' '.join(RULES) + ' #' + password_hash + '\n').encode()
     if os.path.lexists(include):
@@ -163,6 +168,8 @@ def provision(password, expected, apply, *, config=CONFIG, include=INCLUDE, back
     baseline = {key: admin.call('CONFIG', 'GET', key)
                 for key in ('aclfile', 'maxmemory', 'maxmemory-policy', 'appendonly', 'appendfsync')}
     require(baseline['aclfile'] == ['aclfile', ''], 'ACL_MANAGER_CONFLICT')
+    if policy_check is not None:
+        policy_check(baseline)
     existing_users = admin.call('ACL', 'USERS')
     preserved_users = {u: admin.call('ACL', 'GETUSER', u) for u in existing_users if u != USER}
     default = admin.call('ACL', 'GETUSER', 'default')
@@ -175,6 +182,7 @@ def provision(password, expected, apply, *, config=CONFIG, include=INCLUDE, back
         atomic_write(backup, original, 0, 0, 0o600, absent=True)
     if not os.path.lexists(include):
         atomic_write(include, payload, uid, gid, 0o600, absent=True)
+    require(all(read_regular(p, uid, 0o600) == b for p, b in preserved_includes.items()), 'EXTRA_INCLUDE_CHANGED')
     require(read_regular(config, uid, 0o640) == current, 'CONFIG_CHANGED_DURING_PREPARATION')
     if current == original:
         atomic_write(config, updated, uid, gid, 0o640)
@@ -184,18 +192,22 @@ def provision(password, expected, apply, *, config=CONFIG, include=INCLUDE, back
     require(default == admin.call('ACL', 'GETUSER', 'default'), 'DEFAULT_CHANGED')
     require(all(admin.call('ACL', 'GETUSER', u) == v for u, v in preserved_users.items()), 'OTHER_USER_CHANGED')
     require(read_regular(SENTINEL_INCLUDE, uid, 0o600) == sentinel_before, 'SENTINEL_INCLUDE_CHANGED')
+    require(all(read_regular(p, uid, 0o600) == b for p, b in preserved_includes.items()), 'EXTRA_INCLUDE_CHANGED')
     require(all(value == admin.call('CONFIG', 'GET', key) for key, value in baseline.items()), 'GLOBAL_CHANGED')
     scoped = client(password, USER)
     require(scoped.call('PING') == 'PONG', 'SCOPED_AUTH')
-    require(isinstance(scoped.call('EVAL', "return redis.call('TIME')", '0'), list), 'SCOPED_LUA')
-    for command in [('GET', 'other-consumer:key'), ('SELECT', '1'), ('ACL', 'LIST')]:
-        response = admin.call('ACL', 'DRYRUN', USER, *command)
-        require(isinstance(response, str) and 'no permissions' in response.lower(), 'DENIAL_VERIFY')
+    if scoped_check is None:
+        require(isinstance(scoped.call('EVAL', "return redis.call('TIME')", '0'), list), 'SCOPED_LUA')
+        for command in [('GET', 'other-consumer:key'), ('SELECT', '1'), ('ACL', 'LIST')]:
+            response = admin.call('ACL', 'DRYRUN', USER, *command)
+            require(isinstance(response, str) and 'no permissions' in response.lower(), 'DENIAL_VERIFY')
+        scoped_result = {'scoped_auth_and_lua': True, 'denial_checks': 3}
+    else:
+        scoped_result = scoped_check(admin, scoped)
     require(read_regular(config, uid, 0o640) == updated and
             read_regular(include, uid, 0o600) == payload, 'PERSISTENCE_VERIFY')
     return {'status': 'PASS', 'applied': True, 'default_preserved': True,
-            'global_policy_preserved': True, 'scoped_auth_and_lua': True,
-            'denial_checks': 3, 'persistent_include_verified': True,
+            'global_policy_preserved': True, **scoped_result, 'persistent_include_verified': True,
             'restart_performed': False, 'data_writes': False,
             'config_before_sha256': expected, 'config_after_sha256': digest(updated)}
 
