@@ -32,6 +32,14 @@ Recognized invalid-pass errors now return HTTP401; service failures remain503.
 This mapping is deployed and verified. Qualified backend changes are aligned on
 main and production. Host onboarding qualification is recorded below.
 
+Final registered-host journey on 28 October captured both approved sources:
+MiniMax 11,609 characters and conversion documentation 3,529 characters. Six
+status reads returned without errors; result and comparison retrieval succeeded.
+Both pages remain degraded and the comparison remains partial. The shared
+Workspace verifier now has a scoped attempt budget; customer defaults are
+unchanged. AUTH publishes conservative proof-lifetime metadata, allowing the SDK
+to reuse valid proofs while every request still undergoes current authorization.
+
 The sections below describe the interfaces; dated pre-deployment verification
 statements are superseded by this live-status section.
 
