@@ -74,9 +74,12 @@ test('concurrent navigation remains serialized across async scope checks',async(
  let release,actions=0;const gate=new Promise(r=>release=r);
  const f=fixture({createWorker:async()=>({execute:async()=>{actions++;await gate;return {};},dispose:async()=>{}})});
  const s=await f.manager.open(bound,opening),input={runtimeEpoch:'e1',sessionId:s.sessionId,actionId:'nav1',target:{url:'https://unfamiliar.example.org/page'}};
- const first=f.manager.execute(bound,'browser_navigate',input);await new Promise(r=>setImmediate(r));
- await assert.rejects(f.manager.execute(bound,'browser_navigate',{...input,actionId:'nav2'}),e=>e.code==='BUSY');
- release();await first;assert.equal(actions,1);await f.manager.shutdown();
+ // Start both before either authorization/scope await can settle.
+ const both=Promise.allSettled([f.manager.execute(bound,'browser_navigate',input),
+   f.manager.execute(bound,'browser_navigate',{...input,actionId:'nav2'})]);
+ await new Promise(r=>setImmediate(r));assert.equal(actions,1);release();
+ const results=await both;assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+ assert.equal(results.find(r=>r.status==='rejected').reason.code,'BUSY');await f.manager.shutdown();
 });
 test('close during creation disposes the late handle and releases its own slot',async()=>{
  let release,closed=0;const gate=new Promise(r=>release=r);
