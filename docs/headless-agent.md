@@ -1,3 +1,40 @@
+## Generic browser MCP candidate: implementation in qualification
+
+**GB01 is not yet published or deployed.** The released adapter described below
+remains available unchanged. Reconnecting it does not enable this candidate.
+
+The generic browser candidate gives any compatible agentic application tools to
+choose its own navigation and login workflow. It does not require a configured
+website recipe. A one-time owner/host connection and a current Sentinel grant are
+still separate from website credentials. Never infer login availability from the
+fact that the MCP server is connected: check `get_browser_capabilities`.
+
+- **Public page:** open, observe, use current control references, and extract from
+  the same session. Delayed content may require tabs, scrolling or bounded waiting.
+- **Private page:** use `login_read` with protected credential input, then submit
+  observed fields using an opaque reference. The MCP model does not receive the
+  password. Email-first forms can continue in the same session.
+- **Protected input:** URL elicitation is offered when negotiated; otherwise the
+  same protected local link is returned. Accepting an elicitation prompt is not
+  owner approval. The protected page verifies identity and scope.
+- **Evidence:** cite source URLs and evidence IDs, identify the account actually
+  shown, and distinguish missing information from absent information. A submitted
+  login is not proof of account identity. Pagination preserves session state.
+- **Recovery:** query the original action ID after a lost reply. Never replay an
+  unknown outcome. Re-observe stale references rather than guessing selectors.
+- **Access gates:** MFA, CAPTCHA and invitation requirements stop login. Hidden
+  content is not account evidence. No uploads, purchases, sends or account edits.
+
+Optional portable guidance is in
+[`skills/traylinx-browser/SKILL.md`](../skills/traylinx-browser/SKILL.md). It is not
+required for tool discovery and is not automatically installed. Candidate public
+journeys have passed in Codex and Claude; private-client and remaining release
+qualification are tracked separately. Owned fixture results do not prove login to
+an arbitrary real website, and no website can be promised universally accessible.
+Do not use test-fixture MCP configuration or synthetic credentials in production.
+
+---
+
 ## Latest: private-read adapter and capture fidelity, 28 October 2026
 
 The configured MCP host now exposes twelve tools: the existing eight public-read
