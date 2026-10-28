@@ -115,3 +115,13 @@ three100m/96Mi caps,180s pod lifetime and UID-guarded namespace deletion. It sen
 application credentials or production database requests. Requires approved isolated
 cluster testing authority and confirmed cached Node image; do not run as a generic
 production health check. A failure is not permission to retry indefinitely.
+
+## Closed browser routes
+
+`python3 deploy/browser/render-routes.py` renders only the three browser path prefixes
+on api.2md.traylinx.com, using the existing TLS reference. Its separate Kong termination
+gate returns503 until a controlled release explicitly opens it. No apply, activation,
+legacy ingress change, proxy port or health route is included. Dedicated browser
+identity verification in Workspace is still required; current READ/control pins are
+not permission to share their credentials. Retain the gate for rollback before
+stopping the new runtime. Schema/grant records must remain intact.
