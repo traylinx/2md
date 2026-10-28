@@ -89,3 +89,18 @@ automatically: use the original action ID and status tool to resolve uncertainty
 Source wiring and synthetic stdio/HTTP fixtures are implemented. No production
 browser service or real host connection has been installed by this change.
 Protected website-input transport and owner setup still require composition.
+
+### Protected remote input transport (GB01, not deployed)
+
+`remoteCredentialProvider` connects the paired loopback `credentialSurface` to
+`browserInput` through `httpClient.protectedCall`. The local owner identity must
+come from the paired session verifier, never an MCP argument. Completion proofs
+bind the current grant, host, owner, entry, session, origins and expiry, with an
+atomic single-use nonce. Ordinary host request signatures independently bind the
+exact submitted body. The broker retains credentials only in bounded volatile
+buffers; HTTP responses use strict shared `inputContracts` schemas.
+
+The owned composition test uses a real loopback form and Express route, real
+Ed25519 proofs, and synthetic session/owner authority. It does not certify live
+owner setup, PostgreSQL, a deployed private browser or customer-site login.
+Runtime/server setup and authentication-decision delivery remain pending.
