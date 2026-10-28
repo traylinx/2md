@@ -12,8 +12,6 @@ fixture = sys.argv[2] if len(sys.argv) > 2 else 'privateWorker.integration.cjs'
 if fixture not in {'privateWorker.integration.cjs', 'dynamicJourney.integration.cjs'}:
     raise SystemExit('Unsupported owned fixture')
 rpc = len(sys.argv) > 3 and sys.argv[3] == '--rpc'
-if rpc and fixture != 'dynamicJourney.integration.cjs':
-    raise SystemExit('RPC is public-fixture-only')
 tests = pathlib.Path(__file__).resolve().parent
 with tempfile.TemporaryDirectory(prefix='gb01-private-owned-') as directory:
     root = pathlib.Path(directory)

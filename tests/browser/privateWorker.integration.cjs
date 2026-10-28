@@ -21,14 +21,15 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
  res.end('<h1>Login</h1><form method="post" action="/account"><label>Username<input name="username"></label><label>Password<input type="password" name="password"></label><button>Log in</button></form>');
 });
 (async()=>{
- const lifetime=new Deadline(45000),tempRoot=fs.mkdtempSync(path.join(os.tmpdir(),'gb01-worker-owned-'));let runtime,proxy,leases=0,releases=0;
+ const lifetime=new Deadline(process.env.FIXTURE_RPC==='1'?240000:45000),tempRoot=fs.mkdtempSync(path.join(os.tmpdir(),'gb01-worker-owned-'));let runtime,proxy,leases=0,releases=0;
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
  try{
  const g={...grant(),policyVersion:c.POLICY,hostKeyFingerprint:bound.hostKeyFingerprint,approvedByWorkspaceUserId:owner.workspaceUserId};const nonces=new Set();
- runtime=createBrowserRuntime({privateEnabled:true,autoSweep:false,runtimeEpoch:'e1',tempRoot,executablePath:process.env.FIXTURE_CHROMIUM_WRAPPER,
+ runtime=createBrowserRuntime({privateEnabled:true,pairingOrigin:'https://traylinx.example.org',resolveHuman:async({authorization})=>{if(authorization!=='Bearer owned-human-fixture')c.deny('FORBIDDEN');return owner;},autoSweep:false,runtimeEpoch:'e1',tempRoot,executablePath:process.env.FIXTURE_CHROMIUM_WRAPPER,
  authorize:async()=>g,resolveCaller:async()=>bound,consumeNonce:async({nonce})=>{if(nonces.has(nonce))return false;nonces.add(nonce);return true;},
  lease:async()=>{leases++;proxy=createEgressProxy({deadline:lifetime,resolve:async value=>{const url=new URL(value);assert.equal(url.origin,origin);return {url,addresses:[{address:'127.0.0.1',family:4}]};},connect:options=>net.connect({...options,port:server.address().port})});await new Promise(r=>proxy.server.listen(0,'127.0.0.1',r));return {proxyUrl:`http://127.0.0.1:${proxy.server.address().port}`,release:async()=>{releases++;await proxy.close();}};},
  });
+ if(process.env.FIXTURE_RPC==='1'){await require('./privateClientBridge.cjs').servePrivateClient(runtime,g);return;}
  const opened=await runtime.manager.open(bound,{runtimeEpoch:'e1',actionId:'open1',mode:'login_read',url:origin,purpose:'Owned synthetic account'});assert.equal(opened.state,'succeeded',JSON.stringify(opened));
  const sessionId=opened.sessionId,observed=await runtime.manager.query(bound,'browser_observe',{sessionId});const ref=name=>observed.controls.find(x=>x.name===name).ref;
  const pending=await runtime.broker.request({bound,input:{sessionId,origin,purpose:'Owned synthetic account'}}),record=await runtime.broker.inspect(bound,pending.interventionId);

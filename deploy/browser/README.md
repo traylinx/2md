@@ -58,3 +58,12 @@ bounded presentation timeout. Unsupported clients retain the link fallback. An
 elicitation `accept` never grants ownership, supplies secrets or executes approval;
 the protected input page remains authoritative. Protocol checks passed; real-client
 credential-entry UX is not certified by those checks alone.
+
+Private candidate bridge: add `--private` to the test-only MCP entrypoint. The
+fixture owner completes real owner pairing and the protected HTTP credential form
+using a synthetic account, outside model messages. The model receives only the
+opaque credential reference and discovers login controls/messages itself. Actual
+signed host transport, runtime, forked Chromium and session isolation are retained.
+This validates agentic private browsing with pre-completed fixture-owner input;
+it does not certify a real human's interactive pairing/elicitation UX or live-site
+login. Never supply production credentials to this harness.
