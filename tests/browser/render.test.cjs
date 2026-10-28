@@ -37,3 +37,18 @@ test('candidate network separates runtime dependencies from public proxy egress'
  assert.deepEqual(egress.ingress[0].from,[{podSelector:{matchLabels:{app:'traylinx-browser-runtime'}}}]);
  assert.notEqual(spawnSync('python3',[network,'--database-ip','0.0.0.0']).status,0);
 });
+test('runtime bindings reference scoped secrets and TLS without activation or credential values',()=>{
+ const args=[script,'--image',image,'--node-name','owned-node','--runtime-bindings','--database-ip','100.69.18.112','--gateway-cluster-ip','10.43.131.119'];
+ const {items}=JSON.parse(execFileSync('python3',args));const d=items.find(x=>x.kind==='Deployment'&&x.metadata.name.endsWith('runtime'));
+ assert.equal(d.spec.replicas,0);const pod=d.spec.template.spec,c=pod.containers[0];
+ assert.deepEqual(pod.hostAliases,[{ip:'100.69.18.112',hostnames:['traylinx-db']},{ip:'10.43.131.119',hostnames:['api.makakoo.com']}]);
+ assert.equal(c.envFrom,undefined);assert.equal(c.env.find(x=>x.name==='BROWSER_ENABLED').value,'0');
+ assert.equal(c.env.find(x=>x.name==='BROWSER_CONTAINMENT'),undefined,'qualification marker is not supplied by renderer');
+ for(const key of ['POSTGRES_URL','ENROLLMENT_POSTGRES_URL','REDIS_URL','SENTINEL_CLIENT_SECRET']){
+  const entry=c.env.find(x=>x.name==='BROWSER_'+key);assert.equal(entry.value,undefined);assert.deepEqual(entry.valueFrom.secretKeyRef,{name:'traylinx-browser-runtime',key:'BROWSER_'+key});
+ }
+ assert.equal(c.env.find(x=>x.name==='BROWSER_PROXY_TOKEN').valueFrom.secretKeyRef.name,'traylinx-browser-proxy');
+ assert.ok(c.volumeMounts.some(x=>x.mountPath==='/postgres-tls'&&x.readOnly));
+ assert.notEqual(spawnSync('python3',[script,'--image',image,'--node-name','owned-node','--runtime-bindings']).status,0);
+ assert.notEqual(spawnSync('python3',[script,'--image',image,'--node-name','owned-node','--database-ip','100.69.18.112']).status,0);
+});

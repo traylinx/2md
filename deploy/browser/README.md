@@ -87,3 +87,23 @@ This still requires an enabled deployment's exact dependency URLs/TLS routing,
 CNI enforcement and bypass qualification before activation. Existing policies are
 additive: check for any broad selector granting these pods extra access. A rendered
 policy or kubectl client dry-run is syntax evidence, not enforcement proof.
+
+## Inactive runtime bindings
+
+Add `--runtime-bindings --database-ip <verified-tailnet-ip>
+--gateway-cluster-ip <verified-Kong-ClusterIP>` to `render.py` to reference the
+pre-provisioned `traylinx-browser-runtime` and `traylinx-browser-proxy` Secrets,
+`registry-ghcr`, and existing `traylinx-web-postgres-ca` public trust ConfigMap.
+Each environment key is explicitly selected; no envFrom or secret values emitted.
+The runtime Secret must supply the BROWSER_ keys listed by the renderer, including
+separate reader/enrollment PostgreSQL URLs and service identity. Provisioning those
+roles/credentials remains a separate controlled step; existing READ identities are
+not implicitly reused. PostgreSQL URLs must preserve hostname verification and use
+`sslrootcert=/postgres-tls/server.pem` with verify-full semantics. No TLS bypass.
+
+The fixed hostname aliases retain `traylinx-db` and `api.makakoo.com` TLS identity
+while routing to verified private endpoints. This does not create an ingress, run
+a migration, publish an image or enable any flags. No containment qualification
+marker is rendered: supply it only after actual isolation validation. The local
+Docker image ID is not automatically a GHCR manifest digest; use the verified
+published digest for any actual deployment.
