@@ -21,7 +21,7 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
  const lifetime=new Deadline(80000),root=fs.mkdtempSync(path.join(os.tmpdir(),'gb01-async-owned-'));let runtime,proxy,host,httpServer,viewer;
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
  try{
-  const g={...grant(),policyVersion:c.POLICY,approvedByWorkspaceUserId:owner.workspaceUserId},nonces=new Set();
+  const g={...grant(),policyVersion:c.POLICY,hostKeyFingerprint:bound.hostKeyFingerprint,approvedByWorkspaceUserId:owner.workspaceUserId},nonces=new Set();
   runtime=createBrowserRuntime({privateEnabled:true,humanEnabled:true,embeddedFrames:true,autoSweep:false,runtimeEpoch:'e1',tempRoot:root,executablePath:process.env.FIXTURE_CHROMIUM_WRAPPER,
    authorize:async()=>g,resolveCaller:async()=>bound,consumeNonce:async({nonce})=>{if(nonces.has(nonce))return false;nonces.add(nonce);return true;},lease:async()=>{
     proxy=createEgressProxy({deadline:lifetime,resolve:async value=>{const url=new URL(value);assert.ok(origins.includes(url.origin));return {url,addresses:[{address:'127.0.0.1',family:4}]};},connect:options=>net.connect({...options,port:server.address().port})});await new Promise(r=>proxy.server.listen(0,'127.0.0.1',r));return {proxyUrl:`http://127.0.0.1:${proxy.server.address().port}`,release:()=>proxy.close()};
@@ -49,7 +49,7 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
   await until(()=>seen.some(r=>r.path==='/done'));assert.equal(seen.filter(r=>r.path.startsWith('/asset')).length,3);
   assert.equal(calls.filter(p=>p.endsWith('/human-decide')).length,1);assert.equal(calls.filter(p=>p.endsWith('/human-interact')).length,1);
   // No further input: automatic refresh must carry the asynchronous DOM update.
-  const before=screen.src,viewCount=calls.filter(p=>p.endsWith('/human-view')).length;
+  const viewCount=calls.filter(p=>p.endsWith('/human-view')).length;
   await until(()=>calls.filter(p=>p.endsWith('/human-view')).length>viewCount&&ready());
   assert.ok(screen.src.startsWith('data:image/jpeg;base64,'));
   assert.equal(seen.filter(r=>r.path==='/done').length,1,'no replay');
