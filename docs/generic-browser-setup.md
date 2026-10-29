@@ -92,6 +92,15 @@ An existing connection does not automatically re-enroll after grant expiry/revoc
 
 ## Generic-input correction release status
 
-Implementation and focused local checks exist. Generic `observed_fields` runtime
-release is pending; the previously deployed runtime supports legacy protected login.
-Do not confuse an updated local MCP adapter with a deployed backend capability.
+Generic `observed_fields` is deployed in the dedicated browser runtime (source
+`8030412`, image manifest `a19633c57bc7f93dfa86b0c7051f542c979435be08dd9959d1893aeec19cadc7`).
+The normal installed Codex configuration now discovers this mode. Native and SPA
+access-code fixtures, protected field transport, private extraction and the existing
+login regression passed. Actual installed-host public smoke also passed. The real
+Traylinx invitation-to-account journey has not yet been rerun; do not call it verified.
+
+Restart an existing MCP session to load new host tools/instructions. The generic
+browser instructions take precedence; configured legacy login connections are not
+a prerequisite. If the protected host requests owner pairing, complete the displayed
+project-owner connection before entering website values. That is host authorization,
+not a website-specific integration.

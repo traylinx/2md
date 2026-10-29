@@ -1,3 +1,23 @@
+## Generic agent-directed protected input — 29 October 2026
+
+- Runtime source8030412 deployed in dedicated browser service, immutable private
+  image `sha256:a19633c57bc7f93dfa86b0c7051f542c979435be08dd9959d1893aeec19cadc7`,
+  1/1 updated and ready. Existing egress image and infra/security bindings unchanged.
+- Generic protected values bind to agent-selected observed controls, not a fixed
+  username/password/invitation workflow. Optional submission, native and SPA forms,
+  text inputs, textarea, select and editable text supported. Host capabilities
+  negotiate `observed_fields`; old strict capability response shape retained.
+- Candidate real worker/Chromium native→SPA code-entry→private extraction and cleanup
+  passed; legacy private flow and label-independent interactions also passed. The
+  normal installed Codex config discovers generic mode and passed public smoke.
+- Host initialize instructions now route interactive tasks to browser tools first;
+  legacy connection lists do not restrict generic browsing. Restart old MCP sessions.
+- Actual Traylinx invitation→login→organization journey not rerun yet. No universal
+  site support or successful real-account acceptance claimed. Rollback: previous
+  browser runtime digestd389f7c…; no schema rollback or legacy consumer change.
+
+---
+
 ## GB01 source promotion and existing-service coexistence — 29 October 2026
 
 Source main/productione2a9ce49b2ef6c811fee429110f6aea5665ae95e promoted.
