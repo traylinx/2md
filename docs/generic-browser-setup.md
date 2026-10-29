@@ -19,7 +19,8 @@ human-only challenge or a user-requested manual interaction.
 
 The agent cannot operate the viewer or solve CAPTCHA on the user's behalf. Its
 normal browser actions and credential operations are paused while the human owns
-control. The viewer lease lasts at most three minutes within the session lifetime;
+control. Open the launch link within three minutes. Updated runtimes provide up
+to five minutes from first viewer activation, within the absolute session lifetime;
 expiry closes the private session. The host maintains its heartbeat. A lost input
 reply is recovered through the original receipt, not another click.
 
@@ -244,8 +245,10 @@ every protected field or action.
 
 ### Human handoff lifetime
 
-The human viewer lease lasts up to three minutes, bounded by the session's absolute
-lifetime. The ordinary two-minute agent idle timer does not shorten an active human
+The launch link must be opened within three minutes. With negotiated viewer-v2
+support, the runtime starts up to five minutes of interaction on first viewer
+activation, capped by the existing ten-minute absolute session lifetime. Reloading
+or polling does not extend it. Older runtimes retain the three-minute total lease. The ordinary two-minute agent idle timer does not shorten an active human
 lease. Keep the MCP connection running: host heartbeat loss, actual revocation or
 lease expiry still closes the private session. Return to the agent before expiry.
 An explicit CAPTCHA-completion message beside login or access fields is recognized
@@ -296,7 +299,11 @@ clears its image and text and disables all input. That link cannot be revived.
 Return to your agent for a fresh session. After completing an active handoff,
 choose **Return to agent**, then tell your agent to continue from a fresh observation.
 
-This correction belongs to the **local MCP host**, not the remote browser image.
+The timing/transport correction requires the updated **local MCP host and remote
+browser image**. The host negotiates support; older runtimes keep the legacy flow.
+Status and a ready image share one authorized round trip. While the user reviews a
+held request, only the remaining execution time of that human action is preserved;
+request budgets, explicit recipient consent and session expiry remain enforced.
 After updating the source installation, reconnect MCP or restart the calling
 application. An already running MCP process or open viewer retains its old code.
 Do not reuse an expired link to test the update.

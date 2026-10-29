@@ -76,3 +76,33 @@ test('denied recipient decision never widens scope and requires a new decision',
  for(let i=0;i<2;i++)await assert.rejects(f.policy.allow(req('https://unapproved.example.org/asset')),{code:'PERMISSION_REQUIRED'});
  assert.equal(calls,2);assert.equal(f.policy.state().pending,false);
 });
+
+test('human consent wait preserves only remaining action time and approved recipients, not request budget',async()=>{
+ let release,decisions=0;const f=fixture({requestDecision:()=>{decisions++;return new Promise(r=>release=r);}});
+ await f.policy.enterHuman('https://site.example.org');f.policy.startHumanAuthentication('human1');
+ f.advance(5000);const first=f.policy.allow(req('https://new.example.org/verify','POST'));
+ await new Promise(r=>setImmediate(r));f.advance(40000);release('verified');await first;
+ // Human review exceeded the old 30s deadline. Subsequent requests belonging to
+ // this same click can finish without repeated consent for the approved origin.
+ for(let i=0;i<16;i++)await f.policy.allow(req('https://new.example.org/followup','POST'));
+ assert.equal(decisions,1);
+ const bounded=f.policy.allow(req('https://new.example.org/over-budget','POST'));await new Promise(r=>setImmediate(r));assert.equal(decisions,2);release('verified');await bounded;
+ f.policy.endAuthentication();
+ const next=f.policy.allow(req('https://new.example.org/new-action','POST'));await new Promise(r=>setImmediate(r));assert.equal(decisions,3);release('verified');await next;
+});
+test('human pause does not revive expired or replaced authentication; denied decisions cannot extend it',async()=>{
+ for(const mode of ['expired','ended','replaced','denied','remaining']){
+  let release,calls=0;const f=fixture({requestDecision:()=>{calls++;return new Promise(r=>release=r);}});
+  await f.policy.enterHuman('https://site.example.org');f.policy.startHumanAuthentication('first');
+  f.advance(mode==='expired'?30001:20000);
+  const pending=f.policy.allow(req('https://new.example.org/a','POST'));await new Promise(r=>setImmediate(r));
+  f.advance(40000);
+  if(mode==='ended'||mode==='replaced')f.policy.endAuthentication();
+  if(mode==='replaced')f.policy.startHumanAuthentication('replacement');
+  release(mode==='denied'?'untrusted':'verified');
+  if(mode==='denied')await assert.rejects(pending,{code:'PERMISSION_REQUIRED'});else await pending;
+  if(mode==='remaining')f.advance(10001); // remaining 10s, not a fresh 30s
+  if(mode==='replaced')f.advance(30001);
+  const next=f.policy.allow(req('https://site.example.org/next','POST'));await new Promise(r=>setImmediate(r));assert.equal(calls,2,mode);release('verified');await next;
+ }
+});

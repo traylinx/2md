@@ -1,3 +1,22 @@
+## Human-viewer production timing correction — candidate, not yet deployed
+
+Production evidence exposed two gaps in the earlier UI-only qualification: the
+three-minute lease was mostly consumed before opening the viewer, and human
+request-consent waiting consumed the worker's 30-second authentication window.
+Each separate status/frame call also incurred current-authority round trips.
+
+Candidate adds negotiated viewer-v2: launch within three minutes; first viewer
+activation starts up to five minutes within the unchanged ten-minute absolute
+session ceiling. Reloads cannot extend it; legacy clients retain their contract.
+A combined protected state/frame route removes one round trip from each ready
+refresh. Human consent preserves only the current action's remaining execution
+time, never a new request budget or an unapproved destination. No site recipe.
+
+Focused tests and a delayed-consent real-worker fixture are required before
+publication/deployment. Evidence: workspace
+`docs/evidence/gb01-handoff-timing-2026-10-29/`. Real account login and organization
+extraction remain unverified. No CAPTCHA is automated by these fixtures.
+
 ## Local human-viewer interaction correction — 29 October 2026
 
 The local MCP viewer now disables stale input, clears failed/expired images,

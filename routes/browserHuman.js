@@ -14,7 +14,8 @@ function createBrowserHumanRouter({enabled=false,resolveCaller,verifyHost,manage
    input=c.parse(schema,await readBody(req,20000,deadline));
    await deadline.run(()=>verifyHost({bound,request:req,method:'POST',path:'/api/browser/v1'+path,body:input,signal:deadline.signal}));
    const result=await deadline.run(async()=>{
-    if(path==='/human-begin')return manager.beginHuman(bound,input.sessionId);
+    if(path==='/human-begin')return manager.beginHuman(bound,input.sessionId,input);
+    if(path==='/human-activate')return manager.activateHuman(bound,input);
     if(path==='/human-frame')return manager.humanFrame(bound,input);
     if(path==='/human-input')return manager.humanInput(bound,input);
     if(path==='/human-finish')return manager.finishHuman(bound,input);
@@ -29,6 +30,9 @@ function createBrowserHumanRouter({enabled=false,resolveCaller,verifyHost,manage
     if(state.action?.state==='needs_input'){
      const {ownerId,...pending}=await operations.inspect(bound,state.action.output.interventionId);return {...state,pending};
     }
+    // One authorized round trip for both status/decision and a fresh frame.
+    // No private pixels returned for pending, uncertain or running operations.
+    if(path==='/human-view'&&state.state==='human_control'&&!['running','needs_input','outcome_unknown'].includes(state.action?.state))return {...state,frame:await manager.humanFrame(bound,input)};
     return state;
    });
    authorityScope.after();const after=c.binding(await deadline.run(()=>resolveCaller({credentials,request:req,deadline})));if(c.scope(after)!==c.scope(bound))c.deny('FORBIDDEN');

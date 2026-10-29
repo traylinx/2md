@@ -8,7 +8,7 @@ const origins=['https://example.com','https://frame.example.net','https://nested
 const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),cert:fs.readFileSync(process.env.FIXTURE_CERT)},(req,res)=>{
  requests.push({host:req.headers.host,path:req.url,method:req.method});res.setHeader('Content-Type','text/html');
  if(req.url==='/frame')return res.end(`<style>body{margin:0}</style><p>Embedded frame</p><iframe src="${origins[2]}/nested" style="position:absolute;top:40px;left:0;width:400px;height:200px;border:0"></iframe>`);
- if(req.url==='/nested')return res.end(`<style>body{margin:0}button{position:absolute;left:10px;top:10px;width:200px;height:50px}</style><button onclick="fetch('/human-result',{method:'POST',body:'owned-click'}).then(r=>r.text()).then(t=>top.postMessage(t,'${origins[0]}'))">Owned manual challenge</button><script>void fetch('http://169.254.169.254/metadata');void fetch('/forbidden-early',{method:'POST',body:'not-authorized'}).catch(()=>{});</script>`);
+ if(req.url==='/nested')return res.end(`<style>body{margin:0}button{position:absolute;left:10px;top:10px;width:200px;height:50px}</style><button onclick="fetch('/human-result',{method:'POST',body:'owned-click'}).then(r=>r.text()).then(()=>fetch('/human-result',{method:'POST',body:'owned-followup'})).then(r=>r.text()).then(t=>top.postMessage(t,'${origins[0]}'))">Owned manual challenge</button><script>void fetch('http://169.254.169.254/metadata');void fetch('/forbidden-early',{method:'POST',body:'not-authorized'}).catch(()=>{});</script>`);
  if(req.url==='/human-result'){let body='';req.on('data',b=>body+=b);return req.on('end',()=>{posts.push(body);res.end('Owned fixture access granted');});}
  if(req.url==='/echo'){let body='';req.on('data',b=>body+=b);return req.on('end',()=>{posts.push(body);res.end('<h1>Owned organization: Frame team</h1><p>'+body+'</p>');});}
  if(req.url==='/forbidden-early'){posts.push('EARLY_LEAK');return res.end('FAIL');}
@@ -25,7 +25,7 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
   }});
   httpServer=runtime.app.listen(0,'127.0.0.1');await new Promise(r=>httpServer.once('listening',r));
   // Use signed HTTP routes, not privileged direct manager calls for the viewer.
-  const client=require('../../lib/browser/httpClient').createBrowserHttpClient({url:'https://owned-runtime.test/api/browser/v1',bound,grantId:g.grantId,privateKey,agentId:bound.principal.workspaceUserId,sdk:{getAgentRequestHeaders:async()=>({'x-agent-user-id':bound.principal.workspaceUserId,'x-agent-secret-token':'synthetic-only'})},fetchImpl:async(url,options)=>{const response=await fetch('http://127.0.0.1:'+httpServer.address().port+new URL(url).pathname,options);return new Response(response.body,{status:response.status,headers:response.headers});}});
+  const client=require('../../lib/browser/httpClient').createBrowserHttpClient({url:'https://owned-runtime.test/api/browser/v1',bound,grantId:g.grantId,privateKey,agentId:bound.principal.workspaceUserId,sdk:{getAgentRequestHeaders:async()=>({'x-agent-user-id':bound.principal.workspaceUserId,'x-agent-secret-token':'synthetic-only'})},fetchImpl:async(url,options)=>{if(new URL(url).pathname.endsWith('/human-view'))await lifetime.sleep(2800);const response=await fetch('http://127.0.0.1:'+httpServer.address().port+new URL(url).pathname,options);return new Response(response.body,{status:response.status,headers:response.headers});}});
   const caps=await client.call('get_browser_capabilities',{includeHuman:true});assert.equal(caps.humanHandoffAvailable,true);assert.equal(caps.embeddedFramesAvailable,true);
   let opened=await client.call('browser_open',{runtimeEpoch:'e1',actionId:'open1',mode:'login_read',url:origins[0],purpose:'Owned nested human assistance'});for(let n=0;['running','needs_input'].includes(opened.state)&&n<80;n++){if(opened.state==='needs_input'){const early=await runtime.operations.inspect(bound,opened.output.interventionId);assert.equal(early.method,'POST');assert.equal(early.origin,origins[2]);await runtime.operations.cancel(bound,early.operationId);}await new Promise(r=>setTimeout(r,50));opened=await client.call('browser_action_status',{runtimeEpoch:'e1',actionId:'open1'});}assert.equal(opened.state,'succeeded',JSON.stringify(opened));const sessionId=opened.sessionId;
   const observed=await client.call('browser_observe',{sessionId});assert.equal(observed.frames.length,3,JSON.stringify(observed));assert.ok(observed.frames.every(f=>f.supported));
@@ -53,16 +53,20 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
   await waitFor(ready);assert.ok(screen.src.startsWith('data:image/jpeg;base64,/9j/'));
   screen.dispatchEvent(new w.MouseEvent('click',{clientX:45,clientY:60,bubbles:true}));
   await waitFor(()=>!$('allow').disabled);assert.match($('request').textContent,/https:\/\/nested.example.org/);assert.equal(posts.length,0);
-  $('allow').click();await waitFor(ready);assert.deepEqual(posts,['owned-click']);
+  // Real human deliberation exceeds the worker's old 30s auth window.
+  await lifetime.sleep(31000);await client.protectedCall('heartbeat',{sessionId});
+  $('allow').click();await waitFor(ready);assert.deepEqual(posts,['owned-click','owned-followup']);
   assert.equal(viewerRequests.filter(x=>x.route==='/decision').length,1);
+  assert.equal(viewerRequests.filter(x=>x.route==='/activate').length,1);assert.ok(viewerRequests.some(x=>x.route==='/view'));
+  assert.equal(viewerRequests.filter(x=>['/state','/frame'].includes(x.route)).length,0);
   const command=viewerRequests.find(x=>x.route==='/input').input;
-  assert.deepEqual(command.input,{type:'click',x:90,y:120});assert.equal((await api('/input',command)).state,'succeeded');assert.equal(posts.length,1);
+  assert.deepEqual(command.input,{type:'click',x:90,y:120});assert.equal((await api('/input',command)).state,'succeeded');assert.equal(posts.length,2);
   screen.dispatchEvent(new w.MouseEvent('click',{clientX:50,clientY:70,bubbles:true}));await waitFor(ready);
   $('text').value='SYNTHETIC_HUMAN_SECRET';$('type').click();await waitFor(ready);assert.equal($('text').value,'');
   $('finish').click();await waitFor(()=>w.document.body.dataset.state==='agent_control');assert.equal(screen.hidden,true);
   assert.equal((await agent.call({name:'browser_handoff',arguments:{sessionId,action:'status'}})).state,'agent_control');
   const extracted=await client.call('browser_extract',{sessionId});assert.match(extracted.markdown,/Frame team/);assert.match(extracted.markdown,/REDACTED/);assert.doesNotMatch(JSON.stringify(extracted),/SYNTHETIC_HUMAN_SECRET/);assert.equal(extracted.source.privacy,'private');
   await client.call('browser_close',{sessionId});assert.equal(runtime.manager.diagnostics().active,0);assert.deepEqual(fs.readdirSync(tempRoot),[]);
-  console.log('PASS: exact worker nested cross-site/OOPIF early-request containment; signed host HTTP + actual delivered viewer DOM click/decision/type/return handlers; no agent control during takeover; one explicit private recipient approval; original human action idempotent; screenshot/click/text same remote session; secret redaction; Return to agent/private evidence and cleanup. Owned synthetic UI only; no real CAPTCHA automated.');
+  console.log('PASS: exact worker nested cross-site/OOPIF early-request containment; signed host HTTP + actual delivered viewer DOM click/decision/type/return handlers; no agent control during takeover; one private recipient approval after31s human wait; combined view with2.8s transport delay; original human action idempotent; screenshot/click/text same remote session; secret redaction; Return to agent/private evidence and cleanup. Owned synthetic UI only; no real CAPTCHA automated.');
  }finally{if(viewer){viewer.window.dispatchEvent(new viewer.window.Event('pagehide'));viewer.window.close();}await host?.close();await runtime?.stop();httpServer?.closeAllConnections();if(httpServer)await new Promise(r=>httpServer.close(r));await proxy?.close();lifetime.close();server.closeAllConnections();await new Promise(r=>server.close(r));fs.rmSync(tempRoot,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

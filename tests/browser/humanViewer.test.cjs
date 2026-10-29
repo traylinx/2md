@@ -11,6 +11,8 @@ async function setup(options={}){
  const record={sessionId:'s',handoffId:'h',state:'human_control',expiresAt:time+180000};
  const client={protectedCall:async(name,input)=>{
   calls.push({name,input});const custom=await options.remote?.(name,input);if(custom)return custom;
+  if(name==='human-activate')return {...record,expiresAt:time+300000};
+  if(name==='human-view')return {...record,expiresAt:time+300000,state:remoteState,...(action?{action}:{}),...(pending?{pending}:{}),...(!pending?{frame:{frameId:'f'+(++frames),jpeg:'synthetic',width:1280,height:800,origin:'https://owned.example'}}:{})};
   if(name==='human-state')return {...record,state:remoteState,...(action?{action}:{}),...(pending?{pending}:{})};
   if(name==='human-frame')return {frameId:'f'+(++frames),jpeg:'synthetic',width:1280,height:800,origin:'https://owned.example'};
   if(name==='human-input'){action={runtimeEpoch:'e1',sessionId:'s',actionId:input.actionId,state:'succeeded'};return action;}
@@ -19,7 +21,7 @@ async function setup(options={}){
   throw Error(name);
  }};
  const surface=await createHumanSurface({client,now:()=>time});
- const launch=await fetch(surface.urlFor(record,'e1'),{redirect:'manual'}),cookie=launch.headers.get('set-cookie').split(';')[0];
+ const launch=await fetch(surface.urlFor(record,'e1',{viewerV2:options.viewerV2===true}),{redirect:'manual'}),cookie=launch.headers.get('set-cookie').split(';')[0];
  const origin=new URL(launch.url).origin,html=await(await fetch(origin+'/viewer',{headers:{cookie}})).text();
  const dom=new JSDOM(html,{url:origin+'/viewer',runScripts:'dangerously',beforeParse(w){
   w.Date.now=()=>time;w.AbortController=AbortController;w.HTMLImageElement.prototype.decode=async()=>{};
@@ -110,5 +112,17 @@ test('running receipt is polled read-only; unknown outcome never enables another
   f.setAction({actionId:id,state:'outcome_unknown'});await f.timer(3000);await f.wait('unknown');
   f.click();f.$('type').click();assert.equal(f.calls.filter(c=>c.name==='human-input').length,1);
   assert.equal(f.$('finish').disabled,true);assert.equal(f.$('screen').hidden,true);assert.match(f.$('status').textContent,/outcome is unknown/);
+ }finally{await f.close();}
+});
+
+ test('v2 uses one combined view round trip, activates once and renews countdown before input',async()=>{
+ const f=await setup({viewerV2:true});try{
+  await f.wait('ready');assert.match(f.$('expiry').textContent,/5:00/);
+  assert.equal(f.calls.filter(c=>c.name==='human-activate').length,1);
+  assert.equal(f.calls.filter(c=>c.name==='human-view').length,1);
+  assert.equal(f.calls.filter(c=>['human-state','human-frame'].includes(c.name)).length,0);
+  f.click();await f.wait('ready');assert.equal(f.calls.filter(c=>c.name==='human-input').length,1);
+  assert.equal(f.calls.filter(c=>c.name==='human-view').length,2);
+  assert.equal(f.calls.filter(c=>c.name==='human-activate').length,1);
  }finally{await f.close();}
 });

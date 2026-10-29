@@ -46,3 +46,44 @@ test('advertised human lease survives ordinary idle deadline with heartbeat; lea
  }finally{await m.shutdown();}
  const disconnected=fixture();try{const s=await disconnected.manager.open(bound,open);await disconnected.manager.beginHuman(bound,s.sessionId);disconnected.advance(60001);await disconnected.manager.sweep();assert.equal(disconnected.counts().closed,1);}finally{await disconnected.manager.shutdown();}
 });
+
+test('v2 activates once on viewer arrival, remains absolute/heartbeat bounded, cannot revive expired launch',async()=>{
+ const f=fixture(),m=f.manager;try{
+  const s=await m.open(bound,open),start=await m.beginHuman(bound,s.sessionId,{viewerVersion:2}),ids={sessionId:s.sessionId,handoffId:start.handoffId};
+  for(let i=0;i<3;i++){f.advance(50000);await m.heartbeat(bound,s.sessionId);}
+  const active=await m.activateHuman(bound,ids);assert.equal(active.expiresAt,start.expiresAt+270000);
+  f.advance(50000);await m.heartbeat(bound,s.sessionId);assert.equal((await m.activateHuman(bound,ids)).expiresAt,active.expiresAt);
+  await assert.rejects(m.activateHuman({...bound,hostId:'foreign'},ids),{code:'FORBIDDEN'});
+  for(let i=0;i<4;i++){f.advance(50000);await m.heartbeat(bound,s.sessionId);}
+  assert.equal((await m.humanState(bound,ids)).state,'human_control');f.advance(50001);await assert.rejects(m.activateHuman(bound,ids),{code:'SESSION_LOST'});
+ }finally{await m.shutdown();}
+ const late=fixture();try{const s=await late.manager.open(bound,open),start=await late.manager.beginHuman(bound,s.sessionId,{viewerVersion:2});late.advance(180001);await assert.rejects(late.manager.activateHuman(bound,{sessionId:s.sessionId,handoffId:start.handoffId}),{code:'SESSION_LOST'});}finally{await late.manager.shutdown();}
+ const cap=fixture();try{
+  const s=await cap.manager.open(bound,open);
+  for(let i=0;i<9;i++){cap.advance(50000);await cap.manager.heartbeat(bound,s.sessionId);await cap.manager.execute(bound,'browser_navigate',{runtimeEpoch:'e1',sessionId:s.sessionId,actionId:'keep'+i,target:{url:'https://example.com'}});}
+  const h=await cap.manager.beginHuman(bound,s.sessionId,{viewerVersion:2}),ids={sessionId:s.sessionId,handoffId:h.handoffId};
+  assert.equal((await cap.manager.activateHuman(bound,ids)).expiresAt,h.expiresAt);
+ }finally{await cap.manager.shutdown();}
+});
+
+test('v2 viewer activation renews local cookie and host status record; negotiation falls back only on old-schema rejection',async()=>{
+ let activated=false,begins=0;const time=Date.now(),record={sessionId:'s',handoffId:'h',state:'human_control',expiresAt:time+180000};
+ const client={call:async()=>({humanHandoffAvailable:true,humanViewAvailable:true,runtimeEpoch:'e1'}),protectedCall:async(name,input)=>{
+  if(name==='human-begin'){assert.equal(input.viewerVersion,2);begins++;return record;}
+  if(name==='human-activate'){activated=true;return {...record,expiresAt:time+300000};}
+  if(name==='human-state')return {...record,expiresAt:time+(activated?300000:180000)};
+  if(name==='human-view')return {...record,expiresAt:time+300000,frame:{frameId:'f',jpeg:'synthetic',width:1280,height:800,origin:'https://example.com'}};
+  throw Error(name);
+ }};
+ const host=await require('../../lib/browser/humanHost').createHumanHost({client});try{
+  const h=await host.call('browser_handoff',{action:'start',sessionId:'s'}),origin=new URL(h.inputUrl).origin;
+  const launch=await fetch(h.inputUrl,{redirect:'manual'}),cookie=launch.headers.get('set-cookie').split(';')[0];
+  const html=await(await fetch(origin+'/viewer',{headers:{cookie}})).text(),csrf=JSON.parse(/const csrf=("[^"]+")/.exec(html)[1]);assert.match(html,/viewerV2:true/);
+  const request=path=>fetch(origin+path,{method:'POST',headers:{cookie,origin,'content-type':'application/json','x-csrf-token':csrf},body:'{}'});
+  const active=await request('/activate');assert.equal(active.status,200);assert.match(active.headers.get('set-cookie'),/Max-Age=29[0-9]/);
+  assert.equal((await(await request('/view')).json()).frame.frameId,'f');
+  assert.equal((await host.call('browser_handoff',{action:'status',sessionId:'s'})).expiresAt,time+300000);assert.equal(begins,1);
+ }finally{await host.close();}
+ let discovery=0;const legacy={...client,call:async(_n,input)=>{discovery++;if(input.includeHumanView)throw new c.BrowserError('INVALID_INPUT');return {humanHandoffAvailable:true,runtimeEpoch:'e1'};},protectedCall:async(_n,input)=>{assert.equal(input.viewerVersion,undefined);return record;}};
+ const old=await require('../../lib/browser/humanHost').createHumanHost({client:legacy});try{await old.call('browser_handoff',{action:'start',sessionId:'s'});assert.equal(discovery,2);}finally{await old.close();}
+});
