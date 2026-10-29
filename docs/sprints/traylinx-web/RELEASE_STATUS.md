@@ -1,21 +1,24 @@
-## Human-viewer production timing correction — candidate, not yet deployed
+## Human-viewer production timing correction — deployed29October2026
 
-Production evidence exposed two gaps in the earlier UI-only qualification: the
-three-minute lease was mostly consumed before opening the viewer, and human
-request-consent waiting consumed the worker's 30-second authentication window.
-Each separate status/frame call also incurred current-authority round trips.
+Runtime source `f5aa5c8`, published main/production. Private image
+`sha256:73fd6d4518f485fc95fc01ee2061e018f452a15fee7bab41152eb8763c889c5a`
+is1ready/1updated,healthok,0restarts. Only browser runtime image changed; rollback
+f2c24047 retained. Local host requires MCP reconnect/restart.
 
-Candidate adds negotiated viewer-v2: launch within three minutes; first viewer
-activation starts up to five minutes within the unchanged ten-minute absolute
-session ceiling. Reloads cannot extend it; legacy clients retain their contract.
-A combined protected state/frame route removes one round trip from each ready
-refresh. Human consent preserves only the current action's remaining execution
-time, never a new request budget or an unapproved destination. No site recipe.
+Negotiated viewer-v2: launch within three minutes; first viewer activation starts
+up to five minutes within the unchanged ten-minute absolute session ceiling.
+Reloads cannot extend it; legacy clients retain their contract. Combined protected
+state/frame removes one round trip per ready refresh. Human consent preserves only
+the current action's remaining execution time, never a new request budget or an
+unapproved destination. No site recipe, authority cache or permission bypass.
 
-Focused tests and a delayed-consent real-worker fixture are required before
-publication/deployment. Evidence: workspace
-`docs/evidence/gb01-handoff-timing-2026-10-29/`. Real account login and organization
-extraction remain unverified. No CAPTCHA is automated by these fixtures.
+47 focused checks passed. Exact committed-source Chromium fixture passed with31s
+human decision wait and2.8s view transport delay, one explicit recipient approval,
+chained POSTs, click/text/Return, no replay/redaction/cleanup. Actual installed MCP
+and native Chrome on our public health page also passed: working input, fresh
+image and Return to agent; all observed requests200. Post-smoke zero profiles.
+Full password login and organization extraction remain **unverified**; no CAPTCHA
+was automated. Evidence: workspace `docs/evidence/gb01-handoff-timing-2026-10-29/`.
 
 ## Local human-viewer interaction correction — 29 October 2026
 
