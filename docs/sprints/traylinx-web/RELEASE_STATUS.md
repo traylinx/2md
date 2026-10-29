@@ -1,3 +1,15 @@
+## Responsive viewer correction — local candidate, not deployed
+
+Negotiated version 4 keeps background capture interactive, queues at most one
+snapshot-bound input, and removes network-idle waiting only from dispatched human
+input. Input/navigation/expiry invalidate retained references; all authorization
+and network consent checks remain. Bounded host/runtime phase timing and aggregate
+network diagnostics omit content and credentials. 69 focused checks passed.
+Owned multi-step exact-image qualification, publication and deployment are pending.
+Production remains runtime7214f40/image97c0984b. Full login acceptance stays open.
+
+---
+
 ## Asynchronous human-session correction — deployed 29 October 2026
 
 Runtime source `7214f40` is published on main and production. The private image

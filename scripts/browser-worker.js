@@ -42,7 +42,9 @@ process.on('message',async message=>{
       const networkProvider=()=>humanBridge?.provider||bridge?.provider;
       const protectedInput=(input.mode==='login_read'||input.interventionsEnabled===true)?{getAuthDecision:(...args)=>bridge.provider.getAuthDecision(...args),verifyDecision:(...args)=>networkProvider().verifyDecision(...args),requestDecision:(...args)=>networkProvider().requestDecision(...args),credentialAccess:(...args)=>bridge.provider.credentialAccess(...args)}:undefined;
       bridge=createChildBridge({send:message=>process.send?.(message),requestId,signal:deadline.signal,actionDeadline:deadline});
-      engine=await deadline.run(()=>createPublicSession(browser,input,lifetime,{protectedInput,initialDeadline:deadline,onStage:value=>{stage=value;}}));respond('result',{ready:true});
+      const networkCounts={http4xx:0,http5xx:0,transport_failed:0,policy_blocked:0};let networkReports=0;
+      const onNetwork=kind=>{if(!Object.hasOwn(networkCounts,kind))return;networkCounts[kind]=Math.min(100000,networkCounts[kind]+1);if(networkReports>=32)return;networkReports++;process.send?.({type:'network_diagnostic',counts:{...networkCounts,limited:networkReports===32}});};
+      engine=await deadline.run(()=>createPublicSession(browser,input,lifetime,{protectedInput,initialDeadline:deadline,onNetwork,onStage:value=>{stage=value;}}));respond('result',{ready:true});
     }else{
       if(!engine||!lifetime)c.deny('UNAVAILABLE');
       deadline=new ActionDeadline(limits.actionMs,lifetime.signal);

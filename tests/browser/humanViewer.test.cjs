@@ -22,7 +22,7 @@ async function setup(options={}){
   throw Error(name);
  }};
  const surface=await createHumanSurface({client,now:()=>time});
- const launch=await fetch(surface.urlFor(record,'e1',{viewerV2:options.viewerV2===true,interaction:options.interaction===true,asyncUpdates:options.asyncUpdates===true}),{redirect:'manual'}),cookie=launch.headers.get('set-cookie').split(';')[0];
+ const launch=await fetch(surface.urlFor(record,'e1',{viewerV2:options.viewerV2===true,interaction:options.interaction===true,asyncUpdates:options.asyncUpdates===true,responsive:options.responsive===true}),{redirect:'manual'}),cookie=launch.headers.get('set-cookie').split(';')[0];
  const origin=new URL(launch.url).origin,html=await(await fetch(origin+'/viewer',{headers:{cookie}})).text();
  const dom=new JSDOM(html,{url:origin+'/viewer',runScripts:'dangerously',beforeParse(w){
   w.Date.now=()=>time;w.AbortController=AbortController;w.HTMLImageElement.prototype.decode=async()=>{};
@@ -162,4 +162,26 @@ test('async viewer refreshes dynamic content within bounded short cadence, with 
   }
   assert.equal(f.calls.filter(x=>x.name==='human-interact').length,0);assert.equal(f.calls.filter(x=>x.name==='human-activate').length,1);
  }finally{await f.close();}
+});
+
+test('responsive background capture accepts one intent against displayed frame; fresh capture never rebinds it',async()=>{
+ let hold=false,release;const f=await setup({viewerV2:true,interaction:true,asyncUpdates:true,responsive:true,transport:async(path,_,r)=>hold&&path==='/view'?new Promise(resolve=>{release=()=>resolve(r);}):r});
+ try{await f.wait('ready');const shown=f.calls.filter(x=>x.name==='human-view').length;assert.equal(shown,1);hold=true;
+  const next=[...f.timers.values()].find(t=>!t.interval&&t.ms!==10000);const refreshing=f.timer(next.ms);await until(()=>release);
+  assert.equal(f.$('screen').getAttribute('aria-disabled'),'false');assert.equal(f.$('screenCover').hidden,true);
+  f.click();f.click();assert.match(f.$('status').textContent,/Input captured/);assert.equal(f.$('screen').getAttribute('aria-disabled'),'true');assert.equal(f.calls.filter(x=>x.name==='human-interact').length,0);
+  hold=false;release();await refreshing;await f.wait('ready');const sent=f.calls.filter(x=>x.name==='human-interact');assert.equal(sent.length,1);assert.equal(sent[0].input.frameId,'f1');assert.deepEqual(sent[0].input.input,{type:'click',x:200,y:120});
+ }finally{await f.close();}
+});
+test('queued human intent is discarded on refresh failure, permission wait, expiry or age limit',async()=>{
+ for(const mode of ['failure','permission','expiry','age']){
+  let hold=false,release;const f=await setup({viewerV2:true,interaction:true,asyncUpdates:true,responsive:true,transport:async(path,_,r)=>hold&&path==='/view'?new Promise((resolve,reject)=>{release=()=>mode==='failure'?reject(Error('transport')):resolve(r);}):r});
+  try{await f.wait('ready');hold=true;
+   if(mode==='permission')f.setPending({operationId:'op',operationDigest:'a'.repeat(64),method:'POST',origin:'https://owned.example',type:'XHR',bodyBytes:1,reason:'operation'});
+   const next=[...f.timers.values()].find(t=>!t.interval&&t.ms!==10000);const refreshing=f.timer(next.ms);await until(()=>release);f.click();
+   if(mode==='expiry'){f.advance(300001);await f.timer(250);}if(mode==='age')f.advance(21000);
+   hold=false;release();await refreshing;await f.wait(mode==='failure'?'recovering':mode==='permission'?'decision':mode==='expiry'?'expired':'ready');
+   assert.equal(f.calls.filter(x=>x.name==='human-interact').length,0);
+  }finally{await f.close();}
+ }
 });

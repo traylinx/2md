@@ -85,5 +85,5 @@ test('v2 viewer activation renews local cookie and host status record; negotiati
   assert.equal((await host.call('browser_handoff',{action:'status',sessionId:'s'})).expiresAt,time+300000);assert.equal(begins,1);
  }finally{await host.close();}
  let discovery=0;const legacy={...client,call:async(_n,input)=>{discovery++;if(input.includeHumanView)throw new c.BrowserError('INVALID_INPUT');return {humanHandoffAvailable:true,runtimeEpoch:'e1'};},protectedCall:async(_n,input)=>{assert.equal(input.viewerVersion,undefined);return record;}};
- const old=await require('../../lib/browser/humanHost').createHumanHost({client:legacy});try{await old.call('browser_handoff',{action:'start',sessionId:'s'});assert.equal(discovery,4);}finally{await old.close();}
+ const old=await require('../../lib/browser/humanHost').createHumanHost({client:legacy});try{await old.call('browser_handoff',{action:'start',sessionId:'s'});assert.equal(discovery,5);}finally{await old.close();}
 });

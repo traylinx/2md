@@ -6,14 +6,14 @@ const {Deadline}=require('../lib/capture/deadline'),{readBody}=require('../lib/c
 // Signed host transport only. Pixels and raw input are never MCP tool outputs.
 function createBrowserHumanRouter({enabled=false,resolveCaller,verifyHost,manager,operations}={}){
  const router=express.Router();if(!enabled)return router;
- for(const [path,schema]of Object.entries(schemas))router.post(path,(req,res)=>authorityScope.run(async()=>{
+ for(const [path,schema]of Object.entries(schemas))router.post(path,(req,res)=>{const trace=require('../lib/browser/humanDiagnostics').createTrace(path.slice(1));return trace.run(()=>authorityScope.run(async()=>{
   res.set({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});const deadline=new Deadline(35000);let input;
   try{
    if(req.headers.origin||req.headers.cookie||Object.keys(req.query).length)c.deny('FORBIDDEN');if(req.body!==undefined)c.deny('UNAVAILABLE');
-   const credentials=captureCredentials(req),bound=c.binding(await deadline.run(()=>resolveCaller({credentials,request:req,deadline})));
+   const credentials=captureCredentials(req),bound=c.binding(await trace.measure('caller_before',()=>deadline.run(()=>resolveCaller({credentials,request:req,deadline}))));
    input=c.parse(schema,await readBody(req,20000,deadline));
-   await deadline.run(()=>verifyHost({bound,request:req,method:'POST',path:'/api/browser/v1'+path,body:input,signal:deadline.signal}));
-   const result=await deadline.run(async()=>{
+   await trace.measure('host_proof',()=>deadline.run(()=>verifyHost({bound,request:req,method:'POST',path:'/api/browser/v1'+path,body:input,signal:deadline.signal})));trace.identify(input.sessionId);
+   const result=await trace.measure('handler',()=>deadline.run(async()=>{
     if(path==='/human-begin')return manager.beginHuman(bound,input.sessionId,input);
     if(path==='/human-activate')return manager.activateHuman(bound,input);
     if(path==='/human-frame')return manager.humanFrame(bound,input);
@@ -41,11 +41,11 @@ function createBrowserHumanRouter({enabled=false,resolveCaller,verifyHost,manage
      catch(error){if(error.code!=='BUSY')throw error;state=await manager.humanState(bound,input);if(intervention()){const {ownerId,...pending}=await operations.inspect(bound,intervention());return {...state,pending};}throw error;}
     }
     return state;
-   });
-   authorityScope.after();const after=c.binding(await deadline.run(()=>resolveCaller({credentials,request:req,deadline})));if(c.scope(after)!==c.scope(bound))c.deny('FORBIDDEN');
-   res.json(c.parse(outputs[path],result));
-  }catch(error){const safe=c.publicError(error);if(!res.headersSent)res.status(safe.status).json(safe.body);}
+   }));
+   authorityScope.after();const after=c.binding(await trace.measure('caller_after',()=>deadline.run(()=>resolveCaller({credentials,request:req,deadline}))));if(c.scope(after)!==c.scope(bound))c.deny('FORBIDDEN');
+   const clean=c.parse(outputs[path],result);res.set('Server-Timing',trace.finish('OK'));res.json(clean);
+  }catch(error){const safe=c.publicError(error);const timing=trace.finish(safe.body.error);if(timing&&!res.headersSent)res.set('Server-Timing',timing);if(!res.headersSent)res.status(safe.status).json(safe.body);}
   finally{input=null;deadline.close();}
- }));return router;
+ }));});return router;
 }
 module.exports={createBrowserHumanRouter};

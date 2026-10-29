@@ -355,3 +355,37 @@ The 29 October production diagnostic measured roughly 3-second view responses an
 5.5-second automatic update intervals including transport. These measurements are
 not a guarantee for another website. A working viewer does not guarantee acceptance
 by a site's verification provider; repeated challenges are not evidence of success.
+
+
+### Responsive human viewer (negotiated version 4)
+
+Ask `get_browser_capabilities` with `includeHumanResponsive: true`. When the
+runtime reports `humanResponsiveAvailable: true`, the updated MCP host negotiates
+version 4 automatically. Reconnect the MCP process after updating its sources;
+an existing process or viewer link does not upgrade itself.
+
+Background image refresh no longer covers the page or disables input. You can
+choose one next input while it is running. The viewer keeps that input tied to
+the image you actually clicked and submits it once only if refresh confirms the
+session is still ready. A second input is ignored while the first waits. If
+permission, recovery, expiry or a stale image intervenes, the queued input is
+not sent; read the status before choosing again. Actual input processing still
+disables controls until its receipt and refreshed view arrive. This is not a
+streaming remote desktop or a guarantee of instant response.
+
+The worker keeps at most three unconsumed snapshots within the existing 30-second
+validity. Input or main-frame navigation invalidates them all. The viewer refuses
+input based on an image 20 seconds old. Version 4 acknowledges dispatched human
+input without waiting for network idle; asynchronous page work retains the same
+consent bridge and limits. Older negotiated versions keep their original behavior.
+
+Operators can correlate `browser_human_timing` records on the MCP host and runtime
+using an opaque session hash. Records contain only route, outcome and phase
+milliseconds. `browser_network_summary` contains bounded counts of HTTP 4xx/5xx,
+transport failures and policy blocks; categories can overlap. Summaries omit
+URLs, content, credentials, screenshots and human answers. A capped summary is
+marked `limited`; absence of errors is not evidence that a provider accepted a
+verification response. HTTP 200 can still carry an application-level rejection.
+
+Actual human verification remains user-operated. Successful owned fixture tests
+do not certify completion of a third-party challenge or your account login.
