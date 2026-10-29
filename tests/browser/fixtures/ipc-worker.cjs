@@ -19,6 +19,7 @@ process.on('message',async message=>{
       process.send({type:'result',requestId,result:{consumed:true,wiped:buffer.every(b=>b===0)}});
     }catch{process.send({type:'error',requestId,code:'UNAVAILABLE'});}finally{bridge.close();bridge=null;}return;
   }
+  if(name==='failure'){process.send({type:'error',requestId,code:input.code});return;}
   if(name==='crash')process.exit(1);
   if(name==='hang')return;
   const allowed=['PATH','HOME','TMPDIR','LANG','PUPPETEER_EXECUTABLE_PATH'];

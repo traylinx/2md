@@ -10,7 +10,7 @@ childProcess.spawn=function(file,args,options){
   if(file===process.env.PUPPETEER_EXECUTABLE_PATH)options={...options,detached:false};
   return spawn.call(this,file,args,options);
 };
-let used=false,busy=false,browser,engine,lifetime,limits,bridge;
+let used=false,busy=false,browser,engine,lifetime,limits,bridge,stage='initialize';
 function terminate(){
   // This child is the detached group leader. Kill only this worker and its browser.
   try{process.kill(-process.pid,'SIGKILL');}catch{process.exit(1);}
@@ -22,7 +22,7 @@ process.on('message',async message=>{
   const {requestId,name,input}=message;
   const respond=(type,result)=>process.send?.({type,requestId,...(type==='result'?{result}:{code:result||'UNAVAILABLE'})});
   if(busy){respond('error');return;}busy=true;
-  let deadline;
+  let deadline;const started=Date.now();stage=name==='initialize'?'initialize':'execute';
   try{
     if(name==='initialize'){
       if(used)c.deny('FORBIDDEN');used=true;limits=input.limits;
@@ -40,7 +40,7 @@ process.on('message',async message=>{
           '--proxy-bypass-list=<-loopback>',`--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE ${new URL(input.proxyUrl).hostname}`]}));
       const protectedInput=(input.mode==='login_read'||input.interventionsEnabled===true)?{getAuthDecision:(...args)=>bridge.provider.getAuthDecision(...args),verifyDecision:(...args)=>bridge.provider.verifyDecision(...args),requestDecision:(...args)=>bridge.provider.requestDecision(...args),credentialAccess:(...args)=>bridge.provider.credentialAccess(...args)}:undefined;
       bridge=createChildBridge({send:message=>process.send?.(message),requestId,signal:deadline.signal,actionDeadline:deadline});
-      engine=await deadline.run(()=>createPublicSession(browser,input,lifetime,{protectedInput,initialDeadline:deadline}));respond('result',{ready:true});
+      engine=await deadline.run(()=>createPublicSession(browser,input,lifetime,{protectedInput,initialDeadline:deadline,onStage:value=>{stage=value;}}));respond('result',{ready:true});
     }else{
       if(!engine||!lifetime)c.deny('UNAVAILABLE');
       deadline=new ActionDeadline(limits.actionMs,lifetime.signal);
@@ -49,6 +49,6 @@ process.on('message',async message=>{
       if(Buffer.byteLength(JSON.stringify(result))>limits.maxResultBytes)c.deny('LIMIT_EXCEEDED');
       respond('result',result);
     }
-  }catch(error){const code=c.publicError(error).body.error;respond('error',['STALE_REFERENCE','PROTECTED_INPUT_REQUIRED','OPERATION_PERMISSION_REQUIRED'].includes(code)?code:'UNAVAILABLE');}
+  }catch(error){const code=c.publicError(error).body.error;process.send?.({type:'diagnostic',requestId,...require('../lib/browser/diagnostics').failure({operation:name,stage,code,elapsedMs:Date.now()-started})});respond('error',code);}
   finally{bridge?.close();bridge=null;deadline?.close();busy=false;}
 });

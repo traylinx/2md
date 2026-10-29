@@ -45,3 +45,9 @@ test('unexpected child exit cleans profile and lease without a later client comm
  await assert.rejects(async()=>f.worker.execute('observe',{}),e=>e.code==='SESSION_LOST');
  await f.worker.dispose();assert.equal(f.releases(),1);
 });
+
+test('real IPC preserves known failure reasons and sanitizes unknown worker errors',async t=>{
+ const f=await fixture(t);
+ for(const code of ['HUMAN_REQUIRED','DEADLINE','PERMISSION_REQUIRED'])await assert.rejects(f.worker.execute('failure',{code}),{code});
+ await assert.rejects(f.worker.execute('failure',{code:'SENSITIVE_PAGE_TEXT'}),{code:'UNAVAILABLE'});
+});

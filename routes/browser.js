@@ -24,7 +24,7 @@ function createBrowserRouter({enabled=false,resolveCaller,verifyHost,service}={}
   }
   if (typeof resolveCaller!=='function' || typeof verifyHost!=='function' || typeof service?.call!=='function') c.deny('UNAVAILABLE');
   for (const [path,name] of Object.entries(ROUTES)) router.post(path,async(req,res)=>{
-    const deadline=new Deadline(35000);
+    const deadline=new Deadline(35000);const started=Date.now();let stage='caller_before';
     const closed=()=>{if (!res.writableFinished) deadline.abort();}; res.once('close',closed);
     try {
       // No cookies/ambient browser authority; do not expose this listener as CORS.
@@ -34,17 +34,17 @@ function createBrowserRouter({enabled=false,resolveCaller,verifyHost,service}={}
       const credentials=captureCredentials(req);
       const verified=c.binding(await deadline.run(()=>resolveCaller({credentials,request:req,deadline})));
       const input=c.parseTool(name,await readBody(req,16384,deadline));
-      await deadline.run(()=>verifyHost({bound:verified,request:req,method:'POST',path:'/api/browser/v1'+path,body:input,signal:deadline.signal}));
-      const result=await deadline.run(()=>service.call(name,input,verified,{signal:deadline.signal}));
-      const current=c.binding(await deadline.run(()=>resolveCaller({credentials,request:req,deadline})));
+      stage='host_proof';await deadline.run(()=>verifyHost({bound:verified,request:req,method:'POST',path:'/api/browser/v1'+path,body:input,signal:deadline.signal}));
+      stage='service';const result=await deadline.run(()=>service.call(name,input,verified,{signal:deadline.signal}));
+      stage='caller_after';const current=c.binding(await deadline.run(()=>resolveCaller({credentials,request:req,deadline})));
       if (c.scope(current)!==c.scope(verified)) c.deny('FORBIDDEN');
-      let clean;
+      stage='response';let clean;
       try {clean=c.parseResult(name,result);} catch {c.deny('UNAVAILABLE');}
       const output=JSON.stringify(clean);
       if (output===undefined || Buffer.byteLength(output)>c.LIMITS.maxResultBytes) c.deny('LIMIT_EXCEEDED');
       if (!res.destroyed) res.type('application/json').send(output);
     } catch(error) {
-      const safe=c.publicError(error);
+      const safe=c.publicError(error);require('../lib/browser/diagnostics').emitFailure({operation:name,stage,code:safe.body.error,elapsedMs:Date.now()-started});
       if (!res.destroyed && !res.headersSent) res.status(safe.status).json(safe.body);
     } finally { deadline.close(); res.removeListener('close',closed); }
   });
