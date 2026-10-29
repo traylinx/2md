@@ -1,3 +1,24 @@
+## Human continuation — deployed and ready for user retest
+
+Source `b565190` published on main and production. Dedicated browser runtime
+`sha256:765cbc31c143cda06bd0182fd9c11997dbf224ee56a3b727889e7ccc39a1bc4e`
+is1/1 ready, healthok,0restarts and0profiles after smoke. Embedded-frame and human
+flags enabled; egress, schema, secrets, grants and resources unchanged. Production
+workflow40855899178 succeeded. Previous image29f3909... retained for rollback.
+
+113 focused checks and exact-image human/nested-frame/legacy-private fixtures pass.
+Actual installed stdio MCP advertises both new capabilities. Real Chrome displayed
+the same remote login session in the protected1280x800 viewer; Return to agent,
+fresh observation/extraction and close succeeded. No password or CAPTCHA submitted
+in smoke. Real account/organization acceptance remains open, not certified.
+
+Restart the MCP connection before retesting. If challenged, the user completes it
+in the returned viewer, selects Return to agent, then resumes the agent. No different
+browser/session substitution, no automated challenge solver, no invitation recipe.
+[User instructions](../../generic-browser-setup.md).
+
+---
+
 ## Human continuation — qualified source; release pending
 
 Guarded nested HTTPS/OOPIF support and same-session human takeover implemented.

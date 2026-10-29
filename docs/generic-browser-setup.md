@@ -31,8 +31,11 @@ Arbitrary scripts, file upload, popups, workers and unrestricted network access 
 not introduced. Embedded HTTPS frames use the same per-request network policy.
 There is no guarantee that every website or anti-bot system will accept this browser.
 
-Implementation and owned-fixture validation are complete; the release ledger below
-and `docs/sprints/traylinx-web/RELEASE_STATUS.md` distinguish deployment and live checks.
+Deployed release `b565190` passed owned-fixture validation and actual installed-MCP
+viewer rendering, Return to agent, fresh extraction and cleanup. Restart your MCP
+connection to load the new tool. Full real-account login remains a user acceptance
+step; no organization read or CAPTCHA completion is claimed by the release smoke.
+See `docs/sprints/traylinx-web/RELEASE_STATUS.md` for exact release evidence.
 
 ---
 
