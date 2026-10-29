@@ -225,3 +225,19 @@ A fresh `browser_credentials` selection after a confirmed pre-input verification
 failure replaces the obsolete binding and wipes its old values. The caller supplies
 values for the newly observed fields; no hidden transfer to another field or origin
 occurs. An active or uncertain attempt cannot be replaced this way.
+
+### Recovering internal authorization outages
+
+`AUTHORITY_UNAVAILABLE` identifies a temporary permission-service failure or rate
+limit, not rejection by the target website. The MCP client should wait briefly
+and retrieve the **original action's status**, not repeat its submission or close
+the session immediately. A completed operation keeps its receipt even if the
+post-action permission check fails. Its result is withheld until current authority
+is verified. The existing session can be retained for up to 30 seconds; confirmed
+revocation still closes immediately, and normal idle/absolute limits still apply.
+
+Repeated reference lookups are coalesced only inside the same HTTP request phase.
+Post-action verification starts a new phase. Nothing caches permission across
+requests or transfers it between principals. Server-side authority checks remain
+mandatory; clients no longer make redundant capability-discovery round trips for
+every protected field or action.

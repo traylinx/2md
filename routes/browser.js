@@ -1,4 +1,5 @@
 'use strict';
+const authorityScope=require('../lib/browser/authorityScope');
 
 const express = require('express');
 const c = require('../lib/browser/contracts');
@@ -23,7 +24,7 @@ function createBrowserRouter({enabled=false,resolveCaller,verifyHost,service}={}
     router.use((_req,res)=>res.status(404).json({error:'NOT_FOUND'})); return router;
   }
   if (typeof resolveCaller!=='function' || typeof verifyHost!=='function' || typeof service?.call!=='function') c.deny('UNAVAILABLE');
-  for (const [path,name] of Object.entries(ROUTES)) router.post(path,async(req,res)=>{
+  for (const [path,name] of Object.entries(ROUTES)) router.post(path,(req,res)=>authorityScope.run(async()=>{
     const deadline=new Deadline(35000);const started=Date.now();let stage='caller_before';
     const closed=()=>{if (!res.writableFinished) deadline.abort();}; res.once('close',closed);
     try {
@@ -36,7 +37,7 @@ function createBrowserRouter({enabled=false,resolveCaller,verifyHost,service}={}
       const input=c.parseTool(name,await readBody(req,16384,deadline));
       stage='host_proof';await deadline.run(()=>verifyHost({bound:verified,request:req,method:'POST',path:'/api/browser/v1'+path,body:input,signal:deadline.signal}));
       stage='service';const result=await deadline.run(()=>service.call(name,input,verified,{signal:deadline.signal}));
-      stage='caller_after';const current=c.binding(await deadline.run(()=>resolveCaller({credentials,request:req,deadline})));
+      authorityScope.after();stage='caller_after';const current=c.binding(await deadline.run(()=>resolveCaller({credentials,request:req,deadline})));
       if (c.scope(current)!==c.scope(verified)) c.deny('FORBIDDEN');
       stage='response';let clean;
       try {clean=c.parseResult(name,result);} catch {c.deny('UNAVAILABLE');}
@@ -47,7 +48,7 @@ function createBrowserRouter({enabled=false,resolveCaller,verifyHost,service}={}
       const safe=c.publicError(error);require('../lib/browser/diagnostics').emitFailure({operation:name,stage,code:safe.body.error,elapsedMs:Date.now()-started});
       if (!res.destroyed && !res.headersSent) res.status(safe.status).json(safe.body);
     } finally { deadline.close(); res.removeListener('close',closed); }
-  });
+  }));
   router.use((_req,res)=>res.status(404).json({error:'NOT_FOUND'}));
   return router;
 }

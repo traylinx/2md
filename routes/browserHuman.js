@@ -1,11 +1,12 @@
 'use strict';
+const authorityScope=require('../lib/browser/authorityScope');
 const express=require('express'),c=require('../lib/browser/contracts');
 const {schemas,outputs}=require('../lib/browser/humanContracts');
 const {Deadline}=require('../lib/capture/deadline'),{readBody}=require('../lib/capture/readBody'),{captureCredentials}=require('../lib/capture/sentinelPrincipal');
 // Signed host transport only. Pixels and raw input are never MCP tool outputs.
 function createBrowserHumanRouter({enabled=false,resolveCaller,verifyHost,manager,operations}={}){
  const router=express.Router();if(!enabled)return router;
- for(const [path,schema]of Object.entries(schemas))router.post(path,async(req,res)=>{
+ for(const [path,schema]of Object.entries(schemas))router.post(path,(req,res)=>authorityScope.run(async()=>{
   res.set({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});const deadline=new Deadline(35000);let input;
   try{
    if(req.headers.origin||req.headers.cookie||Object.keys(req.query).length)c.deny('FORBIDDEN');if(req.body!==undefined)c.deny('UNAVAILABLE');
@@ -30,10 +31,10 @@ function createBrowserHumanRouter({enabled=false,resolveCaller,verifyHost,manage
     }
     return state;
    });
-   const after=c.binding(await deadline.run(()=>resolveCaller({credentials,request:req,deadline})));if(c.scope(after)!==c.scope(bound))c.deny('FORBIDDEN');
+   authorityScope.after();const after=c.binding(await deadline.run(()=>resolveCaller({credentials,request:req,deadline})));if(c.scope(after)!==c.scope(bound))c.deny('FORBIDDEN');
    res.json(c.parse(outputs[path],result));
   }catch(error){const safe=c.publicError(error);if(!res.headersSent)res.status(safe.status).json(safe.body);}
   finally{input=null;deadline.close();}
- });return router;
+ }));return router;
 }
 module.exports={createBrowserHumanRouter};
