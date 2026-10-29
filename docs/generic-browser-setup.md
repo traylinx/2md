@@ -42,11 +42,38 @@ Ask your agent to discover `get_browser_capabilities`. Available and permitted
 operations are distinct. For a public task it opens, observes and interacts using
 current references, extracts evidence, then closes the session.
 
-For login, the agent requests protected local credential input. Enter credentials
-in that local form, not an ordinary fill action or MCP argument. Recipient consent
-may be required for a newly discovered login destination. MFA, CAPTCHA, invitations
-and other access prerequisites are reported, not bypassed. A remote application
-without a reachable protected-input channel is not login-ready.
+## Agent-directed protected input
+
+Check `get_browser_capabilities.inputModes` before using a feature. When it includes
+`observed_fields`, the agent can request protected values for any supported observed
+text input, password input, textarea, select or editable text control. There is no
+site catalogue, fixed login sequence or invitation-specific tool.
+
+1. Open `login_read` and observe the page.
+2. Call `browser_credentials` with the current `observationId`, `fields` as
+   `[{ref, label}]`, and an optional `submitRef`. These are references/labels, not values.
+3. The user enters the requested values on the paired protected-input page.
+4. Call `browser_authenticate` with the returned `credentialRef` and exactly the
+   same field selection. Despite its compatibility name, this tool applies arbitrary
+   protected field values. Omitting `submitRef` fills without clicking.
+5. Observe the result and choose the next step. `input_applied` and `form_submitted`
+   are action outcomes, not proof of successful login or account identity.
+
+Invitation and user-supplied verification-code forms use this same mechanism.
+Warnings describe the page; they do not mandate a separate integration. CAPTCHA or
+an unavailable human interaction still needs user intervention, not bypassing.
+Old username/password callers remain supported. If `observed_fields` is absent,
+do not claim the connected runtime supports generic protected fields.
+
+Input is bound to the selected observation, controls, session and recipient and is
+consumed once. Re-observe changed controls; do not replay uncertain submissions.
+Never put values in normal fill arguments, URLs or tool transcripts. A remote client
+without reachable protected input is not ready for private-value entry.
+
+Normal clicks may submit a form; button names do not determine whether an action is
+safe. Follow the user's task and permissions. The transport can request a scoped
+recipient/operation decision; this does not authorize unrelated purchases, sends,
+uploads or account changes. Even reading may cause website-side effects.
 
 Example task: “Use Traylinx Web Agent to read this URL and summarize it with source
 evidence. Flag missing information and close the session afterward.”
@@ -62,3 +89,9 @@ returned evidence plus explicit degraded-resource/redaction warnings. Owned nati
 and SPA login fixtures passed candidate qualification; arbitrary real-site success
 is not guaranteed. Full released private/agentic-client acceptance remains open.
 An existing connection does not automatically re-enroll after grant expiry/revocation.
+
+## Generic-input correction release status
+
+Implementation and focused local checks exist. Generic `observed_fields` runtime
+release is pending; the previously deployed runtime supports legacy protected login.
+Do not confuse an updated local MCP adapter with a deployed backend capability.
