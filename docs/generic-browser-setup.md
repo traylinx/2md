@@ -257,3 +257,23 @@ A successful `form_submitted` receipt proves the browser operation completed, no
 that the website accepted the invitation or authenticated the account. Observe the
 result, complete any genuine human challenge in the same viewer, then continue from
 fresh references. Do not repeat a submission merely because login is not complete.
+
+### A handoff link does not open
+
+Keep the MCP host running and open its loopback link on that same computer before
+the displayed expiry. The launch link is one-use; it does not extend the remote
+session lifetime.
+
+- **Link expired (HTTP410):** return to your agent for a fresh authorized session
+  and handoff. The expired session cannot be revived. This is not evidence that
+  your website password was rejected.
+- **Already opened (HTTP403):** use the original viewer tab. If unavailable, ask
+  the agent to check the existing session and issue a fresh link while still active.
+- **Link replaced (HTTP403):** use the newest handoff link for that session.
+- **Connection refused:** the local MCP host is not listening, or you opened the
+  loopback link on a different computer. Reconnect the host, not the remote website.
+
+Known expired/used/replaced links now show these explanations rather than claiming
+the caller lacks permission. Unknown links and invalid host/origin requests still
+fail closed. Diagnostic history is bounded and stores link digests, not passwords
+or browser contents. No uncertain submission is replayed to recover a link.
