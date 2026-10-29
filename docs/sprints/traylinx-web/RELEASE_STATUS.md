@@ -1,3 +1,29 @@
+## Asynchronous human-session correction — deployed 29 October 2026
+
+Runtime source `7214f40` is published on main and production. The private image
+`sha256:97c0984b6e07933f5866d67b59cf7d46ebf2d728f4ac5b8bcdd64a545b272df1`
+is deployed with one ready replica, health OK and zero restarts. The browser image
+alone changed; rollback `9b313af7` is retained.
+
+Delayed network work no longer loses its human permission channel when a click
+finishes. Parallel permission-sensitive requests wait in a bounded queue instead
+of failing merely because another approval is pending. Original time/request
+budgets, fresh authorization and destination checks remain. No credentials are
+retrieved through the background channel, and no actions are replayed.
+
+99 distinct unit checks and both exact-image real Chromium fixtures passed.
+The installed MCP and native Chrome also verified negotiated asynchronous updates,
+a harmless input with a retained image, Return to agent and cleanup. Live view
+responses remain around 3 seconds; observed automatic update cadence was around
+5.5 seconds including transport. This is not streaming or a provider-success claim.
+
+Restart/reconnect MCP to load the updated viewer. Capability negotiation with
+`includeHumanAsync: true` should report `humanAsyncAvailable: true`. Real password
+login and organization extraction remain **open**, not certified by these tests.
+Evidence: workspace `docs/evidence/gb01-async-human-2026-10-29/RESULT.md`.
+
+---
+
 ## Async human-session correction — candidate, not yet deployed
 
 Session-scoped network consent, bounded parallel waiting, delayed click-budget

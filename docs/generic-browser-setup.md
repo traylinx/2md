@@ -317,13 +317,13 @@ Do not reuse an expired link to test the update.
 ## Asynchronous human-session updates
 
 With `get_browser_capabilities({includeHumanAsync:true})` reporting
-`humanAsyncAvailable: true`, the updated host negotiates viewer version3. Older
+`humanAsyncAvailable: true`, the updated host negotiates viewer version 3. Older
 hosts/runtimes keep their existing behavior. Reconnect the MCP host after updating.
 
 Human-session network decisions no longer depend on a click command remaining
 open. Delayed requests can present an exact permission request in the same viewer.
-Up to16 permission-sensitive requests can wait in memory; each is checked again
-before forwarding. The original click's30second/16request allowance is retained
+Up to 16 permission-sensitive requests can wait in memory; each is checked again
+before forwarding. The original click's 30-second / 16-request allowance is retained
 for delayed work, not replenished by polling or background requests. New recipients
 still require approval; return, expiry and revocation end human authority. This
 channel cannot retrieve credentials. Requests are never automatically replayed.
@@ -336,3 +336,22 @@ or a guarantee that an external verification provider will accept the session.
 
 Implementation qualification and deployment are tracked separately in
 `sprints/traylinx-web/RELEASE_STATUS.md`.
+
+
+### Loading the asynchronous viewer update
+
+Restart or reconnect your MCP host after updating the integration. Ask it to call
+`get_browser_capabilities` with `includeHumanAsync: true` and check that
+`humanAsyncAvailable` is `true`. Use a new session; old or expired viewer links do
+not load a new session automatically.
+
+When the viewer shows **Updating**, the previous image remains visible but input
+is temporarily disabled to avoid using stale coordinates. A permission decision
+may appear for delayed page work even after your click has completed. Approve only
+requests needed for your task. After the requested human step, choose **Return to
+agent**; the agent then observes the same browser session before continuing.
+
+The 29 October production diagnostic measured roughly 3-second view responses and
+5.5-second automatic update intervals including transport. These measurements are
+not a guarantee for another website. A working viewer does not guarantee acceptance
+by a site's verification provider; repeated challenges are not evidence of success.
