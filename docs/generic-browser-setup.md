@@ -345,8 +345,9 @@ Restart or reconnect your MCP host after updating the integration. Ask it to cal
 `humanAsyncAvailable` is `true`. Use a new session; old or expired viewer links do
 not load a new session automatically.
 
-When the viewer shows **Updating**, the previous image remains visible but input
-is temporarily disabled to avoid using stale coordinates. A permission decision
+With viewer version 3, **Updating** keeps the previous image visible but temporarily
+disables input. Version 4 permits one queued input during readonly background
+refresh, as described below; actual input processing still disables controls. A permission decision
 may appear for delayed page work even after your click has completed. Approve only
 requests needed for your task. After the requested human step, choose **Return to
 agent**; the agent then observes the same browser session before continuing.

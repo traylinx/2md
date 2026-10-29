@@ -1,3 +1,25 @@
+## Responsive viewer correction — deployed 29 October 2026
+
+Runtime `bf6a623`, private image `eab27ab9`, is deployed: one ready/updated,
+health OK, zero restarts. Browser image only; rollback `97c0984b` retained.
+69 focused tests and three exact-image Chromium fixtures passed. Installed MCP
+and native Chrome verified a pointer input during background refresh, retained
+image, exact-once delivery and Return to agent. Post-smoke profiles zero.
+
+Reconnect MCP to negotiate `humanResponsiveAvailable: true` (request
+`includeHumanResponsive: true`). One input can wait safely during background
+refresh; permission/failure/expiry discards it rather than replaying it. Host and
+runtime retain bounded content-free diagnostics. No site-specific bypasses.
+
+**Full login acceptance remains open.** Measured live refresh median2.928s:
+caller-before1.414s and caller-after1.411s, screenshot23ms. Authorization remains
+the main latency target; no claim that the provider challenge loop is fixed.
+Next: bounded identity-resolution latency correction preserving fresh checks,
+then one user-operated acceptance. Evidence: workspace
+`docs/evidence/gb01-responsive-human-2026-10-29/RESULT.md`.
+
+---
+
 ## Responsive viewer correction — local candidate, not deployed
 
 Negotiated version 4 keeps background capture interactive, queues at most one
