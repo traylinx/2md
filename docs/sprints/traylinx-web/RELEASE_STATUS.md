@@ -1,21 +1,23 @@
-## Viewer input round-trip correction — candidate
+## Viewer input round-trip correction — deployed29October2026
 
-Latest user evidence confirms6–8second input+view cycles despite successful HTTP200
-responses. The page was intentionally hidden between those requests. The previous
-release fixed handoff timing, not the repeated-input UX.
+Runtime source `0faac21`, main/production published. Private image
+`sha256:9b313af7e6dd8aec4f7e3fd84393e95bc6280d2b1b5f9e260f47b35fe81144fd`
+is1ready/1updated,healthok,0restarts. Browser image only; rollback73fd6d45 retained.
 
-Candidate negotiates `humanInteractionAvailable`: one protected human-interact
-response contains the original action receipt and fresh frame. Legacy callers
-retain their existing endpoints/shapes. Keep the previous frame visible but
-non-interactive under an Updating view overlay during normal work; decode the new
-image before replacement. Errors, unknown outcomes and expired/revoked authority
-still clear/disable pixels; uncertain input is never replayed. No timer increase,
-site-specific bypass or change to current authority/recipient checks.
+Negotiated humanInteractionAvailable couples input receipt and updated image in
+one response. Keep the previous image visibly disabled under an Updating overlay
+rather than collapsing the page. Errors/expiry/revocation still clear it. Legacy
+clients remain supported. No input replay, authority caching or site exception.
 
-51 focused checks passed. Exact committed-source repeated-click fixture and actual
-production timing verification pending. Evidence in workspace
-`docs/evidence/gb01-viewer-roundtrip-2026-10-29/`. Full private user journey remains
-open; do not infer usability from publication or a health-only check.
+51 focused checks and exact real-worker fixture passed, including six successive
+clicks,31s consent wait, nested frames, text redaction, Return and cleanup. Actual
+installed MCP/native Chrome public diagnostic: six clicks3.476–3.530s each, image
+visible under overlay throughout, no extra view per click, all200, Return verified.
+Post-smoke profiles0. This is not instant interaction or a same-site CAPTCHA
+benchmark. Full real password/organization acceptance remains **open**.
+
+Reconnect local MCP. Evidence: workspace
+`docs/evidence/gb01-viewer-roundtrip-2026-10-29/`.
 
 ## Human-viewer production timing correction — deployed29October2026
 
