@@ -76,3 +76,13 @@ test('short protected values redact content without corrupting IDs, enums or URL
  assert.equal(new URL(output.source.url).hostname,'example.com');assert.equal(new URL(output.source.url).searchParams.get('q'),'[REDACTED]');
  assert.match(output.source.url,/%5BREDACTED%5D/);
 });
+test('input-mode capability is negotiated; old clients retain their strict response shape',async()=>{
+ const {createBrowserService}=require('../../lib/browser/service'),{createBrowserMcpAgent}=require('../../lib/browser/mcpAgent');
+ const manager={runtimeEpoch:'epoch',...Object.fromEntries(['open','query','execute','describe','status','close'].map(k=>[k,async()=>{}]))};
+ const service=createBrowserService({manager,authorize:async()=>grant(),credentialService:async()=>{},privateReady:async()=>true});
+ assert.equal(Object.hasOwn(await service.call('get_browser_capabilities',{},bound),'inputModes'),false);
+ const current=createBrowserMcpAgent({backend:{call:(name,input)=>service.call(name,input,bound)}});
+ assert.deepEqual((await current.call({name:'get_browser_capabilities'})).inputModes,['username_password','observed_fields']);
+ let calls=0;const legacy=createBrowserMcpAgent({backend:{call:(name,input)=>{calls++;if(input.includeInputModes)c.deny('INVALID_INPUT');return service.call(name,input,bound);}}});
+ assert.equal(Object.hasOwn(await legacy.call({name:'get_browser_capabilities'}),'inputModes'),false);assert.equal(calls,2);
+});

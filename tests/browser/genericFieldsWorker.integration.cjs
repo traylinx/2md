@@ -29,7 +29,7 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
   runtime=createBrowserRuntime({privateEnabled:true,autoSweep:false,runtimeEpoch:'e1',tempRoot,executablePath:process.env.FIXTURE_CHROMIUM_WRAPPER,authorize:async()=>g,resolveCaller:async()=>bound,consumeNonce:async({nonce})=>{if(nonces.has(nonce))return false;nonces.add(nonce);return true;},lease:async()=>{
    proxy=createEgressProxy({deadline:lifetime,resolve:async value=>{const url=new URL(value);assert.equal(url.origin,origin);return {url,addresses:[{address:'127.0.0.1',family:4}]};},connect:options=>net.connect({...options,port:server.address().port})});await new Promise(r=>proxy.server.listen(0,'127.0.0.1',r));return {proxyUrl:`http://127.0.0.1:${proxy.server.address().port}`,release:async()=>{releases++;await proxy.close();}};
   }});
-  const caps=await runtime.service.call('get_browser_capabilities',{},bound);assert.ok(caps.inputModes.includes('observed_fields'));
+  const caps=await runtime.service.call('get_browser_capabilities',{includeInputModes:true},bound);assert.ok(caps.inputModes.includes('observed_fields'));
   const opened=await runtime.manager.open(bound,{runtimeEpoch:'e1',actionId:'open1',mode:'login_read',url:origin,purpose:'Read owned organization'});assert.equal(opened.state,'succeeded',JSON.stringify(opened));const sessionId=opened.sessionId;
   const signer=createCompletionSigner({bound,grantId:g.grantId,privateKey,verifyOwner:async()=>owner});
   async function step(actionId,labels,values,submit){
