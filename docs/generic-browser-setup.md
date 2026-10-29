@@ -196,3 +196,28 @@ assuming a source checkout is deployed. See the release ledger for publication a
 live verification. A real CAPTCHA is completed by the user in the same remote
 session. Do not imply that a different browser's state transfers here or promise
 that every SSO provider and anti-bot system will accept this browser.
+
+### Automatic verification versus interactive challenges
+
+The runtime now distinguishes passive verification from instructions that actually
+require a human. Observation, extraction and protected-input preflight wait up to
+8 seconds for a pending check to finish, within the existing action/session limits.
+They only re-read the page: no refresh, repeated submission, challenge solver or
+provider-token manipulation. A CAPTCHA CSS class, script or badge alone is not a
+reason to block a normal login form. HTTP 403/503 verification interstitials remain
+inspectable; unrelated HTTP errors are not treated as successful reads.
+
+- `VERIFICATION_PENDING`: the site has not finished. Observe again within session
+  limits; do not label it invalid credentials or automatically demand human help.
+- `CAPTCHA_REQUIRED`: interactive instructions were observed. Use the existing
+  same-session human viewer, then observe fresh state after Return to agent.
+- `VERIFICATION_FAILED`: the page explicitly reports failure. Explain the failure;
+  do not retry a password or pretend the site accepted it.
+
+A failed `browser_authenticate` receipt with either verification error occurs
+**before** filling or submitting. Its session and unconsumed credential remain
+available until their normal expiry. Repeating the original action ID returns the
+original receipt; after confirmed recovery use fresh observed references. This does
+not authorize replay of an uncertain or successful submission. After submission,
+observe the resulting page; `form_submitted` still does not prove login success.
+All agentic MCP clients receive these instructions, not just Codex or Claude.

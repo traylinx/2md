@@ -37,13 +37,33 @@ test('diagnostics allow fixed enums and numeric timing only, not exception or re
  assert.equal(workerCode('HUMAN_REQUIRED'),'HUMAN_REQUIRED');assert.equal(workerCode('DEADLINE'),'DEADLINE');assert.equal(workerCode('SENSITIVE'),'UNAVAILABLE');
  assert.doesNotMatch(JSON.stringify(failure({operation:'SENSITIVE',stage:'SENSITIVE',code:'SENSITIVE',elapsedMs:'SENSITIVE'})),/SENSITIVE/);
 });
-test('pre-input human challenge keeps session inspectable and original receipt recoverable without replay',async()=>{
+test('pre-input HUMAN_REQUIRED keeps session inspectable and original receipt recoverable without replay',async()=>{
  let attempts=0,closed=0;const g={...grant(),policyVersion:c.POLICY};
  const manager=createSessionManager({runtimeEpoch:'e1',autoSweep:false,privateEnabled:true,authorize:async()=>g,validateOutput:async(n,r)=>r,
  createWorker:async()=>({execute:async name=>{if(name==='browser_authenticate'){attempts++;c.deny('HUMAN_REQUIRED');}return {observed:true};},dispose:async()=>{closed++;}})});
  try{const opened=await manager.open(bound,{runtimeEpoch:'e1',actionId:'open1',mode:'login_read',url:'https://example.org',purpose:'Read'});
  const input={runtimeEpoch:'e1',sessionId:opened.sessionId,actionId:'auth1',observationId:'o1',credentialRef:'c1',fields:[{ref:'r1',label:'Code'}]};
  const receipt=await manager.execute(bound,'browser_authenticate',input);assert.equal(receipt.state,'failed');assert.equal(receipt.error,'HUMAN_REQUIRED');assert.equal(closed,0);
+ assert.deepEqual(await manager.status(bound,{runtimeEpoch:'e1',actionId:'auth1'}),receipt);assert.deepEqual(await manager.execute(bound,'browser_authenticate',input),receipt);assert.equal(attempts,1);
+ assert.deepEqual(await manager.query(bound,'browser_observe',{sessionId:opened.sessionId}),{observed:true});
+ }finally{await manager.shutdown();}assert.equal(closed,1);
+});test('pre-input VERIFICATION_PENDING keeps session inspectable and original receipt recoverable without replay',async()=>{
+ let attempts=0,closed=0;const g={...grant(),policyVersion:c.POLICY};
+ const manager=createSessionManager({runtimeEpoch:'e1',autoSweep:false,privateEnabled:true,authorize:async()=>g,validateOutput:async(n,r)=>r,
+ createWorker:async()=>({execute:async name=>{if(name==='browser_authenticate'){attempts++;c.deny('VERIFICATION_PENDING');}return {observed:true};},dispose:async()=>{closed++;}})});
+ try{const opened=await manager.open(bound,{runtimeEpoch:'e1',actionId:'open1',mode:'login_read',url:'https://example.org',purpose:'Read'});
+ const input={runtimeEpoch:'e1',sessionId:opened.sessionId,actionId:'auth1',observationId:'o1',credentialRef:'c1',fields:[{ref:'r1',label:'Code'}]};
+ const receipt=await manager.execute(bound,'browser_authenticate',input);assert.equal(receipt.state,'failed');assert.equal(receipt.error,'VERIFICATION_PENDING');assert.equal(closed,0);
+ assert.deepEqual(await manager.status(bound,{runtimeEpoch:'e1',actionId:'auth1'}),receipt);assert.deepEqual(await manager.execute(bound,'browser_authenticate',input),receipt);assert.equal(attempts,1);
+ assert.deepEqual(await manager.query(bound,'browser_observe',{sessionId:opened.sessionId}),{observed:true});
+ }finally{await manager.shutdown();}assert.equal(closed,1);
+});test('pre-input VERIFICATION_FAILED keeps session inspectable and original receipt recoverable without replay',async()=>{
+ let attempts=0,closed=0;const g={...grant(),policyVersion:c.POLICY};
+ const manager=createSessionManager({runtimeEpoch:'e1',autoSweep:false,privateEnabled:true,authorize:async()=>g,validateOutput:async(n,r)=>r,
+ createWorker:async()=>({execute:async name=>{if(name==='browser_authenticate'){attempts++;c.deny('VERIFICATION_FAILED');}return {observed:true};},dispose:async()=>{closed++;}})});
+ try{const opened=await manager.open(bound,{runtimeEpoch:'e1',actionId:'open1',mode:'login_read',url:'https://example.org',purpose:'Read'});
+ const input={runtimeEpoch:'e1',sessionId:opened.sessionId,actionId:'auth1',observationId:'o1',credentialRef:'c1',fields:[{ref:'r1',label:'Code'}]};
+ const receipt=await manager.execute(bound,'browser_authenticate',input);assert.equal(receipt.state,'failed');assert.equal(receipt.error,'VERIFICATION_FAILED');assert.equal(closed,0);
  assert.deepEqual(await manager.status(bound,{runtimeEpoch:'e1',actionId:'auth1'}),receipt);assert.deepEqual(await manager.execute(bound,'browser_authenticate',input),receipt);assert.equal(attempts,1);
  assert.deepEqual(await manager.query(bound,'browser_observe',{sessionId:opened.sessionId}),{observed:true});
  }finally{await manager.shutdown();}assert.equal(closed,1);

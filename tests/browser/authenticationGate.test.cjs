@@ -9,7 +9,7 @@ test('an observed access gate stops before credentials, private transition or su
  for(const accessGate of ['mfa','invitation','captcha']){
   let touched=0;const forbidden=()=>{touched++;throw Error('unexpected action');};
   const authenticate=createAuthentication({page:{},observations:{page:{url:()=>origin,evaluate:async()=>({challenge:true,accessGate})},resolve:forbidden},network:{enterPrivate:forbidden},credentialAccess:forbidden});
-  await assert.rejects(authenticate(request,{proof:'synthetic',decision,recipients:[origin]},{}),{code:'HUMAN_REQUIRED'});
+  await assert.rejects(authenticate(request,{proof:'synthetic',decision,recipients:[origin]},{remaining:()=>30000,run:fn=>fn()}),{code:'HUMAN_REQUIRED'});
   assert.equal(touched,0);
  }
 });
