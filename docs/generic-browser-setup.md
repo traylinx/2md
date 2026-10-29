@@ -313,3 +313,26 @@ request budgets, explicit recipient consent and session expiry remain enforced.
 After updating the source installation, reconnect MCP or restart the calling
 application. An already running MCP process or open viewer retains its old code.
 Do not reuse an expired link to test the update.
+
+## Asynchronous human-session updates
+
+With `get_browser_capabilities({includeHumanAsync:true})` reporting
+`humanAsyncAvailable: true`, the updated host negotiates viewer version3. Older
+hosts/runtimes keep their existing behavior. Reconnect the MCP host after updating.
+
+Human-session network decisions no longer depend on a click command remaining
+open. Delayed requests can present an exact permission request in the same viewer.
+Up to16 permission-sensitive requests can wait in memory; each is checked again
+before forwarding. The original click's30second/16request allowance is retained
+for delayed work, not replenished by polling or background requests. New recipients
+still require approval; return, expiry and revocation end human authority. This
+channel cannot retrieve credentials. Requests are never automatically replayed.
+
+The viewer refreshes automatically on a shorter, frame-budget-aware cadence and
+shows aggregate blocked-request counts. These counts contain no URL, body, token
+or page content. They help distinguish transport trouble from a website's response.
+Updates still include network/authorization latency; this is not streaming video
+or a guarantee that an external verification provider will accept the session.
+
+Implementation qualification and deployment are tracked separately in
+`sprints/traylinx-web/RELEASE_STATUS.md`.

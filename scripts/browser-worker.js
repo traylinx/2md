@@ -5,19 +5,20 @@ const {ActionDeadline}=require('../lib/browser/actionDeadline');
 const c=require('../lib/browser/contracts');
 const {createChildBridge}=require('../lib/browser/protectedBridge');
 const {createPublicSession}=require('../lib/browser/publicSession');
+const {createHumanChildBridge}=require('../lib/browser/humanBridge');
 const spawn=childProcess.spawn;
 childProcess.spawn=function(file,args,options){
   if(file===process.env.PUPPETEER_EXECUTABLE_PATH)options={...options,detached:false};
   return spawn.call(this,file,args,options);
 };
-let used=false,busy=false,browser,engine,lifetime,limits,bridge,stage='initialize';
+let used=false,busy=false,browser,engine,lifetime,limits,bridge,humanBridge,humanController,activeDeadline,activeName,stage='initialize';
 function terminate(){
   // This child is the detached group leader. Kill only this worker and its browser.
   try{process.kill(-process.pid,'SIGKILL');}catch{process.exit(1);}
 }
 process.on('disconnect',terminate);
 process.on('message',async message=>{
-  if(bridge?.handle(message))return;
+  if(humanBridge?.handle(message)||bridge?.handle(message))return;
   if(message?.type!=='command'||typeof message.requestId!=='string')return;
   const {requestId,name,input}=message;
   const respond=(type,result)=>process.send?.({type,requestId,...(type==='result'?{result}:{code:result||'UNAVAILABLE'})});
@@ -38,17 +39,25 @@ process.on('message',async message=>{
           '--disable-crash-reporter','--disable-component-update','--disable-sync','--no-first-run','--disable-quic',
           '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',`--proxy-server=${input.proxyUrl}`,
           '--proxy-bypass-list=<-loopback>',`--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE ${new URL(input.proxyUrl).hostname}`]}));
-      const protectedInput=(input.mode==='login_read'||input.interventionsEnabled===true)?{getAuthDecision:(...args)=>bridge.provider.getAuthDecision(...args),verifyDecision:(...args)=>bridge.provider.verifyDecision(...args),requestDecision:(...args)=>bridge.provider.requestDecision(...args),credentialAccess:(...args)=>bridge.provider.credentialAccess(...args)}:undefined;
+      const networkProvider=()=>humanBridge?.provider||bridge?.provider;
+      const protectedInput=(input.mode==='login_read'||input.interventionsEnabled===true)?{getAuthDecision:(...args)=>bridge.provider.getAuthDecision(...args),verifyDecision:(...args)=>networkProvider().verifyDecision(...args),requestDecision:(...args)=>networkProvider().requestDecision(...args),credentialAccess:(...args)=>bridge.provider.credentialAccess(...args)}:undefined;
       bridge=createChildBridge({send:message=>process.send?.(message),requestId,signal:deadline.signal,actionDeadline:deadline});
       engine=await deadline.run(()=>createPublicSession(browser,input,lifetime,{protectedInput,initialDeadline:deadline,onStage:value=>{stage=value;}}));respond('result',{ready:true});
     }else{
       if(!engine||!lifetime)c.deny('UNAVAILABLE');
       deadline=new ActionDeadline(limits.actionMs,lifetime.signal);
       bridge=createChildBridge({send:message=>process.send?.(message),requestId,signal:deadline.signal,actionDeadline:deadline});
+      activeDeadline=deadline;activeName=name;
+      if(name==='human_begin'&&input.asyncNetwork===true){
+        if(humanBridge)c.deny('BUSY');c.validate(c.id,input.handoffId);humanController=new AbortController();
+        lifetime.signal.addEventListener('abort',()=>humanController?.abort(),{once:true});
+        humanBridge=createHumanChildBridge({handoffId:input.handoffId,signal:humanController.signal,send:m=>process.send?.(m),getActionDeadline:()=>activeName==='human_input'?activeDeadline:null});
+      }
       const result=await deadline.run(()=>engine.execute(name,input,deadline));
+      if(name==='human_end'&&humanBridge){humanController.abort();humanBridge.close();humanBridge=null;humanController=null;}
       if(Buffer.byteLength(JSON.stringify(result))>limits.maxResultBytes)c.deny('LIMIT_EXCEEDED');
       respond('result',result);
     }
   }catch(error){const code=c.publicError(error).body.error;process.send?.({type:'diagnostic',requestId,...require('../lib/browser/diagnostics').failure({operation:name,stage,code,elapsedMs:Date.now()-started})});respond('error',code);}
-  finally{bridge?.close();bridge=null;deadline?.close();busy=false;}
+  finally{activeDeadline=null;activeName=null;bridge?.close();bridge=null;deadline?.close();busy=false;}
 });

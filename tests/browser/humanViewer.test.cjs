@@ -22,7 +22,7 @@ async function setup(options={}){
   throw Error(name);
  }};
  const surface=await createHumanSurface({client,now:()=>time});
- const launch=await fetch(surface.urlFor(record,'e1',{viewerV2:options.viewerV2===true,interaction:options.interaction===true}),{redirect:'manual'}),cookie=launch.headers.get('set-cookie').split(';')[0];
+ const launch=await fetch(surface.urlFor(record,'e1',{viewerV2:options.viewerV2===true,interaction:options.interaction===true,asyncUpdates:options.asyncUpdates===true}),{redirect:'manual'}),cookie=launch.headers.get('set-cookie').split(';')[0];
  const origin=new URL(launch.url).origin,html=await(await fetch(origin+'/viewer',{headers:{cookie}})).text();
  const dom=new JSDOM(html,{url:origin+'/viewer',runScripts:'dangerously',beforeParse(w){
   w.Date.now=()=>time;w.AbortController=AbortController;w.HTMLImageElement.prototype.decode=async()=>{};
@@ -150,5 +150,16 @@ test('expiry clears retained image during delayed coupled response and late succ
  try{await f.wait('ready');f.click();await until(()=>release);assert.equal(f.$('screen').hidden,false);
   f.advance(300001);await f.timer(250);await f.wait('expired');release();await turn();await turn();
   assert.equal(f.state(),'expired');assert.equal(f.$('screen').hasAttribute('src'),false);assert.equal(f.$('screenCover').hidden,true);
+ }finally{await f.close();}
+});
+
+test('async viewer refreshes dynamic content within bounded short cadence, with frame budget reserve and no replay',async()=>{
+ const f=await setup({viewerV2:true,interaction:true,asyncUpdates:true});try{
+  await f.wait('ready');
+  for(let i=0;i<105;i++){
+   const next=[...f.timers.values()].find(t=>!t.interval&&t.ms!==10000);assert.ok(next);assert.ok(next.ms>=1000&&next.ms<5000);
+   f.advance(next.ms);await f.timer(next.ms);await f.wait('ready');
+  }
+  assert.equal(f.calls.filter(x=>x.name==='human-interact').length,0);assert.equal(f.calls.filter(x=>x.name==='human-activate').length,1);
  }finally{await f.close();}
 });

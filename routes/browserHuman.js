@@ -22,20 +22,24 @@ function createBrowserHumanRouter({enabled=false,resolveCaller,verifyHost,manage
     // Coupled input+view: same exact action receipt, same before/after authority
     // boundary. Never fall back by submitting another input after a lost reply.
     if(path==='/human-interact')await manager.humanInput(bound,input);
-    const state=await manager.humanState(bound,input);
+    let state=await manager.humanState(bound,input);
+    const intervention=()=>state.interventionId||state.action?.output?.interventionId;
     if(path==='/human-decide'){
      await manager.verifyHuman(bound,input);
-     if(state.action?.output?.interventionId!==input.operationId)c.deny('FORBIDDEN');
+     if(intervention()!==input.operationId)c.deny('FORBIDDEN');
      const record=await operations.inspect(bound,input.operationId);
      if(record.sessionId!==input.sessionId||record.operationDigest!==input.operationDigest)c.deny('FORBIDDEN');
      return input.decision==='deny'?operations.cancel(bound,input.operationId):operations.completeHuman(bound,input);
     }
-    if(state.action?.state==='needs_input'){
-     const {ownerId,...pending}=await operations.inspect(bound,state.action.output.interventionId);return {...state,pending};
+    if(intervention()){
+     const {ownerId,...pending}=await operations.inspect(bound,intervention());return {...state,pending};
     }
     // One authorized round trip for both status/decision and a fresh frame.
     // No private pixels returned for pending, uncertain or running operations.
-    if(['/human-view','/human-interact'].includes(path)&&state.state==='human_control'&&!['running','needs_input','outcome_unknown'].includes(state.action?.state))return {...state,frame:await manager.humanFrame(bound,input)};
+    if(['/human-view','/human-interact'].includes(path)&&state.state==='human_control'&&!['running','needs_input','outcome_unknown'].includes(state.action?.state)){
+     try{return {...state,frame:await manager.humanFrame(bound,input)};}
+     catch(error){if(error.code!=='BUSY')throw error;state=await manager.humanState(bound,input);if(intervention()){const {ownerId,...pending}=await operations.inspect(bound,intervention());return {...state,pending};}throw error;}
+    }
     return state;
    });
    authorityScope.after();const after=c.binding(await deadline.run(()=>resolveCaller({credentials,request:req,deadline})));if(c.scope(after)!==c.scope(bound))c.deny('FORBIDDEN');

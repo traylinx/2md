@@ -1,3 +1,13 @@
+## Async human-session correction — candidate, not yet deployed
+
+Session-scoped network consent, bounded parallel waiting, delayed click-budget
+continuation, aggregate diagnostics and shorter frame-budget-aware refresh are
+implemented behind negotiated viewer version3 / humanAsyncAvailable. Legacy
+viewer behavior remains supported.61 focused checks passed. Exact-image dynamic
+worker qualification and production rollout are still pending. No real CAPTCHA
+or organization-login acceptance is claimed. Evidence: workspace
+`docs/evidence/gb01-async-human-2026-10-29/`.
+
 ## Viewer input round-trip correction — deployed29October2026
 
 Runtime source `0faac21`, main/production published. Private image
