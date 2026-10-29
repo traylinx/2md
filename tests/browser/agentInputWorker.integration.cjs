@@ -8,7 +8,7 @@ const {bound,owner,grant,privateKey}=require('./support.cjs'),c=require('../../l
 const origin='https://example.com',posted=[];
 const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),cert:fs.readFileSync(process.env.FIXTURE_CERT)},(req,res)=>{
  res.setHeader('Content-Type','text/html');res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Access-Control-Allow-Credentials','true');
- if(req.url==='/background'){res.writeHead(200);res.write('pending');return;}
+ if(req.url==='/background')return; // Delay headers: Chromium counts header receipt as network-idle completion.
  if(req.url==='/human-challenge')return res.end('<main id="captcha-challenge"><h1>Verify you are human</h1><p>Please complete the reCAPTCHA.</p><label>Access value<input></label><button>Continue</button></main>');
  if(req.method==='POST'){
   let body='';req.on('data',b=>{body+=b;if(body.length>8192)req.destroy();});return req.on('end',()=>{

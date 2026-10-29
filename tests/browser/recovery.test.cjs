@@ -20,6 +20,12 @@ test('settling never returns success while a protected operation decision is pen
   pending=false;deadline.resume('decision1');await result;assert.equal(calls,2);assert.equal(warnings.size,0);
  }finally{deadline.close();}
 });
+test('an idle signal cannot finish a still-pending protected decision',async()=>{
+ const deadline=new ActionDeadline(1000);let pending=true,finished=false,calls=0;
+ try{const result=settlePage({waitForNetworkIdle:async()=>{calls++;}},deadline,{pending:()=>pending}).then(()=>{finished=true;});
+ await new Promise(r=>setTimeout(r,70));assert.equal(finished,false);pending=false;await result;assert.equal(calls,2);
+ }finally{deadline.close();}
+});
 test('settle does not swallow page loss, cancellation or exhausted action budgets',async()=>{
  const deadline=new ActionDeadline(1000);
  try{await assert.rejects(settlePage({waitForNetworkIdle:async()=>{throw Error('page lost');}},deadline),/page lost/);
