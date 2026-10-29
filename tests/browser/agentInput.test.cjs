@@ -56,3 +56,23 @@ test('agent operation decisions require current authorization and exact digest, 
  const decision=Object.fromEntries(Object.keys(decisionSchema.properties).map(k=>[k,record[k]]));allowed=false;await assert.rejects(broker.verified(bound,proof,decision),{code:'PERMISSION_REQUIRED'});allowed=true;await broker.verified(bound,proof,decision);await assert.rejects(broker.verified(bound,proof,decision),{code:'SESSION_LOST'});
  }finally{broker.close();}
 });
+test('fresh binding after confirmed pre-input failure wipes rather than reuses values; active binding stays protected',async()=>{
+ const f=fixture();try{
+ f.allow();const id=(await f.broker.request({bound,input:metadata})).interventionId;
+ await f.broker.supplyAgent(bound,{interventionId:id,values:['SYNTHETIC']});
+ const next={...metadata,observationId:'o2',fields:[{ref:'r2',label:'Fresh code'}]};
+ await assert.rejects(f.broker.request({bound,input:next}),{code:'BUSY'});
+ f.broker.allowReplacement({...bound,hostId:'other'},{sessionId:'s1',credentialRef:id});
+ await assert.rejects(f.broker.request({bound,input:next}),{code:'BUSY'});
+ f.broker.allowReplacement(bound,{sessionId:'wrong',credentialRef:id});
+ await assert.rejects(f.broker.request({bound,input:next}),{code:'BUSY'});
+ f.broker.allowReplacement(bound,{sessionId:'s1',credentialRef:id});
+ const replacement=await f.broker.request({bound,input:next});assert.equal(replacement.state,'needs_input');assert.notEqual(replacement.interventionId,id);
+ await assert.rejects(f.broker.inspect(bound,id),{code:'SESSION_LOST'});
+ await f.broker.supplyAgent(bound,{interventionId:replacement.interventionId,values:['NEW_SYNTHETIC']});
+ f.broker.allowReplacement(bound,{sessionId:'s1',credentialRef:replacement.interventionId});
+ const request={runtimeEpoch:'e1',sessionId:'s1',actionId:'a2',credentialRef:replacement.interventionId,observationId:next.observationId,fields:next.fields,submitRef:next.submitRef};
+ await f.broker.prepareAgent(bound,{request});
+ await assert.rejects(f.broker.request({bound,input:metadata}),{code:'BUSY'});
+ }finally{f.broker.close();}
+});

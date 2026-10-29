@@ -221,3 +221,7 @@ original receipt; after confirmed recovery use fresh observed references. This d
 not authorize replay of an uncertain or successful submission. After submission,
 observe the resulting page; `form_submitted` still does not prove login success.
 All agentic MCP clients receive these instructions, not just Codex or Claude.
+A fresh `browser_credentials` selection after a confirmed pre-input verification
+failure replaces the obsolete binding and wipes its old values. The caller supplies
+values for the newly observed fields; no hidden transfer to another field or origin
+occurs. An active or uncertain attempt cannot be replaced this way.
