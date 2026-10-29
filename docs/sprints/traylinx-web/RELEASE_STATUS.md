@@ -1,3 +1,18 @@
+## Passive verification correction — qualified, release pending
+
+Runtime source `67fec32` / `04149b9`: passive checks receive a bounded read-only
+wait, interactive instructions remain distinct, and fresh protected fields can
+replace an obsolete binding after a confirmed no-input rejection. The calling
+agent still chooses the workflow; a polling interval is not a task stop.
+
+74 focused checks pass. Exact local image
+`sha256:74ac66696d9f9790366cac80f52a42167bb4e8c6d0f4b718d34355d95b95f172`
+passes owned delayed verification/native/SPA/recovery, legacy private login, and
+same-session human/nested-frame fixtures. No real website CAPTCHA was automated.
+Publication, controlled rollout and installed-MCP verification follow separately.
+
+---
+
 ## Human continuation — deployed and ready for user retest
 
 Source `b565190` published on main and production. Dedicated browser runtime
