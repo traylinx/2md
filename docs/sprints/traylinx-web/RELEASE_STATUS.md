@@ -1,3 +1,20 @@
+## Human continuation — qualified source; release pending
+
+Guarded nested HTTPS/OOPIF support and same-session human takeover implemented.
+The client-neutral `browser_handoff` tool exposes start/status only; protected local
+viewer carries pixels and manual input. Agent actions pause until Return to agent.
+Fresh authority, SSRF/recipient limits, stable action IDs and cleanup remain intact.
+
+65 focused checks,44 compatibility checks and20 final affected checks passed
+(overlapping suites, not additive). Real forked worker + signed HTTP + protected
+viewer flow passed against an owned nested cross-site fixture: early POST blocked,
+manual click held for explicit destination approval, no replay, text redaction,
+private evidence after handback, profile cleanup. This is not real CAPTCHA solving.
+Source publication, exact final-image qualification and live rollout follow;
+production is still the prior image until a newer release entry says otherwise.
+
+---
+
 ## Browser runtime recovery — deployed, 29 October 2026
 
 Source `d5805ad` / `a2d3825` published on main and production. Dedicated browser

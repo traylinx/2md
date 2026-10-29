@@ -158,3 +158,20 @@ verify-full TLS/effective permissions passed, no READ schema access in either
 direction. Runtime Secret11keys created, no grants seeded. Cluster dependency path
 and runtime activation still await coordinated release. Old fixture evidence using
 READ roles is historical, superseded by BROWSER_DEDICATED_PG_TEST.txt.
+
+## Embedded frames and human viewer (opt-in)
+
+`BROWSER_EMBEDDED_FRAMES_ENABLED=1` enables guarded HTTPS in-process and out-of-process
+frames. Each target installs Fetch interception before resuming execution; SSRF,
+request/byte ceilings, private recipients and downloads remain guarded. Worker and
+popup support is not added. `BROWSER_HUMAN_ENABLED=1` requires private mode and enables
+exclusive, expiring same-session human leases. Both flags default off, including
+inert rendered manifests. Enable only on the qualified dedicated browser runtime.
+
+The host-signed `/api/browser/v1/human-*` routes serve the enrolled host's protected
+viewer. They are not model tools or anonymous screenshot endpoints. The local MCP
+adapter exposes only `browser_handoff` start/status; view and input use a one-use
+loopback link, HttpOnly cookie, exact Origin/Host and CSRF checks. No public binding,
+long-lived credentials or browser profile storage is introduced. Rollback removes
+these two flags and restores the preceding immutable runtime image; never remove
+existing Sentinel/grant/egress protections.

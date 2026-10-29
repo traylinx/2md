@@ -9,7 +9,7 @@ image = sys.argv[1]
 if not image.startswith('sha256:') or len(image) != 71:
     raise SystemExit('An exact local sha256 image ID is required')
 fixture = sys.argv[2] if len(sys.argv) > 2 else 'privateWorker.integration.cjs'
-if fixture not in {'privateWorker.integration.cjs', 'dynamicJourney.integration.cjs', 'spaWorker.integration.cjs', 'genericFieldsWorker.integration.cjs', 'agentInputWorker.integration.cjs'}:
+if fixture not in {'privateWorker.integration.cjs', 'dynamicJourney.integration.cjs', 'spaWorker.integration.cjs', 'genericFieldsWorker.integration.cjs', 'agentInputWorker.integration.cjs', 'humanWorker.integration.cjs', 'frameGuard.integration.cjs'}:
     raise SystemExit('Unsupported owned fixture')
 if len(sys.argv) > 4 or (len(sys.argv) > 3 and sys.argv[3] not in {'--rpc', '--rpc-heldout', '--rpc-heldout-spa', '--reject', '--crash', '--crash-before-auth'}):
     raise SystemExit('Unsupported owned fixture mode')
@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory(prefix='gb01-private-owned-') as directory:
     for name in ['fixture.key', 'fixture.crt']:
         (root/name).chmod(0o444)
     name = 'gb01-private-' + uuid.uuid4().hex[:12]
-    args = ['docker', 'run', '--rm', '--name', name, '--network', 'none', '--add-host', 'example.com:93.184.216.34', '--add-host', 'api.example.com:93.184.216.34',
+    args = ['docker', 'run', '--rm', '--name', name, '--network', 'none', '--add-host', 'example.com:93.184.216.34', '--add-host', 'api.example.com:93.184.216.34', '--add-host', 'frame.example.net:93.184.216.34', '--add-host', 'nested.example.org:93.184.216.34',
             '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
             '--memory', '1g', '--cpus', '1', '--pids-limit', '256',
             '--tmpfs', '/tmp:rw,nosuid,size=256m',

@@ -29,7 +29,7 @@ def obj(kind,name,spec):
 items=[]
 for role,port,cpu,ram in [('runtime',8292,'1','1Gi'),('egress',8290,'250m','192Mi')]:
     name='traylinx-browser-'+role
-    env=[{'name':'BROWSER_ENABLED','value':'0'},{'name':'BROWSER_PRIVATE_ENABLED','value':'0'},{'name':'BROWSER_ENROLLMENT_ENABLED','value':'0'}]
+    env=[{'name':'BROWSER_ENABLED','value':'0'},{'name':'BROWSER_PRIVATE_ENABLED','value':'0'},{'name':'BROWSER_ENROLLMENT_ENABLED','value':'0'},{'name':'BROWSER_EMBEDDED_FRAMES_ENABLED','value':'0'},{'name':'BROWSER_HUMAN_ENABLED','value':'0'}]
     if role=='runtime':env += [{'name':'BROWSER_HOST','value':'0.0.0.0'},{'name':'BROWSER_PORT','value':str(port)},{'name':'NODE_ENV','value':'production'}]
     if role=='egress':env=[{'name':'BROWSER_PROXY_TOKEN','valueFrom':{'secretKeyRef':{'name':'traylinx-browser-proxy','key':'token'}}}]
     container={'name':role,'image':a.image,'imagePullPolicy':'IfNotPresent','command':['dumb-init','--','/app/scripts/capture-entrypoint.sh','node','--max-old-space-size=256' if role=='runtime' else '--max-old-space-size=128','scripts/browser-server.js' if role=='runtime' else 'scripts/browser-egress.js'],'env':env,'securityContext':{'allowPrivilegeEscalation':False,'readOnlyRootFilesystem':True,'capabilities':{'drop':['ALL']}},'resources':{'requests':{'cpu':'100m' if role=='runtime' else '50m','memory':'256Mi' if role=='runtime' else '64Mi'},'limits':{'cpu':cpu,'memory':ram}},'ports':[{'name':'http','containerPort':port}],'volumeMounts':[{'name':'scratch','mountPath':'/tmp'}]}

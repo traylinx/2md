@@ -1,3 +1,41 @@
+## Same-session human continuation
+
+The current adapter adds `browser_handoff`. A runtime must advertise
+`humanHandoffAvailable: true` before it is used. Generic observed fields remain the
+normal path for invitation codes and credentials; this handoff is for an actual
+human-only challenge or a user-requested manual interaction.
+
+1. Keep the existing `login_read` session open. Call `browser_handoff` with its
+   `sessionId` and `action: "start"`.
+2. Show the returned one-use loopback link to the user. The user opens it on the
+   MCP host, sees the **same remote browser**, and clicks the page. Text is supplied
+   through the viewer's protected field, not a screenshot or model-control tool.
+3. If a new destination needs access to the private session, the viewer displays
+   its origin, method and exact operation digest. The user decides whether that
+   request is necessary. No hidden automatic approval or request replay.
+4. The user selects **Return to agent**. Call `browser_handoff` with
+   `action: "status"`; at `agent_control`, observe again and continue from the
+   actual page state. Do not repeat the previous login submission.
+
+The agent cannot operate the viewer or solve CAPTCHA on the user's behalf. Its
+normal browser actions and credential operations are paused while the human owns
+control. The viewer lease lasts at most three minutes within the session lifetime;
+expiry closes the private session. The host maintains its heartbeat. A lost input
+reply is recovered through the original receipt, not another click.
+
+The link is a one-use bearer capability to the enrolled host, not separate identity
+verification. Do not fetch, preview or share it. Pixels stay in the viewer and are
+not returned through MCP or saved as artifacts. The viewer requires access to the
+MCP host's loopback interface; a remote/cloud host needs its own trusted UI adapter.
+Arbitrary scripts, file upload, popups, workers and unrestricted network access are
+not introduced. Embedded HTTPS frames use the same per-request network policy.
+There is no guarantee that every website or anti-bot system will accept this browser.
+
+Implementation and owned-fixture validation are complete; the release ledger below
+and `docs/sprints/traylinx-web/RELEASE_STATUS.md` distinguish deployment and live checks.
+
+---
+
 # Connect any compatible agentic application
 
 The MCP client decides what to do. Traylinx provides generic browser tools, not a
@@ -148,10 +186,10 @@ existing deadline. It never retries clicks, credential supply or authentication.
 Unexpected failures retain only allowlisted stage/error diagnostics, not page,
 request, credential or exception contents.
 
-**Private-site readiness remains incomplete.** Cross-origin embedded frames are
-currently unsupported, and the remote browser has no same-session human takeover.
-These limitations affect CAPTCHA and some SSO/login flows. Entering an invitation
-code dynamically does not solve them. Do not tell users to complete a challenge
-in a different browser and imply its state transfers to this isolated session.
-No site-specific recipe or automatic challenge bypass is planned as a substitute
-for guarded frame support and a real human handoff.
+**Full private-site acceptance remains open.** Guarded embedded frames and a
+same-session human viewer are now implemented and passed owned-fixture validation.
+They remain opt-in; query the connected runtime's capability flags rather than
+assuming a source checkout is deployed. See the release ledger for publication and
+live verification. A real CAPTCHA is completed by the user in the same remote
+session. Do not imply that a different browser's state transfers here or promise
+that every SSO provider and anti-bot system will accept this browser.

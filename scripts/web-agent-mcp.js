@@ -26,8 +26,10 @@ async function main(env=process.env){
   const browserBackend=require('../lib/browser/httpClient').createBrowserHttpClient({...connection,agentId,sdk});
   if(inputMode==='agent_supplied')protectedHost=require('../lib/browser/agentInputHost').createAgentInputHost({client:browserBackend});
   else if(env.TRAYLINX_BROWSER_OWNER_SETUP_URL)protectedHost=await require('../lib/browser/protectedHost').createProtectedHost({...connection,client:browserBackend,ownerSetupUrl:env.TRAYLINX_BROWSER_OWNER_SETUP_URL});
-  browserHost=require('../lib/browser/hostLifecycle').createHostLifecycle({backend:protectedHost||browserBackend,privateAvailable:!!protectedHost});
-  browserAgent=require('../lib/browser/mcpAgent').createBrowserMcpAgent({backend:browserHost,agentInput:inputMode==='agent_supplied'});
+  const privateAvailable=!!protectedHost;
+  protectedHost=await require('../lib/browser/humanHost').createHumanHost({client:protectedHost||browserBackend});
+  browserHost=require('../lib/browser/hostLifecycle').createHostLifecycle({backend:protectedHost||browserBackend,privateAvailable});
+  browserAgent=require('../lib/browser/mcpAgent').createBrowserMcpAgent({backend:browserHost,agentInput:inputMode==='agent_supplied',human:true});
  }
  server=createAgentMcpServer({backend,privateReads,browserAgent});
  server.onclose=()=>{void (async()=>{await browserHost?.close().catch(()=>{});await protectedHost?.close().catch(()=>{});})();};

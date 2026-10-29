@@ -24,10 +24,10 @@ COPY lib/web /app/lib/web
 COPY lib/capture /app/lib/capture
 COPY lib/pipeline/extractStatic.js /app/lib/pipeline/extractStatic.js
 COPY lib/sanitize.js /app/lib/sanitize.js
-COPY routes/browser.js routes/browserInput.js routes/browserHost.js routes/browserControl.js routes/browserEnrollment.js /app/routes/
+COPY routes/browser.js routes/browserInput.js routes/browserHost.js routes/browserControl.js routes/browserEnrollment.js routes/browserHuman.js /app/routes/
 COPY scripts/browser-server.js scripts/browser-worker.js scripts/browser-egress.js /app/scripts/
 # Extra PG/Redis dependencies are parent-only. Worker exec has a minimal explicit env.
-ENV LD_PRELOAD=/opt/browser-process-guard.so NODE_PATH=/app/deploy/browser-runtime/node_modules BROWSER_ENABLED=0 BROWSER_PRIVATE_ENABLED=0 BROWSER_ENROLLMENT_ENABLED=0 HOME=/tmp
+ENV LD_PRELOAD=/opt/browser-process-guard.so NODE_PATH=/app/deploy/browser-runtime/node_modules BROWSER_ENABLED=0 BROWSER_PRIVATE_ENABLED=0 BROWSER_ENROLLMENT_ENABLED=0 BROWSER_EMBEDDED_FRAMES_ENABLED=0 BROWSER_HUMAN_ENABLED=0 HOME=/tmp
 USER node
 HEALTHCHECK NONE
 ENTRYPOINT ["dumb-init", "--", "/app/scripts/capture-entrypoint.sh"]
