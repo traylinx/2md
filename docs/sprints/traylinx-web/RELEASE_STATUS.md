@@ -1,3 +1,18 @@
+## GB01 source promotion and existing-service coexistence — 29 October 2026
+
+Source main/productione2a9ce49b2ef6c811fee429110f6aea5665ae95e promoted.
+Workflow40794062333 SUCCESS; live health reports exact legacy and capture revisions,
+statusok/deploymentverified. Dedicated browser image remains unchanged.
+One bounded simultaneous live browser extraction and unchanged legacy conversion
+passed: legacy HTTP200/cachemiss/14285Markdownbytes in8843ms, browser154evidence
+records, explicit degraded warnings and close. This is coexistence smoke evidence,
+not latency/throughput certification. Actual released Codex public journey also
+passed with eight references verified against extracted evidence.
+
+Private live acceptance still needs valid invitation/access; no login bypass.
+
+---
+
 ## GB01 controlled browser release — 29 October 2026
 
 Dedicated runtime/egress are live on immutable image

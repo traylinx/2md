@@ -1,6 +1,6 @@
 # Generic browser runtime (GB01)
 
-Additive implementation, not production-enabled. Any MCP-capable agentic application
+Additive implementation, deployed in its dedicated runtime (29 October 2026). Any MCP-capable agentic application
 chooses the workflow. No site catalogue, preselected login recipe or hidden model.
 
 ## Implemented boundaries
@@ -15,13 +15,13 @@ chooses the workflow. No site catalogue, preselected login recipe or hidden mode
   payload parsing, fresh result authorization, output-contract enforcement. Requires
   a trusted resolver verifying current Sentinel/project identity AND host possession.
 - `../../routes/browserControl.js`: separate human control, no public-read plan ID
-  prerequisite and no agent self-grant. Trusted UI/pairing integration still pending.
+  prerequisite and no agent self-grant. Live owner UI/PKCE enrollment is verified; see the release status.
 - `sessionManager.js`: one-slot pilot lifecycle and scoped recovery receipts,
   serialization, heartbeat/idle/absolute limits, revocation sweeps, late-created handle
-  disposal and cleanup quarantine. Requires real worker containment and output
-  sanitization; test doubles are not a working Chromium service.
+  disposal and cleanup quarantine. Uses real contained workers and output sanitization. Exact-image and live evidence
+  is recorded separately from unit test doubles.
 - `postgresGrants.js` / `deploy/web/008_browser_grants.sql`: additive permission
-  repository and migration candidate. **Not applied or real-PostgreSQL-qualified.**
+  repository and applied migration. Dedicated PostgreSQL roles and TLS/effective privileges were verified before deployment.
 
 ## Frozen route contract
 
@@ -287,3 +287,10 @@ approval. Inspection does not create a grant. Callback remains loopback/PKCE-onl
 Owned HTTP tests exercise both boundaries and signature/replay/substitution checks.
 The production enrollment listener/control-writer credentials and installer client
 are still unconnected. Do not advertise a completed first-install flow yet.
+
+## Release evidence
+
+See [release status](../../docs/sprints/traylinx-web/RELEASE_STATUS.md) and
+[host setup](../../docs/generic-browser-setup.md). Live public extraction and owner
+enrollment passed. Real-site private acceptance remains invitation-gated; no claim
+of arbitrary-site access or completed GB01 acceptance.

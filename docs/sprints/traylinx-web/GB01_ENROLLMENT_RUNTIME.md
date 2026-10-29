@@ -1,4 +1,4 @@
-# GB01 enrollment runtime (not deployed)
+# GB01 enrollment runtime
 
 Enrollment is off by default. `BROWSER_ENROLLMENT_ENABLED=1` additionally requires
 `BROWSER_ENROLLMENT_POSTGRES_URL` and `BROWSER_PROJECT_ACCESS_URL`.
@@ -17,10 +17,11 @@ exchange remains key-bound and one-use PKCE. Pending enrollment is volatile.
 Reader and writer pools close on shutdown/startup failure. Private browser execution
 still separately requires `BROWSER_PRIVATE_ENABLED=1`. Legacy routes are unchanged.
 
-Validation: focused browser suite 105 passed; subsequent database-target configuration
-check passed 8 targeted overlapping tests. Database adapters used fixtures, not a
-live privilege/migration verification. Installer flow and release qualification remain
-pending. No production configuration, grants or deployment changed.
+Current release: dedicated database roles and schema applied, effective privilege/TLS
+checks passed, and actual deployed owner UI plus local installer PKCE exchange saved
+a mode0600 host connection. Current Sentinel reference revalidation is live verified.
+Earlier105/8 focused fixture checks were candidate evidence, not live proof. Full
+sprint acceptance and real-site private login remain separately pending.
 
 ## Host connection installer
 
@@ -38,6 +39,5 @@ lifetime. Only a verified PKCE exchange for the same host/grant/project permits 
 Restart the MCP client after installation. No website recipes are involved.
 
 Synthetic integration exercises signed begin/exchange, human approval, real local
-HTTP callback, rejected wrong state, and reload of the protected file. Live owner UI,
-production service and packaging defaults still need qualification. No user host
-connection was created by these tests.
+HTTP callback, rejected wrong state, and reload of the protected file. Live owner UI and production service subsequently passed a separate actual
+enrollment journey. Synthetic tests themselves do not create a user connection.
