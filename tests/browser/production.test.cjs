@@ -72,3 +72,10 @@ test('unprotected process fails before credentials, clients or listeners are con
   await assert.rejects(service.start(),{code:'UNAVAILABLE'});assert.equal(touched,false);
  }
 });
+test('agent-supplied input is off by default and scoped to explicit host IDs with private mode',()=>{
+ assert.deepEqual(configuration(env).agentInputHosts,[]);
+ assert.throws(()=>configuration({...env,BROWSER_AGENT_INPUT_HOSTS:'host1'}));
+ const privateEnv={...env,BROWSER_PRIVATE_ENABLED:'1',BROWSER_PROJECT_ACCESS_URL:'https://auth.example.org/project'};
+ assert.deepEqual(configuration({...privateEnv,BROWSER_AGENT_INPUT_HOSTS:'host1,host2'}).agentInputHosts,['host1','host2']);
+ for(const value of ['*','host1,host1','host1,','https://site.example.org'])assert.throws(()=>configuration({...privateEnv,BROWSER_AGENT_INPUT_HOSTS:value}));
+});

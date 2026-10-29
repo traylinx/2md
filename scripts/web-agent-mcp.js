@@ -19,12 +19,15 @@ async function main(env=process.env){
   privateReads=require('../lib/web/privateReadAgent').createPrivateReadAgent({connections,capture});
  }
  let browserAgent;
+ const inputMode=env.TRAYLINX_BROWSER_INPUT_MODE||'protected_owner';
+ if(!['protected_owner','agent_supplied'].includes(inputMode))c.deny('UNAVAILABLE');
  if(env.TRAYLINX_BROWSER_CONNECTION_FILE){
   const connection=require('../lib/browser/hostConnection').loadHostConnection(env.TRAYLINX_BROWSER_CONNECTION_FILE);
   const browserBackend=require('../lib/browser/httpClient').createBrowserHttpClient({...connection,agentId,sdk});
-  if(env.TRAYLINX_BROWSER_OWNER_SETUP_URL)protectedHost=await require('../lib/browser/protectedHost').createProtectedHost({...connection,client:browserBackend,ownerSetupUrl:env.TRAYLINX_BROWSER_OWNER_SETUP_URL});
+  if(inputMode==='agent_supplied')protectedHost=require('../lib/browser/agentInputHost').createAgentInputHost({client:browserBackend});
+  else if(env.TRAYLINX_BROWSER_OWNER_SETUP_URL)protectedHost=await require('../lib/browser/protectedHost').createProtectedHost({...connection,client:browserBackend,ownerSetupUrl:env.TRAYLINX_BROWSER_OWNER_SETUP_URL});
   browserHost=require('../lib/browser/hostLifecycle').createHostLifecycle({backend:protectedHost||browserBackend,privateAvailable:!!protectedHost});
-  browserAgent=require('../lib/browser/mcpAgent').createBrowserMcpAgent({backend:browserHost});
+  browserAgent=require('../lib/browser/mcpAgent').createBrowserMcpAgent({backend:browserHost,agentInput:inputMode==='agent_supplied'});
  }
  server=createAgentMcpServer({backend,privateReads,browserAgent});
  server.onclose=()=>{void (async()=>{await browserHost?.close().catch(()=>{});await protectedHost?.close().catch(()=>{});})();};

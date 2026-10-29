@@ -104,3 +104,31 @@ browser instructions take precedence; configured legacy login connections are no
 a prerequisite. If the protected host requests owner pairing, complete the displayed
 project-owner connection before entering website values. That is host authorization,
 not a website-specific integration.
+
+## Use values already supplied to your agent
+
+An operator can enable **agent-supplied input** for an enrolled host. This avoids
+asking you to pair a local form and retype values you already gave your agent.
+It does not require a website catalogue or site-specific login connection.
+
+- Runtime: add the enrolled host ID to `BROWSER_AGENT_INPUT_HOSTS` (comma-separated
+  IDs, not domains). Existing private-browsing owner grants still apply. The
+  default is empty; other hosts retain paired-owner input.
+- MCP host: set `TRAYLINX_BROWSER_INPUT_MODE=agent_supplied` and restart the MCP
+  connection. `get_browser_capabilities` must report `agentInputAvailable: true`.
+- The agent observes the page, passes `fields` and equally ordered `values` to
+  `browser_credentials`, and uses the returned reference with
+  `browser_authenticate`. Invitation, account, password and verification fields
+  use the same mechanism. Only missing values need an input prompt.
+- A held recipient/operation decision can be inspected through `browser_respond`.
+  The agent may approve an operation necessary for your authorized task using its
+  exact digest, or deny it. It then polls the original action rather than clicking
+  or submitting again. This is an **agent decision**, not a claim that you approved
+  a separate protected form. Business writes remain outside read-intent browsing.
+
+Values sent by a calling agent may be recorded in that application's tool history.
+They are transmitted to the configured browser runtime, not kept exclusively on
+this computer. The runtime holds them transiently, binds them to the selected
+fields and session, and excludes them from returned evidence. Use paired-owner
+input instead if you do not want values to enter the calling agent's tool context.
+Neither mode bypasses website access controls or guarantees every site will work.

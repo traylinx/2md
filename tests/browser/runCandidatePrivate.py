@@ -9,7 +9,7 @@ image = sys.argv[1]
 if not image.startswith('sha256:') or len(image) != 71:
     raise SystemExit('An exact local sha256 image ID is required')
 fixture = sys.argv[2] if len(sys.argv) > 2 else 'privateWorker.integration.cjs'
-if fixture not in {'privateWorker.integration.cjs', 'dynamicJourney.integration.cjs', 'spaWorker.integration.cjs', 'genericFieldsWorker.integration.cjs'}:
+if fixture not in {'privateWorker.integration.cjs', 'dynamicJourney.integration.cjs', 'spaWorker.integration.cjs', 'genericFieldsWorker.integration.cjs', 'agentInputWorker.integration.cjs'}:
     raise SystemExit('Unsupported owned fixture')
 if len(sys.argv) > 4 or (len(sys.argv) > 3 and sys.argv[3] not in {'--rpc', '--rpc-heldout', '--rpc-heldout-spa', '--reject', '--crash', '--crash-before-auth'}):
     raise SystemExit('Unsupported owned fixture mode')
