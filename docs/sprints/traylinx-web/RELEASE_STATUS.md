@@ -1,3 +1,32 @@
+## Internal authority outage and human-lease correction — deployed
+
+Runtime source `93f71de` / `083ffca`, main and production published. Private image
+`sha256:f2c24047596354dd6dee793c9243ef01a34d648a565e24504e1b8f24cab22a34`
+is1/1ready, healthok,0restarts. Runtime image only changed; AUTH/Workspace code,
+rate-limit budgets, credentials, grants, schema, egress and resource limits unchanged.
+Production workflow40876025028 succeeded.
+
+The reported UNAVAILABLE was traced to internal authorization429 responses,
+not rejection of the website credentials. Duplicate reference checks now coalesce
+within one request phase, while post-action authority remains fresh. Completed
+receipts survive bounded temporary authority failure without replay or releasing
+private results before authorization recovers.
+
+84 focused checks and exact-image passive/native/SPA/human/frame fixtures pass.
+Actual installed MCP invitation submission succeeded, then the site explicitly
+requested reCAPTCHA. Password login and organization extraction are **not verified**.
+Follow-up correction recognizes that instruction without provider CSS and prevents
+the ordinary idle timer from shortening an active human lease. Final installed MCP
+kept human_control after133 seconds, beyond the previous120-second cutoff, and
+closed cleanly. Healthok, zero profiles. No real CAPTCHA was automated.
+
+Reconnect MCP before retesting. Run the ordinary authorized login/read request;
+complete any actual interactive challenge in the same-session viewer, select
+Return to agent, then continue from fresh observations. Full private-account
+acceptance remains open. [User manual](../../generic-browser-setup.md).
+
+---
+
 ## Passive verification correction — deployed, ready for retest
 
 Runtime source `67fec32` / `04149b9`, published main and production. Private image

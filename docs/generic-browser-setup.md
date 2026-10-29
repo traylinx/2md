@@ -241,3 +241,19 @@ Post-action verification starts a new phase. Nothing caches permission across
 requests or transfers it between principals. Server-side authority checks remain
 mandatory; clients no longer make redundant capability-discovery round trips for
 every protected field or action.
+
+### Human handoff lifetime
+
+The human viewer lease lasts up to three minutes, bounded by the session's absolute
+lifetime. The ordinary two-minute agent idle timer does not shorten an active human
+lease. Keep the MCP connection running: host heartbeat loss, actual revocation or
+lease expiry still closes the private session. Return to the agent before expiry.
+An explicit CAPTCHA-completion message beside login or access fields is recognized
+even when the provider widget lives in another frame without a captcha CSS marker.
+A generic article mentioning CAPTCHA is not itself an interactive challenge.
+
+Invitation codes and passwords remain ordinary user-supplied observed fields.
+A successful `form_submitted` receipt proves the browser operation completed, not
+that the website accepted the invitation or authenticated the account. Observe the
+result, complete any genuine human challenge in the same viewer, then continue from
+fresh references. Do not repeat a submission merely because login is not complete.
