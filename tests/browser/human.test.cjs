@@ -36,3 +36,13 @@ test('MCP advertises client-neutral handoff only when host integration is wired'
  const agent=createBrowserMcpAgent({backend,human:true});assert.match(agent.instructions,/Do not fetch\/screenshot\/control/);assert.equal((await agent.call({name:'browser_handoff',arguments:{sessionId:'s',action:'status'}})).state,'agent_control');
  await assert.rejects(agent.call({name:'browser_handoff',arguments:{sessionId:'s',action:'click',x:1,y:1}}),{code:'INVALID_INPUT'});
 });
+
+test('advertised human lease survives ordinary idle deadline with heartbeat; lease and disconnected-host bounds remain',async()=>{
+ const f=fixture(),m=f.manager;try{
+  const s=await m.open(bound,open),h=await m.beginHuman(bound,s.sessionId),ids={sessionId:s.sessionId,handoffId:h.handoffId};
+  for(let i=0;i<3;i++){f.advance(50000);await m.heartbeat(bound,s.sessionId);await m.sweep();}
+  assert.equal((await m.humanState(bound,ids)).state,'human_control');assert.equal(f.counts().closed,0);
+  f.advance(30001);assert.equal((await m.humanState(bound,ids)).state,'expired');assert.equal(f.counts().closed,1);
+ }finally{await m.shutdown();}
+ const disconnected=fixture();try{const s=await disconnected.manager.open(bound,open);await disconnected.manager.beginHuman(bound,s.sessionId);disconnected.advance(60001);await disconnected.manager.sweep();assert.equal(disconnected.counts().closed,1);}finally{await disconnected.manager.shutdown();}
+});

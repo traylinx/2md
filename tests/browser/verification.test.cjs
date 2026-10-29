@@ -38,3 +38,13 @@ test('both client modes explain passive wait versus actual human challenge',()=>
  const {createBrowserMcpAgent}=require('../../lib/browser/mcpAgent');
  for(const agentInput of [false,true]){const agent=createBrowserMcpAgent({backend:{call(){}},agentInput});assert.match(agent.instructions,/VERIFICATION_PENDING/);assert.match(agent.instructions,/VERIFICATION_FAILED/);assert.match(agent.instructions,/CAPTCHA_REQUIRED/);}
 });
+
+test('explicit challenge instruction beside login/access fields needs no provider CSS marker',()=>{
+ const {JSDOM}=require('jsdom'),{readBrowserPageState}=require('../../lib/browser/pageState');
+ function read(html){const dom=new JSDOM(html,{runScripts:'outside-only'});try{return dom.window.eval('('+readBrowserPageState.toString()+')()');}finally{dom.window.close();}}
+ for(const field of ['<label>Invitation code<input></label>','<input type="password">','<input autocomplete="one-time-code">']){
+  const result=read(field+'<p>Please complete the reCAPTCHA.</p>');assert.equal(result.verification,'interactive');assert.equal(result.accessGate,'captcha');
+ }
+ assert.equal(read('<article>A guide: Please complete the reCAPTCHA.</article>').verification,'none');
+ assert.equal(read('<label>Invitation code<input></label><aside hidden>Please complete the reCAPTCHA.</aside>').verification,'none');
+});

@@ -16,7 +16,7 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
  if(req.url==='/passive-navigation')return res.end('<title>Just a moment</title><p>Checking your browser</p><script>setTimeout(()=>location.href="/passive-badge",1500);</script>');
  if(req.url==='/passive-success')return res.end('<title>Just a moment</title><div class="captcha">Verification successful</div><h1>Owned completed check</h1>');
  if(req.url==='/background')return; // Delay headers: Chromium counts header receipt as network-idle completion.
- if(req.url==='/human-challenge')return res.end('<main id="captcha-challenge"><h1>Verify you are human</h1><p>Please complete the reCAPTCHA.</p><label>Access value<input></label><button>Continue</button></main>');
+ if(req.url==='/human-challenge')return res.end('<main><h1>Continue access</h1><p>Please complete the reCAPTCHA.</p><input type="password" aria-label="Password"><label>Access value<input></label><button>Continue</button></main>');
  if(req.method==='POST'){
   let body='';req.on('data',b=>{body+=b;if(body.length>8192)req.destroy();});return req.on('end',()=>{
    posted.push({path:req.url,body});
