@@ -1,3 +1,22 @@
+## Passive verification correction — deployed, ready for retest
+
+Runtime source `67fec32` / `04149b9`, published main and production. Private image
+`sha256:5d4be6c631e9a5680f9db034b8d91249f0c5a8d0b5323d26d3f4b51645e4b16e`
+is1/1ready, healthok,0restarts. Browser image only changed. Egress, flags, schema,
+secrets, grants and resources unchanged. Production workflow40865633126 succeeded.
+
+74 focused checks and exact-image passive/recovery, legacy login and human/frame
+fixtures pass. Actual installed MCP public login-page smoke passed on runtime
+`9301e1bf-e3ab-40f0-bc48-7263ef301ba9`; normal invitation inputs are observable,
+with no false immediate human challenge. No invitation/password was submitted;
+full organization login remains user acceptance, not a claimed passed test.
+
+Automatic verification waits and remains resumable. The calling agent chooses the
+workflow; no fixed site recipe. Fresh fields work after confirmed no-input failure.
+Restart MCP to load updated instructions. [User manual](../../generic-browser-setup.md).
+
+---
+
 ## Passive verification correction — qualified, release pending
 
 Runtime source `67fec32` / `04149b9`: passive checks receive a bounded read-only
