@@ -1,3 +1,29 @@
+## Browser runtime recovery — deployed, 29 October 2026
+
+Source `d5805ad` / `a2d3825` published on main and production. Dedicated browser
+runtime is 1/1 ready on immutable private image
+`sha256:29f3909a95a6de70f71027af33660e2991a793a22c0dcd9febeb38994a859ed7`.
+Egress, credentials, grants, resources and schema are unchanged; rollback is
+previous image `sha256:2f90f7c221199a1ff06eb956471a762c026bc84d5c1c9ac89b2c96e7f1104814`.
+
+Allowlisted error reasons survive worker transport; secret-free stage diagnostics
+replace opaque failure reporting. Page settling is bounded and reports busy
+background traffic without repeating submissions. Receipt recovery retries one
+transient read only. Pre-input human challenges retain the session for inspection.
+47 focused and27 compatibility checks passed;8 final recovery checks overlap.
+Exact final-image generic and old paired-owner Chromium journeys passed.
+
+**Not general private-login readiness:** full real-account acceptance remains open.
+Cross-origin embedded frames and same-session human takeover are not implemented.
+The user's historical UNAVAILABLE incident lost its internal cause; these fixes
+must not be called proof that every intermittent failure is eliminated.
+Existing production workflow40847937689 succeeded. Actual installed-MCP public
+open/observe/wait/extract/close passed; NETWORK_NOT_IDLE was reported explicitly.
+No credentials were submitted in this release smoke.
+See [current setup and limitations](../../generic-browser-setup.md).
+
+---
+
 ## Agent-supplied input — released, 29 October 2026
 
 - Commits42feef9 andf1eec7f published on main/production. Dedicated browser runtime

@@ -132,3 +132,26 @@ this computer. The runtime holds them transiently, binds them to the selected
 fields and session, and excludes them from returned evidence. Use paired-owner
 input instead if you do not want values to enter the calling agent's tool context.
 Neither mode bypasses website access controls or guarantees every site will work.
+
+
+## Runtime recovery and current limitations
+
+Background network traffic is not a login failure. Settling is bounded; a
+`NETWORK_NOT_IDLE` warning means the page may still be loading. Observe or wait
+without repeating the submitted action. A successful `form_submitted` receipt
+still does not prove the website accepted the values.
+
+A pre-input `HUMAN_REQUIRED` receipt identifies an access challenge and leaves the
+session inspectable. Do not label it an infrastructure outage. For transient
+`UNAVAILABLE` errors on receipt reads, the host retries that read once within the
+existing deadline. It never retries clicks, credential supply or authentication.
+Unexpected failures retain only allowlisted stage/error diagnostics, not page,
+request, credential or exception contents.
+
+**Private-site readiness remains incomplete.** Cross-origin embedded frames are
+currently unsupported, and the remote browser has no same-session human takeover.
+These limitations affect CAPTCHA and some SSO/login flows. Entering an invitation
+code dynamically does not solve them. Do not tell users to complete a challenge
+in a different browser and imply its state transfers to this isolated session.
+No site-specific recipe or automatic challenge bypass is planned as a substitute
+for guarded frame support and a real human handoff.
