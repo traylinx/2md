@@ -16,7 +16,7 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
  res.end(`<style>body{margin:0}iframe{position:absolute;left:20px;top:50px;width:600px;height:320px;border:0}</style><h1>Owned human verification fixture</h1><iframe src="${origins[1]}/frame"></iframe><script>window.addEventListener('message',e=>{if(e.origin==='${origins[2]}'&&e.data==='Owned fixture access granted'){document.body.innerHTML=${JSON.stringify(content)};document.querySelector('input').oninput=function(){document.querySelector('output').textContent=this.value;};}});</script>`);
 });
 (async()=>{
- const lifetime=new Deadline(80000),tempRoot=fs.mkdtempSync(path.join(os.tmpdir(),'gb01-human-owned-'));let runtime,proxy,host,httpServer;
+ const lifetime=new Deadline(80000),tempRoot=fs.mkdtempSync(path.join(os.tmpdir(),'gb01-human-owned-'));let runtime,proxy,host,httpServer,viewer;
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
  try{
   const g={...grant(),policyVersion:c.POLICY,hostKeyFingerprint:bound.hostKeyFingerprint,approvedByWorkspaceUserId:owner.workspaceUserId},nonces=new Set();
@@ -38,20 +38,31 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
   const html=await(await fetch(origin+'/viewer',{headers:{cookie}})).text(),csrf=JSON.parse(/const csrf=("[^"]+")/.exec(html)[1]);assert.match(html,/Return to agent/);
   const api=async(route,input={})=>{const r=await fetch(origin+route,{method:'POST',headers:{cookie,origin,'content-type':'application/json','x-csrf-token':csrf},body:JSON.stringify(input)});const v=await r.json();assert.equal(r.status,200,JSON.stringify(v));return v;};
   await assert.rejects(client.call('browser_observe',{sessionId}),{code:'BUSY'});
-  const frame=await api('/frame');assert.ok(frame.jpeg.startsWith('/9j/'));assert.equal(frame.width,1280);
-  const command={actionId:'human-owned-click',frameId:frame.frameId,input:{type:'click',x:90,y:120}};
-  let action=await api('/input',command);let decisions=0;
-  for(let i=0;i<80;i++){
-   const state=await api('/state');if(state.pending){assert.equal(state.pending.origin,origins[2]);assert.equal(state.pending.method,'POST');assert.equal(posts.length,0);await api('/decision',{operationId:state.pending.operationId,operationDigest:state.pending.operationDigest,decision:'approve'});decisions++;}
-   action=state.action;if(action?.state==='succeeded')break;assert.ok(['running','needs_input'].includes(action?.state),JSON.stringify(state));await new Promise(r=>setTimeout(r,50));
-  }
-  assert.equal(action.state,'succeeded');assert.equal(decisions,1);assert.deepEqual(posts,['owned-click']);
-  assert.equal((await api('/input',command)).state,'succeeded');assert.equal(posts.length,1);
-  let next=await api('/frame');await api('/input',{actionId:'focus',frameId:next.frameId,input:{type:'click',x:100,y:140}});
-  next=await api('/frame');assert.equal((await api('/input',{actionId:'type',frameId:next.frameId,input:{type:'text',text:'SYNTHETIC_HUMAN_SECRET'}})).state,'succeeded');
-  assert.equal((await api('/finish')).state,'agent_control');assert.equal((await agent.call({name:'browser_handoff',arguments:{sessionId,action:'status'}})).state,'agent_control');
+  // Run the actual delivered viewer handlers, not just its HTTP API. JSDOM
+  // supplies DOM events here; native Chrome rendering is qualified separately.
+  const viewerRequests=[];
+  viewer=new (require('jsdom').JSDOM)(html,{url:origin+'/viewer',runScripts:'dangerously',beforeParse(w){
+   w.AbortController=AbortController;w.HTMLImageElement.prototype.decode=async()=>{};
+   w.fetch=(route,options)=>{viewerRequests.push({route,input:JSON.parse(options.body)});return fetch(origin+route,{...options,headers:{...options.headers,cookie,origin}});};
+  }});
+  const w=viewer.window,$=id=>w.document.getElementById(id),screen=$('screen');
+  screen.getBoundingClientRect=()=>({left:0,top:0,width:640,height:400});
+  for(const [key,value]of Object.entries({clientWidth:640,clientHeight:400,clientLeft:0,clientTop:0}))Object.defineProperty(screen,key,{value});
+  async function waitFor(check){for(let n=0;n<300;n++){lifetime.remaining();if(check())return;await lifetime.sleep(50);}assert.ok(check(),$('status').textContent);}
+  const ready=()=>w.document.body.dataset.state==='ready'&&!$('refresh').disabled;
+  await waitFor(ready);assert.ok(screen.src.startsWith('data:image/jpeg;base64,/9j/'));
+  screen.dispatchEvent(new w.MouseEvent('click',{clientX:45,clientY:60,bubbles:true}));
+  await waitFor(()=>!$('allow').disabled);assert.match($('request').textContent,/https:\/\/nested.example.org/);assert.equal(posts.length,0);
+  $('allow').click();await waitFor(ready);assert.deepEqual(posts,['owned-click']);
+  assert.equal(viewerRequests.filter(x=>x.route==='/decision').length,1);
+  const command=viewerRequests.find(x=>x.route==='/input').input;
+  assert.deepEqual(command.input,{type:'click',x:90,y:120});assert.equal((await api('/input',command)).state,'succeeded');assert.equal(posts.length,1);
+  screen.dispatchEvent(new w.MouseEvent('click',{clientX:50,clientY:70,bubbles:true}));await waitFor(ready);
+  $('text').value='SYNTHETIC_HUMAN_SECRET';$('type').click();await waitFor(ready);assert.equal($('text').value,'');
+  $('finish').click();await waitFor(()=>w.document.body.dataset.state==='agent_control');assert.equal(screen.hidden,true);
+  assert.equal((await agent.call({name:'browser_handoff',arguments:{sessionId,action:'status'}})).state,'agent_control');
   const extracted=await client.call('browser_extract',{sessionId});assert.match(extracted.markdown,/Frame team/);assert.match(extracted.markdown,/REDACTED/);assert.doesNotMatch(JSON.stringify(extracted),/SYNTHETIC_HUMAN_SECRET/);assert.equal(extracted.source.privacy,'private');
   await client.call('browser_close',{sessionId});assert.equal(runtime.manager.diagnostics().active,0);assert.deepEqual(fs.readdirSync(tempRoot),[]);
-  console.log('PASS: exact worker nested cross-site/OOPIF early-request containment; signed host HTTP + one-use loopback viewer; no agent control during takeover; one explicit private recipient approval; original human action idempotent; screenshot/click/text same remote session; secret redaction; Return to agent/private evidence and cleanup. Owned synthetic UI only; no real CAPTCHA automated.');
- }finally{await host?.close();await runtime?.stop();httpServer?.closeAllConnections();if(httpServer)await new Promise(r=>httpServer.close(r));await proxy?.close();lifetime.close();server.closeAllConnections();await new Promise(r=>server.close(r));fs.rmSync(tempRoot,{recursive:true,force:true});}
+  console.log('PASS: exact worker nested cross-site/OOPIF early-request containment; signed host HTTP + actual delivered viewer DOM click/decision/type/return handlers; no agent control during takeover; one explicit private recipient approval; original human action idempotent; screenshot/click/text same remote session; secret redaction; Return to agent/private evidence and cleanup. Owned synthetic UI only; no real CAPTCHA automated.');
+ }finally{if(viewer){viewer.window.dispatchEvent(new viewer.window.Event('pagehide'));viewer.window.close();}await host?.close();await runtime?.stop();httpServer?.closeAllConnections();if(httpServer)await new Promise(r=>httpServer.close(r));await proxy?.close();lifetime.close();server.closeAllConnections();await new Promise(r=>server.close(r));fs.rmSync(tempRoot,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

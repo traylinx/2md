@@ -11,7 +11,7 @@ if not image.startswith('sha256:') or len(image) != 71:
 fixture = sys.argv[2] if len(sys.argv) > 2 else 'privateWorker.integration.cjs'
 if fixture not in {'privateWorker.integration.cjs', 'dynamicJourney.integration.cjs', 'spaWorker.integration.cjs', 'genericFieldsWorker.integration.cjs', 'agentInputWorker.integration.cjs', 'humanWorker.integration.cjs', 'frameGuard.integration.cjs', 'passiveWorker.integration.cjs'}:
     raise SystemExit('Unsupported owned fixture')
-if len(sys.argv) > 4 or (len(sys.argv) > 3 and sys.argv[3] not in {'--rpc', '--rpc-heldout', '--rpc-heldout-spa', '--reject', '--crash', '--crash-before-auth'}):
+if len(sys.argv) > 4 or (len(sys.argv) > 3 and sys.argv[3] not in {'--rpc', '--rpc-heldout', '--rpc-heldout-spa', '--reject', '--crash', '--crash-before-auth', '--viewer-source'}):
     raise SystemExit('Unsupported owned fixture mode')
 rpc = len(sys.argv) > 3 and sys.argv[3] in {'--rpc','--rpc-heldout','--rpc-heldout-spa'}
 tests = pathlib.Path(__file__).resolve().parent
@@ -37,6 +37,13 @@ with tempfile.TemporaryDirectory(prefix='gb01-private-owned-') as directory:
             '-e', 'FIXTURE_CHROMIUM_WRAPPER=/fixture/chromium', image, 'node', '-e',
             'require("./lib/browser/processProtection").verifyProcessProtection(); require("./tests/browser/' + fixture + '")']
     # Fixture itself owns a bounded lifetime and finally closes browser/proxy.
+    if len(sys.argv)>3 and sys.argv[3]=='--viewer-source':
+        if fixture!='humanWorker.integration.cjs':raise SystemExit('Viewer source mode requires human fixture')
+        # Local-host-only UI release against the unchanged exact remote image.
+        # Never describe this overlay as a new exact-image qualification.
+        for module in ['humanSurface.js', 'humanViewer.js']:
+            source = tests.parents[1] / 'lib' / 'browser' / module
+            args[2:2] = ['--mount', f'type=bind,src={source},dst=/app/lib/browser/{module},readonly']
     if len(sys.argv)>3 and sys.argv[3]=='--reject':
         if fixture!='privateWorker.integration.cjs':
             raise SystemExit('Rejection mode requires private fixture')

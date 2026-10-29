@@ -277,3 +277,26 @@ Known expired/used/replaced links now show these explanations rather than claimi
 the caller lacks permission. Unknown links and invalid host/origin requests still
 fail closed. Diagnostic history is bounded and stores link digests, not passwords
 or browser contents. No uncertain submission is replayed to recover a link.
+
+### The viewer opens but stops responding
+
+The viewer now shows its remaining time and refreshes idle frames before their
+30-second input validity expires. It disables input while a request is running or
+the displayed frame is stale. A failed request clears the old image instead of
+leaving a screen that looks clickable but cannot accept input.
+
+If a response is lost, the viewer waits at most ten seconds, then checks the
+original action receipt. It does **not** repeat your click, typing or submission.
+Read-only recovery is bounded to five automatic attempts. If recovery pauses, use
+**Refresh view / recover status**; the original error remains visible. If a request
+needs your decision, the viewer presents **Allow this request** and **Deny**.
+
+When the countdown expires or the runtime reports `SESSION_LOST`, the viewer
+clears its image and text and disables all input. That link cannot be revived.
+Return to your agent for a fresh session. After completing an active handoff,
+choose **Return to agent**, then tell your agent to continue from a fresh observation.
+
+This correction belongs to the **local MCP host**, not the remote browser image.
+After updating the source installation, reconnect MCP or restart the calling
+application. An already running MCP process or open viewer retains its old code.
+Do not reuse an expired link to test the update.

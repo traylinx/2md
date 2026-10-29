@@ -1,3 +1,24 @@
+## Local human-viewer interaction correction — 29 October 2026
+
+The local MCP viewer now disables stale input, clears failed/expired images,
+recovers only the original action receipt, bounds a slow transport to ten seconds,
+refreshes frames before their worker expiry, and displays an active countdown.
+Remote authority, request consent and session lifetime limits are unchanged.
+
+Validation: **19 focused checks passed**. Actual delivered viewer DOM handlers
+also passed against the existing exact runtime image in the owned nested-frame
+fixture, including click, pending request decision, text, return, private result
+redaction and cleanup. Only local-host UI sources were mounted into that test;
+this is not a new runtime image qualification. Native Chrome additionally verified
+click/text/scroll/key, lost-response recovery with one submission, and return using
+an owned synthetic fixture. No real CAPTCHA was automated.
+
+Release scope is local-host source; reconnect the installed MCP process to load
+the update. No Kubernetes/AUTH/Workspace deployment is required. Expired sessions
+cannot be revived. Real password login and organization extraction remain **open**.
+Detailed evidence lives in the workspace at
+`docs/evidence/gb01-viewer-interaction-2026-10-29/`.
+
 ## Internal authority outage and human-lease correction — deployed
 
 Runtime source `93f71de` / `083ffca`, main and production published. Private image
