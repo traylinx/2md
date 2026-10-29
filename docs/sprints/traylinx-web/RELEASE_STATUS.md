@@ -1,3 +1,24 @@
+## Agent-supplied input — released, 29 October 2026
+
+- Commits42feef9 andf1eec7f published on main/production. Dedicated browser runtime
+  uses private immutable image `sha256:2f90f7c221199a1ff06eb956471a762c026bc84d5c1c9ac89b2c96e7f1104814`,
+  1/1 ready. Existing production workflow40843056085 succeeded. Egress unchanged.
+- Explicit enrolled-host delegation lets an agent reuse values already supplied
+  by the user, with no repeated owner pairing/form. Generic observed fields and
+  digest-bound held-operation decisions; no website recipe. Protected-owner input
+  remains default for other hosts. See [setup](../../generic-browser-setup.md).
+- 49 focused checks passed;24 auth-boundary checks after the duplicate-lookup fix
+  also passed (overlapping suites). Exact-image real Chromium generic native/SPA,
+  cross-origin continuation, private redaction/cleanup and legacy private flow pass.
+- Normal installed MCP live check accepted supplied values without re-entry and
+  clicked Verify Access. The website then required reCAPTCHA. Password not sent,
+  organization not read, session closed. Full real-account login is NOT verified.
+  Existing clients must restart to load the new input schema/instructions.
+- Rollback: prior browser imagea19633c..., remove delegated-host setting, restore
+  local protected_owner mode. No database migration or legacy-consumer change.
+
+---
+
 ## Generic agent-directed protected input — 29 October 2026
 
 - Runtime source8030412 deployed in dedicated browser service, immutable private
