@@ -12,7 +12,8 @@ async function setup(options={}){
  const client={protectedCall:async(name,input)=>{
   calls.push({name,input});const custom=await options.remote?.(name,input);if(custom)return custom;
   if(name==='human-activate')return {...record,expiresAt:time+300000};
-  if(name==='human-view')return {...record,expiresAt:time+300000,state:remoteState,...(action?{action}:{}),...(pending?{pending}:{}),...(!pending?{frame:{frameId:'f'+(++frames),jpeg:'synthetic',width:1280,height:800,origin:'https://owned.example'}}:{})};
+  if(name==='human-interact')action={runtimeEpoch:'e1',sessionId:'s',actionId:input.actionId,state:'succeeded'};
+  if(name==='human-view'||name==='human-interact')return {...record,expiresAt:time+300000,state:remoteState,...(action?{action}:{}),...(pending?{pending}:{}),...(!pending?{frame:{frameId:'f'+(++frames),jpeg:'synthetic',width:1280,height:800,origin:'https://owned.example'}}:{})};
   if(name==='human-state')return {...record,state:remoteState,...(action?{action}:{}),...(pending?{pending}:{})};
   if(name==='human-frame')return {frameId:'f'+(++frames),jpeg:'synthetic',width:1280,height:800,origin:'https://owned.example'};
   if(name==='human-input'){action={runtimeEpoch:'e1',sessionId:'s',actionId:input.actionId,state:'succeeded'};return action;}
@@ -21,7 +22,7 @@ async function setup(options={}){
   throw Error(name);
  }};
  const surface=await createHumanSurface({client,now:()=>time});
- const launch=await fetch(surface.urlFor(record,'e1',{viewerV2:options.viewerV2===true}),{redirect:'manual'}),cookie=launch.headers.get('set-cookie').split(';')[0];
+ const launch=await fetch(surface.urlFor(record,'e1',{viewerV2:options.viewerV2===true,interaction:options.interaction===true}),{redirect:'manual'}),cookie=launch.headers.get('set-cookie').split(';')[0];
  const origin=new URL(launch.url).origin,html=await(await fetch(origin+'/viewer',{headers:{cookie}})).text();
  const dom=new JSDOM(html,{url:origin+'/viewer',runScripts:'dangerously',beforeParse(w){
   w.Date.now=()=>time;w.AbortController=AbortController;w.HTMLImageElement.prototype.decode=async()=>{};
@@ -124,5 +125,30 @@ test('running receipt is polled read-only; unknown outcome never enables another
   f.click();await f.wait('ready');assert.equal(f.calls.filter(c=>c.name==='human-input').length,1);
   assert.equal(f.calls.filter(c=>c.name==='human-view').length,2);
   assert.equal(f.calls.filter(c=>c.name==='human-activate').length,1);
+ }finally{await f.close();}
+});
+
+test('coupled interaction preserves disabled pixels/layout while awaiting a single response, never queues extra clicks',async()=>{
+ let release;const f=await setup({viewerV2:true,interaction:true,transport:async(path,_,r)=>path==='/interact'?new Promise(resolve=>release=()=>resolve(r)):r});
+ try{
+  await f.wait('ready');const src=f.$('screen').src;f.click();await until(()=>release);
+  assert.equal(f.$('screen').hidden,false);assert.equal(f.$('screen').src,src);assert.equal(f.$('screenCover').hidden,false);
+  assert.equal(f.$('screen').getAttribute('aria-disabled'),'true');assert.equal(f.$('screen').style.pointerEvents,'none');
+  f.click();f.$('type').click();assert.equal(f.calls.filter(c=>c.name==='human-interact').length,1);
+  release();await f.wait('ready');assert.equal(f.$('screenCover').hidden,true);
+  assert.equal(f.calls.filter(c=>c.name==='human-view').length,1);assert.equal(f.calls.filter(c=>c.name==='human-input').length,0);
+ }finally{await f.close();}
+});
+test('lost coupled response hides old pixels and recovers only original receipt; no legacy input fallback',async()=>{
+ let fail=true;const f=await setup({viewerV2:true,interaction:true,transport:(path,_,r)=>{if(path==='/interact'&&fail){fail=false;throw Error('lost');}return r;}});
+ try{await f.wait('ready');f.click();await f.wait('recovering');assert.equal(f.$('screen').hidden,true);assert.equal(f.$('screenCover').hidden,true);
+  await f.timer(3000);await f.wait('ready');assert.equal(f.calls.filter(c=>c.name==='human-interact').length,1);assert.equal(f.calls.filter(c=>c.name==='human-input').length,0);
+ }finally{await f.close();}
+});
+test('expiry clears retained image during delayed coupled response and late success cannot restore it',async()=>{
+ let release;const f=await setup({viewerV2:true,interaction:true,transport:async(path,_,r)=>path==='/interact'?new Promise(resolve=>release=()=>resolve(r)):r});
+ try{await f.wait('ready');f.click();await until(()=>release);assert.equal(f.$('screen').hidden,false);
+  f.advance(300001);await f.timer(250);await f.wait('expired');release();await turn();await turn();
+  assert.equal(f.state(),'expired');assert.equal(f.$('screen').hasAttribute('src'),false);assert.equal(f.$('screenCover').hidden,true);
  }finally{await f.close();}
 });

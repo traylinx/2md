@@ -5,10 +5,10 @@ const {createBrowserHumanRouter}=require('../../routes/browserHuman');
 const lease={sessionId:'s',handoffId:'h'},base={...lease,state:'human_control',expiresAt:Date.now()+180000};
 const frame={frameId:'f',jpeg:'owned-synthetic',width:1280,height:800,origin:'https://example.com'};
 function fixture({state=base,revoke=false}={}){
- let checks=0,frames=0;const a=express();a.use('/api/browser/v1',createBrowserHumanRouter({enabled:true,resolveCaller:async()=>{checks++;if(revoke&&checks===2)c.deny('PERMISSION_REQUIRED');return bound;},verifyHost:async()=>{},manager:{humanState:async()=>state,humanFrame:async()=>{frames++;return frame;},activateHuman:async()=>base},operations:{inspect:async()=>{throw Error('unexpected');}}}));return {a,counts:()=>({checks,frames})};
+ let checks=0,frames=0,inputs=0;const a=express();a.use('/api/browser/v1',createBrowserHumanRouter({enabled:true,resolveCaller:async()=>{checks++;if(revoke&&checks===2)c.deny('PERMISSION_REQUIRED');return bound;},verifyHost:async()=>{},manager:{humanInput:async()=>{inputs++;return state.action;},humanState:async()=>state,humanFrame:async()=>{frames++;return frame;},activateHuman:async()=>base},operations:{inspect:async()=>{throw Error('unexpected');}}}));return {a,counts:()=>({checks,frames,inputs})};
 }
 test('combined frame remains signed/authorized before and after, pending states never expose pixels',async()=>{
- const f=fixture();const r=await request(f.a).post('/api/browser/v1/human-view').send(lease).expect(200);assert.equal(r.body.frame.frameId,'f');assert.deepEqual(f.counts(),{checks:2,frames:1});assert.equal(r.headers['cache-control'],'no-store');
+ const f=fixture();const r=await request(f.a).post('/api/browser/v1/human-view').send(lease).expect(200);assert.equal(r.body.frame.frameId,'f');assert.deepEqual(f.counts(),{checks:2,frames:1,inputs:0});assert.equal(r.headers['cache-control'],'no-store');
  for(const state of ['running','outcome_unknown']){const f=fixture({state:{...base,action:{runtimeEpoch:'e1',actionId:'a',sessionId:'s',state}}});const r=await request(f.a).post('/api/browser/v1/human-view').send(lease).expect(200);assert.equal(r.body.frame,undefined);assert.equal(f.counts().frames,0);}
  const revoked=fixture({revoke:true});const denied=await request(revoked.a).post('/api/browser/v1/human-view').send(lease).expect(403);assert.doesNotMatch(JSON.stringify(denied.body),/owned-synthetic/);
  await request(f.a).post('/api/browser/v1/human-view').set('Origin','https://evil.example').send(lease).expect(403);
@@ -21,4 +21,13 @@ test('viewer capability is explicit opt-in and false when private human access i
   assert.equal((await service.call('get_browser_capabilities',{includeHuman:true},bound)).humanViewAvailable,undefined);
   assert.equal((await service.call('get_browser_capabilities',{includeHumanView:true},bound)).humanViewAvailable,enabled);
  }
+});
+
+test('coupled input returns original receipt/frame inside one pre/post authorization boundary',async()=>{
+ const action={runtimeEpoch:'e1',actionId:'a',sessionId:'s',state:'succeeded'},input={...lease,runtimeEpoch:'e1',actionId:'a',frameId:'f',input:{type:'click',x:1,y:1}};
+ const f=fixture({state:{...base,action}});const r=await request(f.a).post('/api/browser/v1/human-interact').send(input).expect(200);
+ assert.equal(r.body.action.actionId,'a');assert.equal(r.body.frame.frameId,'f');assert.deepEqual(f.counts(),{checks:2,inputs:1,frames:1});
+ const denied=fixture({state:{...base,action},revoke:true});const failure=await request(denied.a).post('/api/browser/v1/human-interact').send(input).expect(403);assert.equal(failure.body.frame,undefined);assert.equal(denied.counts().inputs,1);
+ const uncertain=fixture({state:{...base,action:{...action,state:'outcome_unknown'}}});const u=await request(uncertain.a).post('/api/browser/v1/human-interact').send(input).expect(200);assert.equal(u.body.frame,undefined);
+ await request(f.a).post('/api/browser/v1/human-interact').send({...input,input:{type:'script',text:'not permitted'}}).expect(400);
 });

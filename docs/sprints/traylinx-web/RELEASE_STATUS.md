@@ -1,3 +1,22 @@
+## Viewer input round-trip correction — candidate
+
+Latest user evidence confirms6–8second input+view cycles despite successful HTTP200
+responses. The page was intentionally hidden between those requests. The previous
+release fixed handoff timing, not the repeated-input UX.
+
+Candidate negotiates `humanInteractionAvailable`: one protected human-interact
+response contains the original action receipt and fresh frame. Legacy callers
+retain their existing endpoints/shapes. Keep the previous frame visible but
+non-interactive under an Updating view overlay during normal work; decode the new
+image before replacement. Errors, unknown outcomes and expired/revoked authority
+still clear/disable pixels; uncertain input is never replayed. No timer increase,
+site-specific bypass or change to current authority/recipient checks.
+
+51 focused checks passed. Exact committed-source repeated-click fixture and actual
+production timing verification pending. Evidence in workspace
+`docs/evidence/gb01-viewer-roundtrip-2026-10-29/`. Full private user journey remains
+open; do not infer usability from publication or a health-only check.
+
 ## Human-viewer production timing correction — deployed29October2026
 
 Runtime source `f5aa5c8`, published main/production. Private image

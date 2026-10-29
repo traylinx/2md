@@ -59,14 +59,23 @@ const server=https.createServer({key:fs.readFileSync(process.env.FIXTURE_KEY),ce
   assert.equal(viewerRequests.filter(x=>x.route==='/decision').length,1);
   assert.equal(viewerRequests.filter(x=>x.route==='/activate').length,1);assert.ok(viewerRequests.some(x=>x.route==='/view'));
   assert.equal(viewerRequests.filter(x=>['/state','/frame'].includes(x.route)).length,0);
-  const command=viewerRequests.find(x=>x.route==='/input').input;
+  const command=viewerRequests.find(x=>x.route==='/interact').input;
   assert.deepEqual(command.input,{type:'click',x:90,y:120});assert.equal((await api('/input',command)).state,'succeeded');assert.equal(posts.length,2);
-  screen.dispatchEvent(new w.MouseEvent('click',{clientX:50,clientY:70,bubbles:true}));await waitFor(ready);
+  const viewCount=viewerRequests.filter(x=>x.route==='/view').length;
+  // Repeated ordinary field-focus clicks preserve the image and consume exactly
+  // one interaction request apiece, not a second refresh for every pointer event.
+  for(let i=0;i<6;i++){
+   screen.dispatchEvent(new w.MouseEvent('click',{clientX:50,clientY:70,bubbles:true}));
+   assert.equal(screen.hidden,false);assert.equal($('screenCover').hidden,false);assert.equal(screen.getAttribute('aria-disabled'),'true');
+   await waitFor(ready);assert.equal($('screenCover').hidden,true);
+  }
+  assert.equal(viewerRequests.filter(x=>x.route==='/view').length,viewCount);
+  assert.equal(viewerRequests.filter(x=>x.route==='/interact').length,7);
   $('text').value='SYNTHETIC_HUMAN_SECRET';$('type').click();await waitFor(ready);assert.equal($('text').value,'');
   $('finish').click();await waitFor(()=>w.document.body.dataset.state==='agent_control');assert.equal(screen.hidden,true);
   assert.equal((await agent.call({name:'browser_handoff',arguments:{sessionId,action:'status'}})).state,'agent_control');
   const extracted=await client.call('browser_extract',{sessionId});assert.match(extracted.markdown,/Frame team/);assert.match(extracted.markdown,/REDACTED/);assert.doesNotMatch(JSON.stringify(extracted),/SYNTHETIC_HUMAN_SECRET/);assert.equal(extracted.source.privacy,'private');
   await client.call('browser_close',{sessionId});assert.equal(runtime.manager.diagnostics().active,0);assert.deepEqual(fs.readdirSync(tempRoot),[]);
-  console.log('PASS: exact worker nested cross-site/OOPIF early-request containment; signed host HTTP + actual delivered viewer DOM click/decision/type/return handlers; no agent control during takeover; one private recipient approval after31s human wait; combined view with2.8s transport delay; original human action idempotent; screenshot/click/text same remote session; secret redaction; Return to agent/private evidence and cleanup. Owned synthetic UI only; no real CAPTCHA automated.');
+  console.log('PASS: exact worker nested cross-site/OOPIF early-request containment; signed host HTTP + actual delivered viewer DOM click/decision/type/return handlers; no agent control during takeover; one private recipient approval after31s human wait; combined view with2.8s transport delay; six subsequent pointer inputs each use one interaction response and preserve disabled image; original human action idempotent; screenshot/click/text same remote session; secret redaction; Return to agent/private evidence and cleanup. Owned synthetic UI only; no real CAPTCHA automated.');
  }finally{if(viewer){viewer.window.dispatchEvent(new viewer.window.Event('pagehide'));viewer.window.close();}await host?.close();await runtime?.stop();httpServer?.closeAllConnections();if(httpServer)await new Promise(r=>httpServer.close(r));await proxy?.close();lifetime.close();server.closeAllConnections();await new Promise(r=>server.close(r));fs.rmSync(tempRoot,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

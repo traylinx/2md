@@ -285,8 +285,10 @@ or browser contents. No uncertain submission is replayed to recover a link.
 
 The viewer now shows its remaining time and refreshes idle frames before their
 30-second input validity expires. It disables input while a request is running or
-the displayed frame is stale. A failed request clears the old image instead of
-leaving a screen that looks clickable but cannot accept input.
+the displayed frame is stale. During normal input or refresh, the previous image
+stays in place under an Updating view overlay. It cannot accept additional clicks.
+The next image is decoded before replacement, avoiding a blank page and layout
+jumps. A transport failure or revoked/expired session still clears the image.
 
 If a response is lost, the viewer waits at most ten seconds, then checks the
 original action receipt. It does **not** repeat your click, typing or submission.
@@ -301,7 +303,11 @@ choose **Return to agent**, then tell your agent to continue from a fresh observ
 
 The timing/transport correction requires the updated **local MCP host and remote
 browser image**. The host negotiates support; older runtimes keep the legacy flow.
-Status and a ready image share one authorized round trip. While the user reviews a
+When `humanInteractionAvailable` is negotiated, each normal click/type/scroll
+returns its original receipt and updated image together; no second view request
+is needed. A lost response is recovered through status/view only, never a fallback
+input submission. Status and a ready image also share one authorized round trip.
+Human consent and in-flight operations may still require further status reads. While the user reviews a
 held request, only the remaining execution time of that human action is preserved;
 request budgets, explicit recipient consent and session expiry remain enforced.
 After updating the source installation, reconnect MCP or restart the calling
