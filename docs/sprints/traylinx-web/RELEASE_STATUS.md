@@ -1,3 +1,18 @@
+## GB01 controlled browser release — 29 October 2026
+
+Dedicated runtime/egress are live on immutable image
+`ghcr.io/traylinx/web-intelligence-agent@sha256:d389f7c00ea79e5b460e3a64101dd0b5a12a8d25d7480086dac319b71bcf92df`.
+Owner frontend productiond2d45b2 and Workspace productiond53e557 deployed.
+Actual owner enrollment, scoped host connection, anonymous401 and neutral stdio MCP
+public extraction/action recovery/close passed. Browser routes are OPEN; existing
+legacy services/routes were not replaced. Release pause plugin remains available.
+
+Full GB01 completion is NOT claimed. Released agentic-client/private acceptance,
+final rollback/compatibility evidence and acceptance reconciliation remain open.
+See workspace `docs/sprints/CURRENT_STATUS.md` and [host setup](../../generic-browser-setup.md).
+
+---
+
 ## Capture fidelity and authenticated MCP — deployed, 28 October 2026
 
 Runtime `4e907b8e83c5e8fdb44180e6136b242490f2447b` is deployed on capture/egress:

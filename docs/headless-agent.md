@@ -1,7 +1,12 @@
-## Generic browser MCP candidate: implementation in qualification
+## Generic browser MCP: controlled live release, 29 October 2026
 
-**GB01 is not yet published or deployed.** The released adapter described below
-remains available unchanged. Reconnecting it does not enable this candidate.
+The dedicated browser service and owner connection page are deployed. Live owner
+connection and public extraction through MCP passed. Full GB01 acceptance is still
+open: released agentic-client/private journeys and final release verification must
+not be inferred from candidate tests. Existing read/capture tools remain unchanged.
+
+Browser tools require the new host connection configuration; reconnecting an old
+configuration alone does not enable them. Follow the [host setup guide](generic-browser-setup.md).
 
 The generic browser candidate gives any compatible agentic application tools to
 choose its own navigation and login workflow. It does not require a configured
@@ -28,8 +33,8 @@ fact that the MCP server is connected: check `get_browser_capabilities`.
 Optional portable guidance is in
 [`skills/traylinx-browser/SKILL.md`](../skills/traylinx-browser/SKILL.md). It is not
 required for tool discovery and is not automatically installed. Candidate public
-journeys have passed in Codex and Claude; private-client and remaining release
-qualification are tracked separately. Owned fixture results do not prove login to
+and owned private journeys have passed in Codex and Claude; released-client and
+real-site private qualification are tracked separately. Owned fixture results do not prove login to
 an arbitrary real website, and no website can be promised universally accessible.
 Do not use test-fixture MCP configuration or synthetic credentials in production.
 

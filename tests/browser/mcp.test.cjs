@@ -60,3 +60,17 @@ test('client-neutral instructions forbid inferred account mismatch from unrelate
  assert.match(instructions,/stop before opening private messages/);
  assert.match(instructions,/identity is absent, say it is unverified/);
 });
+
+test('browser discovery uses portable schemas while server URL enforcement stays strict',async()=>{
+ let calls=0;
+ const agent=createBrowserMcpAgent({backend:{call:async()=>{calls++;}}});
+ const formats=[];
+ function visit(value){if(!value||typeof value!=='object')return;if(value.format)formats.push(value.format);for(const item of Object.values(value))visit(item);}
+ visit(agent.definitions);assert.ok(formats.length>0);assert.ok(formats.every(x=>x==='uri'));
+ assert.equal(c.schemas.browser_open.properties.url.format,'public-https');
+ for(const url of ['http://example.org','https://127.0.0.1','https://example.org:8443']){
+  await assert.rejects(agent.call({name:'browser_open',arguments:{runtimeEpoch:'epoch',actionId:'act',url,purpose:'Read',mode:'public'}}),e=>e.code==='TARGET_DENIED');
+ }
+ await assert.rejects(agent.call({name:'browser_credentials',arguments:{sessionId:'session',origin:'https://example.org/path',purpose:'Read'}}));
+ assert.equal(calls,0);
+});
